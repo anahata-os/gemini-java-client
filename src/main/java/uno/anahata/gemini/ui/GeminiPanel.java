@@ -29,7 +29,7 @@ import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.functions.spi.ContextWindow;
-import uno.anahata.gemini.ui.render.ComponentContentRenderer2;
+import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ContextListener;
 
 public class GeminiPanel extends JPanel implements ContextListener {
@@ -257,7 +257,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
             } else {
                 if (c != null) {
-                    ComponentContentRenderer2 renderer = new ComponentContentRenderer2(editorKitProvider);
+                    ContentRenderer renderer = new ContentRenderer(editorKitProvider);
                     int contentIdx = chat.getContextManager().getContext().indexOf(c);
                     JComponent messageComponent = renderer.render(c, contentIdx);
                     chatContentPanel.add(messageComponent);
@@ -300,7 +300,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         for (Content contentItem : chat.getContext()) {
             if (contentItem != null) {
-                ComponentContentRenderer2 renderer = new ComponentContentRenderer2(editorKitProvider);
+                ContentRenderer renderer = new ContentRenderer(editorKitProvider);
                 int contentIdx = chat.getContextManager().getContext().indexOf(contentItem);
                 JComponent messageComponent = renderer.render(contentItem, contentIdx);
                 chatContentPanel.add(messageComponent);

@@ -2,7 +2,7 @@ package uno.anahata.gemini.ui;
 
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 import uno.anahata.gemini.ui.render.PartRenderer;
-import uno.anahata.gemini.ui.render.ComponentContentRenderer2;
+import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer;
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
@@ -84,8 +84,8 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     private void initComponents(Content modelResponse, int contentIdx, Set<String> alwaysApprove, Set<String> neverApprove) {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
 
-        ComponentContentRenderer2 renderer = new ComponentContentRenderer2(editorKitProvider);
-        PartRenderer defaultFcRenderer = renderer.getDefaultRendererForType(ComponentContentRenderer2.PartType.FUNCTION_CALL);
+        ContentRenderer renderer = new ContentRenderer(editorKitProvider);
+        PartRenderer defaultFcRenderer = renderer.getDefaultRendererForType(ContentRenderer.PartType.FUNCTION_CALL);
 
         final List<? extends Part> parts = modelResponse.parts().get();
         

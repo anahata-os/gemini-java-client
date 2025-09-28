@@ -66,7 +66,7 @@ public class TextPartRenderer implements PartRenderer {
     }
 
     private JComponent createHtmlPane(String html) {
-        JEditorPane editorPane = new ComponentContentRenderer2.WrappingEditorPane();
+        JEditorPane editorPane = new ContentRenderer.WrappingEditorPane();
         editorPane.setEditable(false);
         editorPane.setContentType("text/html");
         editorPane.setOpaque(false); 

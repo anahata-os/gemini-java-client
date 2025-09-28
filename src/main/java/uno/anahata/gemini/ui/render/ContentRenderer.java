@@ -35,7 +35,7 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
  *
  * @author pablo-ai
  */
-public class ComponentContentRenderer2 {
+public class ContentRenderer {
 
     public enum PartType {
         TEXT, FUNCTION_CALL, FUNCTION_RESPONSE, BLOB
@@ -45,7 +45,7 @@ public class ComponentContentRenderer2 {
     private final Map<Part, PartRenderer> instanceRendererMap;
     private final EditorKitProvider editorKitProvider;
 
-    public ComponentContentRenderer2(EditorKitProvider editorKitProvider) {
+    public ContentRenderer(EditorKitProvider editorKitProvider) {
         this.editorKitProvider = editorKitProvider;
         this.typeRendererMap = new HashMap<>();
         this.instanceRendererMap = new HashMap<>();
