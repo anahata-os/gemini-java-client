@@ -110,48 +110,6 @@ public class RunningJVM {
         RunningJVM.parentClassLoader = defaultParentClassLoader;
     }
 
-    /*
-    @AutomaticFunction("Finds a Gem by its ID (filename) in the 'gemsDirPath' directory, compiles it, and executes it, returning the result.")
-    public static Object runGem(@AutomaticFunction("The filename of the Gem to run, e.g., 'getWorkspaceOverview.java'") String gemId) throws Exception {
-        logger.log(Level.INFO, "Executing Gem with ID: {0}", gemId);
-
-        Path gemPath = Paths.get(gemsDirPath, gemId);
-
-        if (!Files.exists(gemPath)) {
-            throw new java.io.FileNotFoundException("Gem not found at: " + gemPath);
-        }
-
-        String sourceCode = Files.readString(gemPath);
-        // Using null for extraClassPath and compilerOptions as Gems are expected to be self-contained.
-        return compileAndExecuteJava(sourceCode, null, null);
-    }
-
-    @AutomaticFunction("Gets the file names of all available Gems in the gemsDirPath directory.")
-    public static List<String> getGemIds() {
-
-        Path gemsPath = Paths.get(gemsDirPath);
-
-        if (gemsPath == null) {
-            logger.log(Level.WARNING, "Gems dir path not found at: {0}", gemsPath);
-            return Collections.emptyList();
-        }
-
-        if (!Files.isDirectory(gemsPath)) {
-            logger.log(Level.WARNING, "Gems dir path is not a directory at: {0}", gemsPath);
-            return Collections.emptyList();
-        }
-
-        try (Stream<Path> paths = Files.list(gemsPath)) {
-            return paths
-                    .filter(path -> path.toString().endsWith(".java"))
-                    .map(path -> path.getFileName().toString())
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error reading Gems directory", e);
-            return Collections.singletonList("Error reading Gems directory: " + e.getMessage());
-        }
-    }
-*/
     @AITool("Compiles the source code of a java class with whatever classpath is defined in RunningJVM.getDefaultCompilerClassPath")
     public static Class compileJava(
             @AITool("The source code")
