@@ -17,37 +17,39 @@ import java.util.List;
  */
 public class Patch {
 
-    @AITool("Applies a unified diff patch to a file. It uses the lastModified timestamp from the FileInfo object as a precondition to prevent conflicts. Returns the updated FileInfo object of the patched file.")
+    @AITool("Applies a unified diff patch to a file. It reads the file from disk, verifies its lastModified timestamp as a precondition, applies the patch, and writes the changes back. Returns the updated FileInfo.")
     public static FileInfo applyPatch(
-            @AITool("The FileInfo object of the file to be patched. This must contain the original content and the correct lastModified timestamp.")
-            FileInfo fileInfo,
+            @AITool("The absolute path of the file to be patched.")
+            String path,
+            @AITool("The expected lastModified timestamp of the file on disk. This is a precondition to prevent overwriting concurrent changes. OPTIMISTIC USAGE: If you have just performed a successful write/patch, you can use the 'lastModified' from the returned FileInfo object for the next immediate patch on the same file, saving a 'readFile' call.")
+            long lastModified,
             @AITool("The unified diff patch content as a string.")
             String patch
     ) throws IOException, PatchFailedException {
-        Path filePath = Paths.get(fileInfo.path);
+        Path filePath = Paths.get(path);
 
         if (!Files.exists(filePath)) {
-            throw new IOException("File to patch does not exist: " + fileInfo.path);
+            throw new IOException("File to patch does not exist: " + path);
         }
 
-        // Precondition Check: Ensure the file on disk hasn't changed since it was read.
+        // Precondition Check: Ensure the file on disk hasn't changed since it was last known.
         long currentLastModified = Files.getLastModifiedTime(filePath).toMillis();
-        if (currentLastModified != fileInfo.lastModified) {
-            throw new IOException("File modification conflict. The file at " + fileInfo.path +
-                                  " was modified on disk after it was read. Expected timestamp: " + fileInfo.lastModified +
+        if (currentLastModified != lastModified) {
+            throw new IOException("File modification conflict. The file at " + path +
+                                  " was modified on disk after it was read. Expected timestamp: " + lastModified +
                                   ", but found: " + currentLastModified);
         }
 
-        List<String> originalLines = fileInfo.content.lines().toList();
+        List<String> originalLines = Files.readAllLines(filePath);
         List<String> patchLines = patch.lines().toList();
 
         com.github.difflib.patch.Patch<String> diff = UnifiedDiffUtils.parseUnifiedDiff(patchLines);
         List<String> patchedLines = DiffUtils.patch(originalLines, diff);
-        String newContent = String.join("\n", patchedLines);
+        String newContent = String.join(System.lineSeparator(), patchedLines);
 
         Files.writeString(filePath, newContent);
 
         // Return the new, updated FileInfo
-        return LocalFiles2.readFile(fileInfo.path);
+        return LocalFiles.readFile(path);
     }
 }

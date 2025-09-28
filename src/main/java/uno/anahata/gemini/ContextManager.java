@@ -33,7 +33,7 @@ public class ContextManager {
     public ContextManager(GeminiConfig config, ContextListener listener) {
         this.config = config;
         this.listener = listener;
-        restoreSession();
+        //restoreSession();
     }
 
     public static ContextManager get() {
@@ -237,8 +237,8 @@ public class ContextManager {
     }
 
     private Path getAutoBackupPath() throws IOException {
-        File workDir = GeminiConfig.getWorkingFolder("autobackup");
-        String filename = "autobackup-" + config.getApplicationInstanceId() + "-" + getContextId() + ".json";
+        File workDir = GeminiConfig.getWorkingFolder("sessions");
+        String filename = "autobackup-" + getContextId() + ".json";
         return workDir.toPath().resolve(filename);
     }
     
@@ -251,7 +251,7 @@ public class ContextManager {
             logger.log(Level.SEVERE, "Failed to create automatic session backup", e);
         }
     }
-
+    /*
     private void restoreSession() {
         try {
             Path backupPath = getAutoBackupPath();
@@ -265,5 +265,5 @@ public class ContextManager {
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to restore session from automatic backup", e);
         }
-    }
+    }*/
 }

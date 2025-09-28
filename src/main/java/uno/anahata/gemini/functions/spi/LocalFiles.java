@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * for safe, version-aware file modifications. This is the primary tool for all file I/O.
  * @author AI
  */
-public class LocalFiles2 {
+public class LocalFiles {
 
     @AITool(value = "Reads a single file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", requiresApproval = false)
     public static FileInfo readFile(
@@ -39,7 +39,7 @@ public class LocalFiles2 {
 
     @AITool("Writes content to a file, but only if the file has not been modified since it was last read. It uses the lastModified timestamp from the FileInfo object as a precondition. Returns the updated FileInfo object.")
     public static FileInfo writeFile(
-            @AITool("A FileInfo object containing the path, new content, and the expected last modified timestamp.")
+            @AITool("A FileInfo object containing the path, new content, and the expected last modified timestamp. OPTIMISTIC USAGE: If you have just performed a successful write/patch, you can use the 'lastModified' from the returned FileInfo object for the next immediate write on the same file, saving a 'readFile' call.")
             FileInfo fileInfo
     ) throws IOException {
         Path filePath = Paths.get(fileInfo.path);

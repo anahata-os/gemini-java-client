@@ -1,5 +1,7 @@
 package uno.anahata.gemini.internal;
 
+import com.google.genai.types.Content;
+import com.google.genai.types.Part;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
@@ -22,6 +24,8 @@ public final class GsonUtils {
     private static Gson createGson() {
         return new GsonBuilder()
                 .registerTypeAdapterFactory(new OptionalTypeAdapterFactory())
+                .registerTypeAdapter(Content.class, new ContentAdapter())
+                .registerTypeAdapter(Part.class, new PartAdapter())
                 .create();
     }
 

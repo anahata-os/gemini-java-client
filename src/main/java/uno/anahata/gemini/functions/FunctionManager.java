@@ -38,7 +38,7 @@ public class FunctionManager {
         List<Class<?>> allClasses = new ArrayList<>();
         // Add new and old file tools, plus others
         //allClasses.add(LocalFiles.class);
-        allClasses.add(LocalFiles2.class); // New POJO-based tool
+        allClasses.add(LocalFiles.class); // New POJO-based tool
         allClasses.add(LocalShell.class);
         allClasses.add(RunningJVM.class);
         allClasses.add(Images.class);
@@ -125,11 +125,13 @@ public class FunctionManager {
                 Object funcResponse = invokeFunctionMethod(method, approvedCall.args().get());
                 
                 Map<String, Object> responseMap;
-                // If the response is a POJO, GSON will serialize it to a map-like structure.
-                if (funcResponse != null && !(funcResponse instanceof String || funcResponse instanceof Number || funcResponse instanceof Boolean)) {
+                // If the response is a complex POJO (but not a collection/array), GSON will serialize it to a map-like structure.
+                // Otherwise (for primitives, collections, arrays), we wrap it in a map with the key "output".
+                if (funcResponse != null && !(funcResponse instanceof String || funcResponse instanceof Number || funcResponse instanceof Boolean || funcResponse instanceof Collection || funcResponse.getClass().isArray())) {
                      JsonElement jsonElement = GSON.toJsonTree(funcResponse);
                      responseMap = GSON.fromJson(jsonElement, Map.class);
                 } else {
+                    // It's a primitive, a collection, or an array. Wrap it.
                     responseMap = new HashMap<>();
                     responseMap.put("output", funcResponse == null ? "" : funcResponse);
                 }
