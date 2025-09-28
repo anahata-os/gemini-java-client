@@ -18,11 +18,12 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.blob.PartUtils;
+import uno.anahata.gemini.internal.GsonUtils;
 
 public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
-    private static final Gson GSON = new Gson();
+    private static final Gson GSON = GsonUtils.getGson();
 
     private List<Content> context = new ArrayList<>();
     private final GeminiConfig config;
@@ -236,8 +237,8 @@ public class ContextManager {
     }
 
     private Path getAutoBackupPath() throws IOException {
-        File workDir = GeminiConfig.getWorkingFolder();
-        String filename = "autobackup-" + getContextId() + ".json";
+        File workDir = GeminiConfig.getWorkingFolder("autobackup");
+        String filename = "autobackup-" + config.getApplicationInstanceId() + "-" + getContextId() + ".json";
         return workDir.toPath().resolve(filename);
     }
     

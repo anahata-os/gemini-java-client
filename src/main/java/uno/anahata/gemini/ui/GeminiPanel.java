@@ -395,8 +395,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 }
                 String sessionName = StringUtils.removeEnd(fileName, ".json");
                 
-                String savedId = ContextManager.get().saveSession(sessionName);
-                JOptionPane.showMessageDialog(this, "Session saved successfully as " + savedId, "Success", JOptionPane.INFORMATION_MESSAGE);
+                chat.getContextManager().saveSession(sessionName);
+                JOptionPane.showMessageDialog(this, "Session saved successfully as " + sessionName, "Success", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (IOException ex) {
             logger.log(Level.SEVERE, "Failed to save session", ex);
@@ -416,7 +416,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 File fileToLoad = fileChooser.getSelectedFile();
                 String sessionId = StringUtils.removeEnd(fileToLoad.getName(), ".json");
                 
-                ContextManager.get().loadSession(sessionId);
+                chat.getContextManager().loadSession(sessionId);
                 JOptionPane.showMessageDialog(this, "Session loaded successfully from " + sessionId, "Success", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (IOException ex) {
