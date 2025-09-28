@@ -1,0 +1,30 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0
+                              https://maven.apache.org/xsd/assembly-2.1.0.xsd">
+  <id>all-sources</id>
+  <formats>
+    <format>jar</format>
+  </formats>
+  <includeBaseDirectory>false</includeBaseDirectory>
+
+  <fileSets>
+    <!-- Your project sources -->
+    <fileSet>
+      <directory>${project.build.sourceDirectory}</directory>
+      <outputDirectory>/</outputDirectory>
+      <includes>
+        <include>**/*.java</include>
+      </includes>
+    </fileSet>
+
+    <!-- Dependency sources jars -->
+    <fileSet>
+      <directory>${project.build.directory}/dependency-sources-jars</directory>
+      <outputDirectory>META-INF/sources</outputDirectory>
+      <includes>
+        <include>*.jar</include>
+      </includes>
+    </fileSet>
+  </fileSets>
+</assembly>

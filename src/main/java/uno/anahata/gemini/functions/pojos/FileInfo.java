@@ -1,0 +1,40 @@
+package uno.anahata.gemini.functions.pojos;
+
+/**
+ * A POJO to hold file information, including content and metadata.
+ * This object is used for context-aware file operations.
+ * @author AI
+ */
+public class FileInfo {
+    /** The absolute path to the file. */
+    public String path;
+
+    /** The text content of the file. */
+    public String content;
+
+    /** The last modified timestamp of the file, in milliseconds since the epoch. */
+    public long lastModified;
+
+    /** The size of the file in bytes. */
+    public long size;
+
+    public FileInfo() {
+    }
+
+    public FileInfo(String path, String content, long lastModified, long size) {
+        this.path = path;
+        this.content = content;
+        this.lastModified = lastModified;
+        this.size = size;
+    }
+
+    @Override
+    public String toString() {
+        return "FileInfo{" +
+               "path='" + path + '\'' +
+               ", lastModified=" + lastModified +
+               ", size=" + size +
+               ", content.length=" + (content != null ? content.length() : 0) +
+               '}';
+    }
+}

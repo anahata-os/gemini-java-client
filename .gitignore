@@ -1,0 +1,25 @@
+# NetBeans IDE
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+build.properties
+
+# Gradle
+.gradle
+build/
+
+# Other
+.DS_Store
+*.log
