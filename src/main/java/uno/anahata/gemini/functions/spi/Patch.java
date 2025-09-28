@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -39,12 +38,12 @@ public class Patch {
                                   ", but found: " + currentLastModified);
         }
 
-        List<String> originalLines = Arrays.asList(fileInfo.content.split("\\n"));
-        List<String> patchLines = Arrays.asList(patch.split("\\n"));
+        List<String> originalLines = fileInfo.content.lines().toList();
+        List<String> patchLines = patch.lines().toList();
 
         com.github.difflib.patch.Patch<String> diff = UnifiedDiffUtils.parseUnifiedDiff(patchLines);
         List<String> patchedLines = DiffUtils.patch(originalLines, diff);
-        String newContent = String.join("\\n", patchedLines);
+        String newContent = String.join("\n", patchedLines);
 
         Files.writeString(filePath, newContent);
 
