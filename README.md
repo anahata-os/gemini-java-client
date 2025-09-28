@@ -22,7 +22,7 @@ The `gemini-java-client` excels in its ability to integrate custom Java function
 - **Automatic Schema Generation**: Dynamically generates precise JSON schemas for your tools, including parameter types, descriptions, and validation rules (e.g., `@NotNull`, `@Size`, `@Min`, `@Max`, `@Pattern`), ensuring the Gemini model understands how to correctly call your functions.
 - **User Approval Mechanism**: For sensitive operations, tool calls can be configured to require explicit user confirmation, providing a crucial layer of security and control.
 - **Extensible Tool Providers**: The library includes a set of powerful built-in tools:
-    - **`LocalFiles2`**: Comprehensive file system operations (read, write, append, delete, move, copy, create directories, list contents, check existence) with safety features like `lastModified` preconditions to prevent data corruption.
+    - **`LocalFiles`**: Comprehensive file system operations (read, write, append, delete, move, copy, create directories, list contents, check existence) with safety features like `lastModified` preconditions to prevent data corruption.
     - **`LocalShell`**: Execute arbitrary shell commands (`bash -c`) and capture their output, enabling interaction with the operating system.
     - **`RunningJVM`**: Compile and execute Java code dynamically within the running JVM, allowing the AI to extend its own capabilities at runtime.
     - **`Images`**: Generate images based on text prompts.

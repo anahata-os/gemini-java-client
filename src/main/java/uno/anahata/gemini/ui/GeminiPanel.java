@@ -104,7 +104,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         captureFramesButton = new JButton(getIcon("capture_frames.png"));
         captureFramesButton.setToolTipText("Attach Application Frames");
         captureFramesButton.addActionListener(e -> attachFrameCaptures());
-        
+
         saveSessionButton = new JButton(getIcon("save.png"));
         saveSessionButton.setToolTipText("Save Session");
         saveSessionButton.addActionListener(e -> saveSession());
@@ -121,7 +121,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         toolbar.add(new JToolBar.Separator());
         toolbar.add(saveSessionButton);
         toolbar.add(loadSessionButton);
-        
+
         add(toolbar, BorderLayout.WEST);
 
         JPanel topPanel = new JPanel(new BorderLayout());
@@ -138,7 +138,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             modelIdComboBox.addItem("Loading...");
             modelIdComboBox.setEnabled(false);
         }
-        
+
         modelIdComboBox.addActionListener(e -> {
             String selectedModel = (String) modelIdComboBox.getSelectedItem();
             if (selectedModel != null && config != null && config.getApi() != null) {
@@ -146,7 +146,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 logger.log(Level.INFO, "Model ID changed to: {0}", selectedModel);
             }
         });
-        
+
         JPanel modelIdPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         modelIdPanel.add(new JLabel("Model:"));
         modelIdPanel.add(modelIdComboBox);
@@ -156,7 +156,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         chatContentPanel = new ScrollablePanel();
         chatContentPanel.setLayout(new BoxLayout(chatContentPanel, BoxLayout.Y_AXIS));
-        
+
         chatScrollPane = new JScrollPane(chatContentPanel);
         chatScrollPane.setBorder(BorderFactory.createEmptyBorder());
         add(chatScrollPane, BorderLayout.CENTER);
@@ -169,7 +169,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         add(southPanel, BorderLayout.SOUTH);
 
         inputField.addActionListener(e -> sendMessageFromInputField());
-        
+
         FileDropListener fileDropListener = new FileDropListener();
         new DropTarget(this, fileDropListener);
         new DropTarget(chatContentPanel, fileDropListener);
@@ -179,31 +179,37 @@ public class GeminiPanel extends JPanel implements ContextListener {
         requestInProgress();
         setVisible(true);
     }
-    
+
     private static class ScrollablePanel extends JPanel implements Scrollable {
+
         @Override
         public Dimension getPreferredScrollableViewportSize() {
             return getPreferredSize();
         }
+
         @Override
         public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
             return 16;
         }
+
         @Override
         public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
             return visibleRect.height;
         }
+
         @Override
         public boolean getScrollableTracksViewportWidth() {
             return true;
         }
+
         @Override
         public boolean getScrollableTracksViewportHeight() {
             return false;
         }
     }
-    
+
     private class FileDropListener extends DropTargetAdapter {
+
         @Override
         public void drop(DropTargetDropEvent dtde) {
             try {
@@ -225,6 +231,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 chat.init();
                 return null;
             }
+
             @Override
             protected void done() {
                 enableInputFieldAndRequestAndFocus();
@@ -246,22 +253,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
             updateUsageLabel(usage);
 
             if (contextDirty) {
-                contextDirty = false;
-                logger.info("Performing full UI redraw due to dirty context.");
-                chatContentPanel.removeAll();
-                
-                for (Content contentItem : chat.getContext()) {
-                    if (contentItem != null) {
-                        ComponentContentRenderer2 renderer = new ComponentContentRenderer2(editorKitProvider);
-                        int contentIdx = chat.getContextManager().getContext().indexOf(contentItem);
-                        JComponent messageComponent = renderer.render(contentItem, contentIdx);
-                        chatContentPanel.add(messageComponent);
-                    }
-                }
-                
-                chatContentPanel.revalidate();
-                chatContentPanel.repaint();
-                
+                renderDirtyContext();
+
             } else {
                 if (c != null) {
                     ComponentContentRenderer2 renderer = new ComponentContentRenderer2(editorKitProvider);
@@ -272,7 +265,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                     messageComponent.repaint();
                 }
             }
-            
+
             JScrollBar vertical = chatScrollPane.getVerticalScrollBar();
             SwingUtilities.invokeLater(() -> vertical.setValue(vertical.getMaximum()));
         });
@@ -289,11 +282,33 @@ public class GeminiPanel extends JPanel implements ContextListener {
             initChatInSwingWorker();
         });
     }
-    
+
     @Override
     public void contextModified() {
         contextDirty = true;
-        logger.info("Context marked as dirty. A full redraw will occur on the next content addition.");
+        SwingUtilities.invokeLater(() -> renderDirtyContext());
+        logger.info("Context marked as dirty. A full redraw will .");
+    }
+
+    /**
+     * Full redraw
+     */
+    private void renderDirtyContext() {
+        contextDirty = false;
+        logger.info("Performing full UI redraw due to dirty context.");
+        chatContentPanel.removeAll();
+
+        for (Content contentItem : chat.getContext()) {
+            if (contentItem != null) {
+                ComponentContentRenderer2 renderer = new ComponentContentRenderer2(editorKitProvider);
+                int contentIdx = chat.getContextManager().getContext().indexOf(contentItem);
+                JComponent messageComponent = renderer.render(contentItem, contentIdx);
+                chatContentPanel.add(messageComponent);
+            }
+        }
+
+        chatContentPanel.revalidate();
+        chatContentPanel.repaint();
     }
 
     public void restartChat() {
@@ -318,13 +333,13 @@ public class GeminiPanel extends JPanel implements ContextListener {
             String candidates = "Candidates:" + usage.candidatesTokenCount().orElse(0);
             String cached = "Cached:" + usage.cachedContentTokenCount().orElse(0);
             String thoughts = "Thoughts:" + usage.thoughtsTokenCount().orElse(0);
-            String usageText = String.format("Usage: %d / %d Tokens (%.2f%%) %s %s %s %s", 
+            String usageText = String.format("Usage: %d / %d Tokens (%.2f%%) %s %s %s %s",
                     totalTokens, maxTokens, percentage, prompt, candidates, cached, thoughts);
             if (usage.trafficType().isPresent()) {
                 String trafficType = " Traffic:" + usage.trafficType().get().toString();
                 usageText += trafficType;
             }
-            
+
             usageLabel.setText(usageText);
         }
     }
@@ -354,6 +369,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 }
                 return null;
             }
+
             @Override
             protected void done() {
                 try {
@@ -366,7 +382,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 }
             }
         }.execute();
-        
+
     }
 
     private void requestInProgress() {
@@ -378,7 +394,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         inputField.setEditable(true);
         inputField.requestFocusInWindow();
     }
-    
+
     private void saveSession() {
         try {
             File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
@@ -394,7 +410,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                     fileName += ".json";
                 }
                 String sessionName = StringUtils.removeEnd(fileName, ".json");
-                
+
                 chat.getContextManager().saveSession(sessionName);
                 JOptionPane.showMessageDialog(this, "Session saved successfully as " + sessionName, "Success", JOptionPane.INFORMATION_MESSAGE);
             }
@@ -415,7 +431,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             if (userSelection == JFileChooser.APPROVE_OPTION) {
                 File fileToLoad = fileChooser.getSelectedFile();
                 String sessionId = StringUtils.removeEnd(fileToLoad.getName(), ".json");
-                
+
                 chat.getContextManager().loadSession(sessionId);
                 JOptionPane.showMessageDialog(this, "Session loaded successfully from " + sessionId, "Success", JOptionPane.INFORMATION_MESSAGE);
             }

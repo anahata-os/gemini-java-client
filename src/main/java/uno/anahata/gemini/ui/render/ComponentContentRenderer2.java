@@ -38,7 +38,7 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 public class ComponentContentRenderer2 {
 
     public enum PartType {
-        TEXT, FUNCTION_CALL, FUNCTION_RESPONSE
+        TEXT, FUNCTION_CALL, FUNCTION_RESPONSE, BLOB
     }
 
     private final Map<PartType, PartRenderer> typeRendererMap;
@@ -53,6 +53,7 @@ public class ComponentContentRenderer2 {
         typeRendererMap.put(PartType.TEXT, new TextPartRenderer());
         typeRendererMap.put(PartType.FUNCTION_CALL, new FunctionCallPartRenderer());
         typeRendererMap.put(PartType.FUNCTION_RESPONSE, new FunctionResponsePartRenderer());
+        typeRendererMap.put(PartType.BLOB, new BlobPartRenderer());
     }
 
     public void registerRenderer(Part partInstance, PartRenderer renderer) {
@@ -138,6 +139,7 @@ public class ComponentContentRenderer2 {
         if (part.text().isPresent()) return PartType.TEXT;
         if (part.functionCall().isPresent()) return PartType.FUNCTION_CALL;
         if (part.functionResponse().isPresent()) return PartType.FUNCTION_RESPONSE;
+        if (part.inlineData().isPresent()) return PartType.BLOB;
         return null;
     }
 
