@@ -16,8 +16,8 @@ import java.util.List;
  * @author AI
  */
 public class Patch {
-
-    @AITool("Applies a unified diff patch to a file. It reads the file from disk, verifies its lastModified timestamp as a precondition, applies the patch, and writes the changes back. Returns the updated FileInfo.")
+    //too difficult for an AI to make a perfect patch, cant even get line numbers right
+    //@AITool("Applies a unified diff patch to a file. It reads the file from disk, verifies its lastModified timestamp as a precondition, applies the patch, and writes the changes back. Returns the updated FileInfo.")
     public static FileInfo applyPatch(
             @AITool("The absolute path of the file to be patched.")
             String path,
