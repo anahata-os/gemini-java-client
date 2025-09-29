@@ -14,9 +14,8 @@ import java.lang.reflect.Type;
 import java.util.Optional;
 
 public final class GsonUtils {
-
-    private static final Gson GSON = createGson();
-    private static final Gson PRETTY_PRINT_GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = createGson(false);
+    private static final Gson PRETTY_PRINT_GSON = createGson(true);
 
     public static Gson getGson() {
         return GSON;
@@ -33,8 +32,8 @@ public final class GsonUtils {
         if (value instanceof String) {
             String stringValue = (String) value;
             try {
-                // Check if it's valid JSON by parsing it
-                Object json = PRETTY_PRINT_GSON.fromJson(stringValue, Object.class);
+                // Check if it's valid JSON by parsing it with the main GSON instance
+                Object json = GSON.fromJson(stringValue, Object.class);
                 // Re-serialize with pretty printing to ensure formatting
                 return PRETTY_PRINT_GSON.toJson(json);
             } catch (com.google.gson.JsonSyntaxException e) {
@@ -46,12 +45,17 @@ public final class GsonUtils {
         return PRETTY_PRINT_GSON.toJson(value);
     }
     
-    private static Gson createGson() {
-        return new GsonBuilder()
+    private static Gson createGson(boolean prettyPrinting) {
+        GsonBuilder builder = new GsonBuilder()
                 .registerTypeAdapterFactory(new OptionalTypeAdapterFactory())
                 .registerTypeAdapter(Content.class, new ContentAdapter())
-                .registerTypeAdapter(Part.class, new PartAdapter())
-                .create();
+                .registerTypeAdapter(Part.class, new PartAdapter());
+
+        if (prettyPrinting) {
+            builder.setPrettyPrinting();
+        }
+
+        return builder.create();
     }
 
     private static class OptionalTypeAdapterFactory implements com.google.gson.TypeAdapterFactory {
@@ -94,4 +98,5 @@ public final class GsonUtils {
             return Optional.ofNullable(value);
         }
     }
+
 }
