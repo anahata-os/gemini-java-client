@@ -1,7 +1,7 @@
 package uno.anahata.gemini.internal;
 
-import com.google.genai.types.Blob;
 import com.google.genai.types.CodeExecutionResult;
+import com.google.genai.types.ExecutableCode;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
 import com.google.gson.JsonDeserializationContext;
@@ -17,6 +17,11 @@ import java.util.Map;
 
 public class PartAdapter implements JsonSerializer<Part>, JsonDeserializer<Part> {
 
+    private static class BlobData {
+        String mimeType;
+        byte[] data;
+    }
+    
     @Override
     public JsonElement serialize(Part src, Type typeOfSrc, JsonSerializationContext context) {
         JsonObject jsonObject = new JsonObject();
@@ -30,6 +35,8 @@ public class PartAdapter implements JsonSerializer<Part>, JsonDeserializer<Part>
             jsonObject.add("inlineData", context.serialize(src.inlineData().get()));
         } else if (src.codeExecutionResult().isPresent()) {
             jsonObject.add("codeExecutionResult", context.serialize(src.codeExecutionResult().get()));
+        } else if (src.executableCode().isPresent()) {
+            jsonObject.add("executableCode", context.serialize(src.executableCode().get()));
         }
         return jsonObject;
     }
@@ -57,11 +64,14 @@ public class PartAdapter implements JsonSerializer<Part>, JsonDeserializer<Part>
             Map<String, Object> response = context.deserialize(frJson.get("response"), new TypeToken<Map<String, Object>>() {}.getType());
             return Part.fromFunctionResponse(name, response);
         } else if (jsonObject.has("inlineData")) {
-            Blob blob = context.deserialize(jsonObject.get("inlineData"), Blob.class);
-            return Part.fromBytes(blob.data().get(), blob.mimeType().get());
+            BlobData blobData = context.deserialize(jsonObject.get("inlineData"), BlobData.class);
+            return Part.fromBytes(blobData.data, blobData.mimeType);
         } else if (jsonObject.has("codeExecutionResult")) {
             CodeExecutionResult result = context.deserialize(jsonObject.get("codeExecutionResult"), CodeExecutionResult.class);
             return Part.builder().codeExecutionResult(result).build();
+        } else if (jsonObject.has("executableCode")) {
+            ExecutableCode result = context.deserialize(jsonObject.get("executableCode"), ExecutableCode.class);
+            return Part.builder().executableCode(result).build();
         }
         throw new JsonParseException("Unknown Part type: " + json.toString());
     }
