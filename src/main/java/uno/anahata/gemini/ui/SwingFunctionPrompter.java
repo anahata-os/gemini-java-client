@@ -32,6 +32,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer.ConfirmationState;
+import uno.anahata.gemini.ui.render.PartType;
 
 /**
  * A combined JDialog and FunctionPrompter implementation for Swing.
@@ -85,7 +86,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
 
         ContentRenderer renderer = new ContentRenderer(editorKitProvider);
-        PartRenderer defaultFcRenderer = renderer.getDefaultRendererForType(ContentRenderer.PartType.FUNCTION_CALL);
+        PartRenderer defaultFcRenderer = renderer.getDefaultRendererForType(PartType.FUNCTION_CALL);
 
         final List<? extends Part> parts = modelResponse.parts().get();
         

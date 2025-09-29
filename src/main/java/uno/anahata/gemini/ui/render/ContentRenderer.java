@@ -37,10 +37,6 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
  */
 public class ContentRenderer {
 
-    public enum PartType {
-        TEXT, FUNCTION_CALL, FUNCTION_RESPONSE, BLOB, CODE_EXECUTION_RESULT
-    }
-
     private final Map<PartType, PartRenderer> typeRendererMap;
     private final Map<Part, PartRenderer> instanceRendererMap;
     private final EditorKitProvider editorKitProvider;
@@ -55,6 +51,7 @@ public class ContentRenderer {
         typeRendererMap.put(PartType.FUNCTION_RESPONSE, new FunctionResponsePartRenderer());
         typeRendererMap.put(PartType.BLOB, new BlobPartRenderer());
         typeRendererMap.put(PartType.CODE_EXECUTION_RESULT, new CodeExecutionResultPartRenderer());
+        typeRendererMap.put(PartType.EXECUTABLE_CODE, new ExecutableCodePartRenderer());
     }
 
     public void registerRenderer(Part partInstance, PartRenderer renderer) {
@@ -78,7 +75,6 @@ public class ContentRenderer {
         header.setForeground(getForegroundColor(role));
         messagePanel.add(header, BorderLayout.NORTH);
 
-        // FIX: Use GridBagLayout to properly constrain child component widths.
         JPanel contentPanel = new ScrollablePanel();
         contentPanel.setLayout(new GridBagLayout());
         contentPanel.setOpaque(true);
@@ -103,7 +99,7 @@ public class ContentRenderer {
             gbc.insets = new Insets(0, 0, 0, 0);
 
             Part part = parts.get(i);
-            PartRenderer renderer = instanceRendererMap.getOrDefault(part, typeRendererMap.get(getPartType(part)));
+            PartRenderer renderer = instanceRendererMap.getOrDefault(part, typeRendererMap.get(PartType.from(part)));
 
             if (renderer != null) {
                 String titleText = String.format("Part %d of %d", i + 1, parts.size());
@@ -134,15 +130,6 @@ public class ContentRenderer {
 
         messagePanel.add(contentPanel, BorderLayout.CENTER);
         return messagePanel;
-    }
-
-    private PartType getPartType(Part part) {
-        if (part.text().isPresent()) return PartType.TEXT;
-        if (part.functionCall().isPresent()) return PartType.FUNCTION_CALL;
-        if (part.functionResponse().isPresent()) return PartType.FUNCTION_RESPONSE;
-        if (part.inlineData().isPresent()) return PartType.BLOB;
-        if (part.codeExecutionResult().isPresent()) return PartType.CODE_EXECUTION_RESULT;
-        return null;
     }
 
     private Border getBorderForRole(String role) {
