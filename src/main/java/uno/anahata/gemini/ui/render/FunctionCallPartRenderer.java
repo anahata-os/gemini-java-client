@@ -2,8 +2,6 @@ package uno.anahata.gemini.ui.render;
 
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -18,6 +16,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JToggleButton;
+import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 /**
@@ -28,7 +27,6 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
  */
 public class FunctionCallPartRenderer implements PartRenderer {
 
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private static final Pattern METHOD_SIGNATURE_PATTERN = Pattern.compile("\\w+\\s+\\w+\\s*\\([^)]*\\)\\s*\\{?");
     private static final Pattern IMPORT_PATTERN = Pattern.compile("import\\s+[\\w.]+;");
 
@@ -71,10 +69,10 @@ public class FunctionCallPartRenderer implements PartRenderer {
             naLabel.setFont(naLabel.getFont().deriveFont(Font.ITALIC));
             naLabel.setForeground(Color.GRAY);
             valueComponent = naLabel;
-        } else if (value instanceof String && isLikelyJavaCode((String) value)) {
+        } /*else if (value instanceof String && isLikelyJavaCode((String) value)) {
             valueComponent = CodeBlockRenderer.render("java", (String) value, editorKitProvider);
-        } else {
-            String valueAsString = (value instanceof String) ? (String) value : gson.toJson(value);
+        } */else {
+            String valueAsString = GsonUtils.prettyPrint(value);
             JTextArea textArea = new JTextArea(valueAsString);
             textArea.setEditable(false);
             textArea.setLineWrap(true);

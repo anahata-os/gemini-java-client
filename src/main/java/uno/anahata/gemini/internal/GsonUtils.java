@@ -16,11 +16,36 @@ import java.util.Optional;
 public final class GsonUtils {
 
     private static final Gson GSON = createGson();
+    private static final Gson PRETTY_PRINT_GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static Gson getGson() {
         return GSON;
     }
 
+    /**
+     * Pretty prints an object to a JSON string. If the object is a string
+     * that is not a valid JSON, it returns the original string.
+     *
+     * @param value The object to pretty print.
+     * @return The pretty printed JSON string or the original string.
+     */
+    public static String prettyPrint(Object value) {
+        if (value instanceof String) {
+            String stringValue = (String) value;
+            try {
+                // Check if it's valid JSON by parsing it
+                Object json = PRETTY_PRINT_GSON.fromJson(stringValue, Object.class);
+                // Re-serialize with pretty printing to ensure formatting
+                return PRETTY_PRINT_GSON.toJson(json);
+            } catch (com.google.gson.JsonSyntaxException e) {
+                // Not a JSON string, return it as is
+                return stringValue;
+            }
+        }
+        // Not a string, so serialize it directly
+        return PRETTY_PRINT_GSON.toJson(value);
+    }
+    
     private static Gson createGson() {
         return new GsonBuilder()
                 .registerTypeAdapterFactory(new OptionalTypeAdapterFactory())

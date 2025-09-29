@@ -2,8 +2,6 @@ package uno.anahata.gemini.ui.render;
 
 import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.Part;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
@@ -13,6 +11,7 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JToggleButton;
+import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 /**
@@ -21,8 +20,6 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
  * @author pablo-ai
  */
 public class FunctionResponsePartRenderer implements PartRenderer {
-
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
     public JComponent render(Part part, EditorKitProvider editorKitProvider) {
@@ -35,8 +32,8 @@ public class FunctionResponsePartRenderer implements PartRenderer {
 
         boolean isError = responseMap.containsKey("error");
         Object contentToRender = isError ? responseMap.get("error") : (responseMap.containsKey("output") ? responseMap.get("output") : responseMap);
-        String finalContentString = (contentToRender instanceof String) ? (String) contentToRender : gson.toJson(contentToRender);
-
+        String finalContentString = GsonUtils.prettyPrint(contentToRender);
+        
         // Create the content panel (the part that gets shown/hidden)
         JTextArea contentArea = new JTextArea(finalContentString);
         contentArea.setEditable(false);
