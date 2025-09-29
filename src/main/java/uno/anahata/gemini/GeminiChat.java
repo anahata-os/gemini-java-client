@@ -132,7 +132,7 @@ public class GeminiChat {
             Tool googleTools = Tool.builder()
                     .googleSearch(googleSearch)
                     //.googleSearchRetrieval(googleSearchRetrieval)
-                    .codeExecution(codeExecution)
+                    //.codeExecution(codeExecution)
                     //.googleMaps(googleMaps)
                     //.computerUse(computerUse)
                     .build();
