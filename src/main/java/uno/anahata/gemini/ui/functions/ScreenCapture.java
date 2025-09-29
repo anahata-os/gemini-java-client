@@ -10,7 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
-import uno.anahata.gemini.blob.PartUtils;
+import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.functions.AITool;
 import uno.anahata.gemini.functions.MultiPartResponse;
 import uno.anahata.gemini.ui.UICapture;

@@ -19,7 +19,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import uno.anahata.gemini.blob.PartUtils;
+import uno.anahata.gemini.internal.PartUtils;
 
 /**
  * JPanel for attachments
