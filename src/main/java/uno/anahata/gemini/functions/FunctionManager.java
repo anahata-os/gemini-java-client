@@ -44,6 +44,7 @@ public class FunctionManager {
         allClasses.add(Images.class);
         allClasses.add(ContextWindow.class);
         allClasses.add(Patch.class);
+        allClasses.add(Session.class);
         if (prompter != null && config.getAutomaticFunctionClasses() != null) {
             allClasses.addAll(config.getAutomaticFunctionClasses());
         }
