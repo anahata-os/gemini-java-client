@@ -22,8 +22,10 @@ public class GeminiAPI {
 
     // Hardcoded list of available model IDs for the combobox
     private static final List<String> AVAILABLE_MODEL_IDS = Arrays.asList(
-            "gemini-2.5-flash",
-            "gemini-2.5-pro"
+            "gemini-2.5-pro",
+            "gemini-flash-latest",            
+            "gemini-flash-lite-latest",            
+            "learnlm-2.0-flash-experimental"
     );
 
     private String modelId = "gemini-2.5-flash"; // Now mutable

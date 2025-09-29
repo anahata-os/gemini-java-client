@@ -186,7 +186,7 @@ public class RunningJVM {
 
         if (!success) {
             StringBuilder error = new StringBuilder("Compiler: " + compiler + "\n");
-            error.append("Options:" + options + "\n");
+            //error.append("Options:" + options + "\n");
             error.append("Task:" + task + "\n");
             error.append("Diagnostics:\n");
             for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {

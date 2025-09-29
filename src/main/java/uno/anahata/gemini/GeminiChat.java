@@ -45,6 +45,7 @@ public class GeminiChat {
     }
 
     public void setFunctionsEnabled(boolean functionsEnabled) {
+        logger.info("User toggled functions: " + functionsEnabled);
         this.functionsEnabled = functionsEnabled;
     }
     
@@ -114,11 +115,33 @@ public class GeminiChat {
                 .systemInstruction(buildSystemInstructions())
                 .thinkingConfig(ThinkingConfig.builder().thinkingBudget(-1))
                 .temperature(0f);
+        
+        GoogleSearch googleSearch = GoogleSearch.builder().build();
+            GoogleSearchRetrieval googleSearchRetrieval = GoogleSearchRetrieval.builder().build();
+            ToolCodeExecution codeExecution = ToolCodeExecution.builder().build();
+            GoogleMaps googleMaps = GoogleMaps.builder().build();
+            ToolComputerUse computerUse = ToolComputerUse.builder().build();
+            
         if (functionsEnabled) {
-            builder.tools(functionManager.getFunctionTool()).toolConfig(functionManager.getToolConfig());
+            //logger.info("Functions ENABLED");
+            builder
+                    .tools(functionManager.getFunctionTool())
+                    .toolConfig(functionManager.getToolConfig());
         } else {
-            builder.tools(Tool.builder().googleSearch(GoogleSearch.builder()).build());
+            //logger.info("Functions DISABLED");
+            Tool googleTools = Tool.builder()
+                    .googleSearch(googleSearch)
+                    //.googleSearchRetrieval(googleSearchRetrieval)
+                    .codeExecution(codeExecution)
+                    //.googleMaps(googleMaps)
+                    //.computerUse(computerUse)
+                    .build();
+            //builder.tools(Tool.builder().googleSearch().googleSearchRetrieval(GoogleSearchRetrieval.builder().dynamicRetrievalConfig(dynamicRetrievalConfig)).build());
+            
+            builder.tools(googleTools);
+            
         }
+        
         return builder.build();
     }
 

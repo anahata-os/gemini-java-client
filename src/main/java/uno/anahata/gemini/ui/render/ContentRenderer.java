@@ -38,7 +38,7 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 public class ContentRenderer {
 
     public enum PartType {
-        TEXT, FUNCTION_CALL, FUNCTION_RESPONSE, BLOB
+        TEXT, FUNCTION_CALL, FUNCTION_RESPONSE, BLOB, CODE_EXECUTION_RESULT
     }
 
     private final Map<PartType, PartRenderer> typeRendererMap;
@@ -54,6 +54,7 @@ public class ContentRenderer {
         typeRendererMap.put(PartType.FUNCTION_CALL, new FunctionCallPartRenderer());
         typeRendererMap.put(PartType.FUNCTION_RESPONSE, new FunctionResponsePartRenderer());
         typeRendererMap.put(PartType.BLOB, new BlobPartRenderer());
+        typeRendererMap.put(PartType.CODE_EXECUTION_RESULT, new CodeExecutionResultPartRenderer());
     }
 
     public void registerRenderer(Part partInstance, PartRenderer renderer) {
@@ -123,7 +124,7 @@ public class ContentRenderer {
                 contentPanel.add(partComponent, gbc);
 
             } else {
-                JLabel unsupportedLabel = new JLabel("Unsupported part type");
+                JLabel unsupportedLabel = new JLabel("Unsupported part type " + part);
                 contentPanel.add(unsupportedLabel, gbc);
             }
         }
@@ -140,6 +141,7 @@ public class ContentRenderer {
         if (part.functionCall().isPresent()) return PartType.FUNCTION_CALL;
         if (part.functionResponse().isPresent()) return PartType.FUNCTION_RESPONSE;
         if (part.inlineData().isPresent()) return PartType.BLOB;
+        if (part.codeExecutionResult().isPresent()) return PartType.CODE_EXECUTION_RESULT;
         return null;
     }
 

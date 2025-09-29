@@ -91,7 +91,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         clearButton.addActionListener(e -> restartChat());
         functionsButton = new JToggleButton(getIcon("functions.png"), true);
         functionsButton.setToolTipText("Enable / Disable Functions");
-        functionsButton.addActionListener(e -> chat.setFunctionsEnabled(functionsButton.isEnabled()));
+        functionsButton.addActionListener(e -> chat.setFunctionsEnabled(functionsButton.isSelected()));
 
         attachButton = new JButton(getIcon("attach.png"));
         attachButton.setToolTipText("Attach Files");

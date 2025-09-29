@@ -1,6 +1,8 @@
 package uno.anahata.gemini.internal;
 
 import com.google.genai.types.Blob;
+import com.google.genai.types.CodeExecutionResult;
+import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -26,6 +28,8 @@ public class PartAdapter implements JsonSerializer<Part>, JsonDeserializer<Part>
             jsonObject.add("functionResponse", context.serialize(src.functionResponse().get()));
         } else if (src.inlineData().isPresent()) {
             jsonObject.add("inlineData", context.serialize(src.inlineData().get()));
+        } else if (src.codeExecutionResult().isPresent()) {
+            jsonObject.add("codeExecutionResult", context.serialize(src.codeExecutionResult().get()));
         }
         return jsonObject;
     }
@@ -36,10 +40,17 @@ public class PartAdapter implements JsonSerializer<Part>, JsonDeserializer<Part>
         if (jsonObject.has("text")) {
             return Part.fromText(jsonObject.get("text").getAsString());
         } else if (jsonObject.has("functionCall")) {
-            JsonObject fcJson = jsonObject.getAsJsonObject("functionCall");
-            String name = fcJson.get("name").getAsString();
-            Map<String, Object> args = context.deserialize(fcJson.get("args"), new TypeToken<Map<String, Object>>() {}.getType());
-            return Part.fromFunctionCall(name, args);
+            JsonElement fcElement = jsonObject.get("functionCall");
+            // Backwards compatibility: handle old format where FunctionCall was serialized directly
+            if (fcElement.isJsonObject() && fcElement.getAsJsonObject().has("name")) {
+                JsonObject fcJson = fcElement.getAsJsonObject();
+                String name = fcJson.get("name").getAsString();
+                Map<String, Object> args = context.deserialize(fcJson.get("args"), new TypeToken<Map<String, Object>>() {}.getType());
+                return Part.fromFunctionCall(name, args);
+            } else {
+                 FunctionCall functionCall = context.deserialize(fcElement, FunctionCall.class);
+                 return Part.fromFunctionCall(functionCall.name().get(), functionCall.args().get());
+            }
         } else if (jsonObject.has("functionResponse")) {
             JsonObject frJson = jsonObject.getAsJsonObject("functionResponse");
             String name = frJson.get("name").getAsString();
@@ -48,6 +59,9 @@ public class PartAdapter implements JsonSerializer<Part>, JsonDeserializer<Part>
         } else if (jsonObject.has("inlineData")) {
             Blob blob = context.deserialize(jsonObject.get("inlineData"), Blob.class);
             return Part.fromBytes(blob.data().get(), blob.mimeType().get());
+        } else if (jsonObject.has("codeExecutionResult")) {
+            CodeExecutionResult result = context.deserialize(jsonObject.get("codeExecutionResult"), CodeExecutionResult.class);
+            return Part.builder().codeExecutionResult(result).build();
         }
         throw new JsonParseException("Unknown Part type: " + json.toString());
     }
