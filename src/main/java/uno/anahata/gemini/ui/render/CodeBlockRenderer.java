@@ -1,12 +1,12 @@
 package uno.anahata.gemini.ui.render;
 
+import java.awt.Dimension;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
-import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.SwingUtilities;
+import javax.swing.JTextArea;
 import javax.swing.text.EditorKit;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
@@ -54,27 +54,18 @@ public final class CodeBlockRenderer {
             logger.log(Level.WARNING, "Failed to render code block for language '" + language + "'.", e);
             return createFallbackPane(code);
         }
-        /*
-        // THE FIX: Eliminate the race condition by forcing a re-layout after the
-        // EditorKit has asynchronously calculated the component\'s true size.
-        SwingUtilities.invokeLater(() -> {
-            // Explicitly set preferred size based on current content after EditorKit has laid it out
-            codeEditor.setPreferredSize(codeEditor.getPreferredSize());
-            codeEditor.updateUI();
-            if (codeEditor.getParent() != null) {
-                codeEditor.getParent().revalidate();
-                codeEditor.getParent().repaint();
-            }
-        });
-*/
+        
         return codeEditor;
     }
     
     private static JComponent createFallbackPane(String code) {
-        JEditorPane fallbackEditor = new JEditorPane("text/plain", code);
+        JTextArea fallbackEditor = new JTextArea(code, 10, 80);
         fallbackEditor.setEditable(false);
+        fallbackEditor.setLineWrap(true);
+        fallbackEditor.setWrapStyleWord(true);
         fallbackEditor.setBackground(new java.awt.Color(240, 240, 240));
-        fallbackEditor.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12));
-        return new JScrollPane(fallbackEditor);
+        fallbackEditor.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12));        
+        
+        return fallbackEditor;
     }
 }
