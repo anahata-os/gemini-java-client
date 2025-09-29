@@ -84,39 +84,9 @@ public class ContextManager {
             logContent.append("--- PARTS ---\n");
 
             if (content.parts().isPresent()) {
+                int partIdx = 0;
                 for (Part part : content.parts().get()) {
-                    if (part.text().isPresent()) {
-                        logContent.append("[Text]:\n").append(part.text().get()).append("\n");
-                    } else if (part.functionCall().isPresent()) {
-                        FunctionCall fc = part.functionCall().get();
-                        logContent.append("[FunctionCall]: ").append(fc.name().get()).append("\n");
-                        if (fc.args().isPresent()) {
-                            for (Map.Entry<String, Object> entry : fc.args().get().entrySet()) {
-                                String argValue = String.valueOf(entry.getValue());
-                                if (argValue.length() > 200) {
-                                    logContent.append("  - ").append(entry.getKey()).append(": (bytes: ").append(argValue.getBytes(StandardCharsets.UTF_8).length).append(")\n");
-                                } else {
-                                    logContent.append("  - ").append(entry.getKey()).append(": ").append(argValue).append("\n");
-                                }
-                            }
-                        }
-                    } else if (part.functionResponse().isPresent()) {
-                        FunctionResponse fr = part.functionResponse().get();
-                        logContent.append("[FunctionResponse]: ").append(fr.name().get()).append("\n");
-                        if (fr.response().isPresent()) {
-                            String responseValue = String.valueOf(fr.response().get());
-                            if (responseValue.length() > 200) {
-                                logContent.append("  - response: (bytes: ").append(responseValue.getBytes(StandardCharsets.UTF_8).length).append(")\n");
-                            } else {
-                                logContent.append("  - response: ").append(responseValue).append("\n");
-                            }
-                        }
-                    } else if (part.inlineData().isPresent()) {
-                        logContent.append("[Blob]: ").append(PartUtils.toString(part.inlineData().get())).append("\n");
-                    } else {
-                        logContent.append("[Unknown Part Type]\n");
-                    }
-                    logContent.append("---\n");
+                    logContent.append("[").append(partIdx).append("] ").append(PartUtils.summarize(part)).append("\n");
                 }
             } else {
                 logContent.append("(No parts)\n");
@@ -157,30 +127,15 @@ public class ContextManager {
         statusBlock.append("\n-----------------------------------\n");
         int contentIdx = 0;
         for (Content content : historyCopy) {
-            int partIdx = 0;
-            statusBlock.append("\n[").append(contentIdx).append("][").append(content.role().get()).append("]");
+            
+            statusBlock.append("\n[").append(contentIdx).append("][").append(content.role().get()).append("] ");
             if (content.parts().isPresent()) {
                 List<Part> parts = content.parts().get();
                 statusBlock.append(parts.size()).append(" Parts");
-
+                int partIdx = 0;
                 for (Part p : content.parts().get()) {
-                    statusBlock.append("\n\t[").append(contentIdx).append("/").append(partIdx).append("][");
-                    if (p.text().isPresent()) {
-                        statusBlock.append("Text]:").append(StringUtils.truncate(p.text().get(), 200));
-                    } else if (p.functionCall().isPresent()) {
-                        FunctionCall fc = p.functionCall().get();
-                        String argsTruncated = StringUtils.truncate(fc.args().toString(), 100);
-                        statusBlock.append("FunctionCall]:").append(fc.name().get()).append(":").append(argsTruncated);
-                    } else if (p.functionResponse().isPresent()) {
-                        FunctionResponse fr = p.functionResponse().get();
-                        String responseTruncated = StringUtils.truncate(fr.response().toString(), 100);
-                        statusBlock.append("FunctionResponse]:").append(fr.name().get()).append(":").append(responseTruncated);
-                    } else if (p.inlineData().isPresent()) {
-                        Blob b = p.inlineData().get();
-                        statusBlock.append("Blob]:").append(PartUtils.toString(b));
-                    } else {
-                        statusBlock.append("Unknown part type]:").append(p);
-                    }
+                    statusBlock.append("\n\t[").append(contentIdx).append("/").append(partIdx).append("] ");
+                    statusBlock.append(PartUtils.summarize(p));
                     partIdx++;
                 }
             } else {
