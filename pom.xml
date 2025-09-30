@@ -8,6 +8,37 @@
     <artifactId>gemini-java-client</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
+    
+    <name>gemini-java-client</name>
+    <description>A pure Java client for Google's Gemini API, designed for deep integration into Java applications.</description>
+    <url>https://github.com/anahata-os/gemini-java-client</url>
+
+    <organization>
+        <name>Anahata</name>
+        <url>http://anahata.uno</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License v3.0</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.html</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Pablo Rodriguez</name>
+            <email>p@anahata.uno</email>
+            <organization>Anahata</organization>
+            <organizationUrl>http://anahata.uno</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git@github.com:anahata-os/gemini-java-client.git</connection>
+        <developerConnection>scm:git:git@github.com:anahata-os/gemini-java-client.git</developerConnection>
+        <url>https://github.com/anahata-os/gemini-java-client</url>
+    </scm>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

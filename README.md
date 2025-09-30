@@ -9,16 +9,6 @@ This library provides a robust and extensible foundation for interacting with Go
 
 The client also features a built-in Swing UI (`GeminiPanel`) that can be easily embedded into any desktop application, providing a complete chat interface out of the the box.
 
-## Licensing: Open Core Model
-
-`gemini-java-client` is available under a dual-license model to accommodate both open-source and commercial needs.
-
-- **Open Source:** For use in open-source projects, the client is licensed under the **GNU Affero General Public License v3 (AGPLv3)**. This license ensures that any derivative works or applications that use this library and are publicly accessible must also be made open-source.
-
-- **Commercial Use:** For use in proprietary, closed-source applications, a **commercial license is required**. This allows you to integrate the power of the `gemini-java-client` into your commercial products without the obligation to open-source your own code.
-
-To inquire about a commercial license, please contact us at **sales@anahata.uno**.
-
 ## Features
 
 - **Fluent Gemini API:** A clean, modern interface for interacting with the Gemini API.
@@ -69,6 +59,19 @@ String response = chat.send("Hello! Can you use your tools to tell me the curren
 System.out.println(response);
 ```
 
-## License
+## Support the Project
 
-This project is licensed under the AGPLv3. See the [LICENSE](LICENSE) file for details. A commercial license is also available.
+This project is the result of countless hours of passion and dedication. If you find it valuable, please consider supporting its continued development.
+
+- **[Sponsor on GitHub](https://github.com/sponsors/anahata-os):** The most direct way to support the project.
+- **Commercial Licensing:** If you're using this in a commercial product, this is the required path.
+
+## Licensing: Open Core Model
+
+`gemini-java-client` is available under a dual-license model to accommodate both open-source and commercial needs.
+
+- **Open Source:** For use in open-source projects, the client is licensed under the **GNU Affero General Public License v3 (AGPLv3)**. This license ensures that any derivative works or applications that use this library and are publicly accessible must also be made open-source.
+
+- **Commercial Use:** For use in proprietary, closed-source applications, a **commercial license is required**. This allows you to integrate the power of the `gemini-java-client` into your commercial products without the obligation to open-source your own code.
+
+To inquire about a commercial license, please contact us at **sales@anahata.uno**.
