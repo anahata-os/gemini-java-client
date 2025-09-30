@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for GeminiFunctions to describe executable functions and their parameters.
+ * Annotation for FunctionManager to describe executable functions and their parameters.
  * @author pablo (modified by Gemini)
  */
 @Retention(RetentionPolicy.RUNTIME)

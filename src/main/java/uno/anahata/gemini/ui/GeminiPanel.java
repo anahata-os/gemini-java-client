@@ -252,18 +252,21 @@ public class GeminiPanel extends JPanel implements ContextListener {
         SwingUtilities.invokeLater(() -> {
             updateUsageLabel(usage);
 
+            // If a full refresh is already pending from contextModified(),
+            // do nothing here. The upcoming renderDirtyContext() call
+            // will render this newly added content as part of the full refresh.
             if (contextDirty) {
-                renderDirtyContext();
+                return; // FIX: Simply exit, avoiding the redundant render.
+            }
 
-            } else {
-                if (c != null) {
-                    ContentRenderer renderer = new ContentRenderer(editorKitProvider);
-                    int contentIdx = chat.getContextManager().getContext().indexOf(c);
-                    JComponent messageComponent = renderer.render(c, contentIdx);
-                    chatContentPanel.add(messageComponent);
-                    messageComponent.revalidate();
-                    messageComponent.repaint();
-                }
+            // If the context is not dirty, perform a normal incremental render.
+            if (c != null) {
+                ContentRenderer renderer = new ContentRenderer(editorKitProvider);
+                int contentIdx = chat.getContextManager().getContext().indexOf(c);
+                JComponent messageComponent = renderer.render(c, contentIdx);
+                chatContentPanel.add(messageComponent);
+                chatContentPanel.revalidate(); // Revalidate the container for proper layout.
+                chatContentPanel.repaint();
             }
 
             JScrollBar vertical = chatScrollPane.getVerticalScrollBar();
