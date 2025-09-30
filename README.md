@@ -1,4 +1,5 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 # Gemini Java Client
 
@@ -7,6 +8,16 @@ A pure Java client for Google's Gemini API, designed for deep integration into J
 This library provides a robust and extensible foundation for interacting with Google's Gemini models. It's not just a simple API wrapper; it includes a powerful, annotation-driven system for creating and managing local tools (functions) that the Gemini model can invoke. This allows you to build AI assistants that can interact directly with your application's logic, the local file system, or any other resource accessible from the JVM.
 
 The client also features a built-in Swing UI (`GeminiPanel`) that can be easily embedded into any desktop application, providing a complete chat interface out of the the box.
+
+## Licensing: Open Core Model
+
+`gemini-java-client` is available under a dual-license model to accommodate both open-source and commercial needs.
+
+- **Open Source:** For use in open-source projects, the client is licensed under the **GNU Affero General Public License v3 (AGPLv3)**. This license ensures that any derivative works or applications that use this library and are publicly accessible must also be made open-source.
+
+- **Commercial Use:** For use in proprietary, closed-source applications, a **commercial license is required**. This allows you to integrate the power of the `gemini-java-client` into your commercial products without the obligation to open-source your own code.
+
+To inquire about a commercial license, please contact us at **sales@anahata.uno**.
 
 ## Features
 
@@ -60,4 +71,4 @@ System.out.println(response);
 
 ## License
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the AGPLv3. See the [LICENSE](LICENSE) file for details. A commercial license is also available.
