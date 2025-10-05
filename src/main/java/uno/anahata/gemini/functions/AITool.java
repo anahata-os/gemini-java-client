@@ -8,9 +8,11 @@ import java.lang.annotation.Target;
 /**
  * Annotation for FunctionManager to describe executable functions and their parameters.
  * @author pablo (modified by Gemini)
+ * @deprecated This annotation is ambiguous. Use {@link AIToolMethod} for methods and {@link AIToolParam} for parameters instead.
  */
+@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.PARAMETER}) // [anahata] REVERTED: Now targets methods and parameters again
+@Target({ElementType.METHOD, ElementType.PARAMETER})
 public @interface AITool {
     String value();
     boolean requiresApproval() default true;

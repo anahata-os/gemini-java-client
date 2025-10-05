@@ -9,19 +9,19 @@ import com.google.genai.types.Part;
 import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import uno.anahata.gemini.GeminiAPI;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.functions.AITool;
+import uno.anahata.gemini.functions.AIToolMethod;
+import uno.anahata.gemini.functions.AIToolParam;
 
 /**
  * A Core Function provider that groups all functions for generating images.
  */
 public class Images {
 
-    @AITool("Generates a single image based on a text prompt and saves it to a specified file path.")
+    @AIToolMethod("Generates a single image based on a text prompt and saves it to a specified file path.")
     public static String create(
-        @AITool("The text prompt to describe the desired image.") String prompt,
-        @AITool("The absolute file path where the generated PNG image should be saved.") String filePath
+        @AIToolParam("The text prompt to describe the desired image.") String prompt,
+        @AIToolParam("The absolute file path where the generated PNG image should be saved.") String filePath
     ) throws Exception {
         
         if (prompt == null || prompt.trim().isEmpty()) {
@@ -32,14 +32,12 @@ public class Images {
         }
 
         try {
-            //GeminiAPI api = new GeminiAPI();
             Client client = GeminiChat.get().getGoogleGenAIClient();
             
             GenerateContentConfig config = GenerateContentConfig.builder()
                 .responseModalities("IMAGE")
                 .build();
 
-            // Note: A specific image generation model should be used.
             String modelName = "gemini-2.5-flash-image-preview"; 
 
             GenerateContentResponse response = client.models.generateContent(modelName, prompt, config);

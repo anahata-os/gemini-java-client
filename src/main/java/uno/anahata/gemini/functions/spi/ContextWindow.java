@@ -14,27 +14,28 @@ import java.util.Set;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.ContextManager;
-import uno.anahata.gemini.functions.AITool;
+import uno.anahata.gemini.functions.AIToolMethod;
+import uno.anahata.gemini.functions.AIToolParam;
 
 public class ContextWindow {
 
     public static int TOKEN_THRESHOLD = 108_000;
 
-    @AITool("Sets the token threshold for automatic context pruning.")
+    @AIToolMethod("Sets the token threshold for automatic context pruning.")
     public static String setTokenThreshold(
-            @AITool("The new token threshold value.") int newThreshold
+            @AIToolParam("The new token threshold value.") int newThreshold
     ) {
         TOKEN_THRESHOLD = newThreshold;
         return "Token threshold updated to " + newThreshold;
     }
 
-    @AITool("Gets the current token threshold for automatic context pruning. "
+    @AIToolMethod("Gets the current token threshold for automatic context pruning. "
             + "Calls to the model should never exceed this value. It is passed with the system instructions on every request to the model along with the last total token count as in History.getTotalTokenCount")
     public static int getTokenThreshold() {
         return TOKEN_THRESHOLD;
     }
 
-    @AITool("Gets the current total token count in the context window as shown to the user. "
+    @AIToolMethod("Gets the current total token count in the context window as shown to the user. "
             + "This is a value calculated by the model and extracted from the models last response")
     public static int getTokenCount() throws Exception {
         GeminiChat chat = GeminiChat.currentChat.get();
@@ -44,10 +45,10 @@ public class ContextWindow {
         return chat.getContextManager().getTotalTokenCount();
     }
 
-    @AITool(value = "Prunes the context window by removing specific entries. STRATEGIC NOTE: This removes information from the model's active context for future turns. Only prune entries that are truly redundant or no longer relevant to the current task.", requiresApproval = true)
+    @AIToolMethod(value = "Prunes the context window by removing specific entries. STRATEGIC NOTE: This removes information from the model's active context for future turns. Only prune entries that are truly redundant or no longer relevant to the current task.", requiresApproval = true)
     public static String pruneContext(
-            @AITool("A list of the entries being removed [contentIdx/partIdx][partType]reason for removal") String removedParts,
-            @AITool("An array of zero-based identifiers in format of context entries to removed. Use 'contentIdx' for a whole entry or 'contentIdx/partIdx' for a specific part.") String[] identifiers
+            @AIToolParam("A list of the entries being removed [contentIdx/partIdx][partType]reason for removal") String removedParts,
+            @AIToolParam("An array of zero-based identifiers in format of context entries to removed. Use 'contentIdx' for a whole entry or 'contentIdx/partIdx' for a specific part.") String[] identifiers
     ) throws Exception {
         GeminiChat chat = GeminiChat.currentChat.get();
         if (chat == null) {
@@ -121,18 +122,14 @@ public class ContextWindow {
         File pruneSummaryfile = new File(historyFolder, timestamp + "-prune.md");
         Files.writeString(pruneSummaryfile.toPath(), removedParts);
 
-        //Files.writeString(se, sessionSummary, options)
         return "Pruning complete. Removed " + partsModified + " Parts  and " + contentRemoved + " entire Content entries. "
                 + "\nTotal History entries: Before: " + contentCountBefore + " after:" + contentCountAfter + ". "
                 + "\nPruned content summary saved to: " + pruneSummaryfile + " " + pruneSummaryfile.length() + " bytes"
                 + "\nUI refresh started.";
     }
 
-    @AITool("Lists all entries in the context in [contentIdx/partIdx][partType] format")
+    @AIToolMethod("Lists all entries in the context in [contentIdx/partIdx][partType] format")
     public static String listEntries() {
         return ContextManager.get().getSummaryAsString();
     }
-
-    //Tip: If the user asks you for a detailed analysis of the history, use uno.anahata.gemini.HistoryManager.get().getHistory() from the java execution environment 
-    //to get a List<com.google.genai.types.Content> and their corresponding com.google.genai.types.Part items.
 }

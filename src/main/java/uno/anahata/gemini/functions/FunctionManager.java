@@ -36,21 +36,18 @@ public class FunctionManager {
         this.chat = chat;
         this.prompter = prompter;
         List<Class<?>> allClasses = new ArrayList<>();
-        // Add new and old file tools, plus others
-        //allClasses.add(LocalFiles.class);
-        allClasses.add(LocalFiles.class); // New POJO-based tool
+        allClasses.add(LocalFiles.class);
         allClasses.add(LocalShell.class);
         allClasses.add(RunningJVM.class);
         allClasses.add(Images.class);
         allClasses.add(ContextWindow.class);
-        //allClasses.add(Patch.class);
         allClasses.add(Session.class);
         if (prompter != null && config.getAutomaticFunctionClasses() != null) {
             allClasses.addAll(config.getAutomaticFunctionClasses());
         }
-        logger.info("FunctionManager2 scanning classes for @AITool: " + allClasses);
+        logger.info("FunctionManager scanning classes for @AIToolMethod: " + allClasses);
         this.coreTools = makeFunctionsTool(allClasses.toArray(new Class<?>[0]));
-        logger.info("FunctionManager2 created. Total Function Declarations: " + coreTools.functionDeclarations().get().size());
+        logger.info("FunctionManager created. Total Function Declarations: " + coreTools.functionDeclarations().get().size());
 
         this.toolConfig = makeToolConfigForFunctionCalling();
     }
@@ -59,7 +56,7 @@ public class FunctionManager {
         List<FunctionDeclaration> fds = new ArrayList<>();
         for (Class<?> c : classes) {
             for (Method m : c.getDeclaredMethods()) {
-                if (m.isAnnotationPresent(AITool.class)) {
+                if (m.isAnnotationPresent(AIToolMethod.class)) {
                     FunctionDeclaration fd = fromMethod(m);
                     functionCallMethods.put(fd.name().get(), m);
                     fds.add(fd);
@@ -126,13 +123,10 @@ public class FunctionManager {
                 Object funcResponse = invokeFunctionMethod(method, approvedCall.args().get());
                 
                 Map<String, Object> responseMap;
-                // If the response is a complex POJO (but not a collection/array), GSON will serialize it to a map-like structure.
-                // Otherwise (for primitives, collections, arrays), we wrap it in a map with the key "output".
                 if (funcResponse != null && !(funcResponse instanceof String || funcResponse instanceof Number || funcResponse instanceof Boolean || funcResponse instanceof Collection || funcResponse.getClass().isArray())) {
                      JsonElement jsonElement = GSON.toJsonTree(funcResponse);
                      responseMap = GSON.fromJson(jsonElement, Map.class);
                 } else {
-                    // It's a primitive, a collection, or an array. Wrap it.
                     responseMap = new HashMap<>();
                     responseMap.put("output", funcResponse == null ? "" : funcResponse);
                 }
@@ -152,14 +146,13 @@ public class FunctionManager {
             results.add(Content.builder().role("function").parts(functionResponseParts).build());
         }
 
-        // 2. Handle denied functions (as a model response explaining the denial)
+        // 2. Handle denied functions
         if (!promptResult.deniedFunctions.isEmpty()) {
             ImmutableList.Builder<Part> deniedPartsBuilder = ImmutableList.builder();
             for (FunctionCall deniedCall : promptResult.deniedFunctions) {
                 String denialMessage = String.format(
-                        "User denied function call: %s (id: %s)",
-                        deniedCall.name().get(),
-                        deniedCall.id().orElse("N/A")
+                        "User denied function call: %s",
+                        deniedCall.name().get()
                 );
                 deniedPartsBuilder.add(Part.fromText(denialMessage));
             }
@@ -167,7 +160,7 @@ public class FunctionManager {
         }
 
 
-        // 3. Handle user comment (as a user message) - MUST BE LAST
+        // 3. Handle user comment
         if (promptResult.userComment != null && !promptResult.userComment.trim().isEmpty()) {
             results.add(Content.builder().role("user").parts(Part.fromText(promptResult.userComment)).build());
         }
@@ -190,13 +183,9 @@ public class FunctionManager {
                 continue;
             }
 
-            // If the parameter is a primitive, String, or a boxed type, use it directly
-            // (Gson usually gets the types right for these from the JSON).
             if (paramType.isPrimitive() || Number.class.isAssignableFrom(paramType) || Boolean.class.isAssignableFrom(paramType) || String.class.equals(paramType)) {
                  argsToInvoke[i] = argValueFromModel;
             } else {
-                // It's a complex object (POJO). Deserialize it from the model's argument.
-                // The model provides a Map; we convert it to JSON and then to the POJO.
                 String json = GSON.toJson(argValueFromModel);
                 argsToInvoke[i] = GSON.fromJson(json, paramType);
             }
@@ -209,7 +198,7 @@ public class FunctionManager {
         if (!Modifier.isStatic(method.getModifiers())) {
             throw new IllegalArgumentException("Only static methods are supported.");
         }
-        AITool methodAnnotation = method.getAnnotation(AITool.class);
+        AIToolMethod methodAnnotation = method.getAnnotation(AIToolMethod.class);
         String functionDescription = methodAnnotation.value();
 
         Map<String, Schema> properties = new HashMap<>();
@@ -217,10 +206,9 @@ public class FunctionManager {
 
         for (Parameter p : method.getParameters()) {
             String paramName = p.getName();
-            AITool paramAnnotation = p.getAnnotation(AITool.class);
+            AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
             String paramDescription = (paramAnnotation != null) ? paramAnnotation.value() : "No description";
             
-            // Use GeminiSchemaGenerator for all types, including POJOs
             properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), paramDescription));
             required.add(paramName);
         }

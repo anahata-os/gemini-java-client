@@ -4,18 +4,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Callable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import uno.anahata.gemini.functions.AITool;
+import uno.anahata.gemini.functions.AIToolMethod;
+import uno.anahata.gemini.functions.AIToolParam;
 
 public class LocalShell {
 
-    @AITool("Runs a shell command with bash -c: <command> and returns a map with the following values:\n"
+    @AIToolMethod("Runs a shell command with bash -c: <command> and returns a map with the following values:\n"
             + " \n\tthreadId (it of the thread that executed the shell command, "
             + " \n\tpid, process id"
             + " \n\tstartTime, process start time as an ISO-8601 string"
@@ -25,7 +24,7 @@ public class LocalShell {
             + " \n\tstdout, process standard output"
             + " \n\tstderr, process standard error"
     )
-    public static Map<String, Object> runShell(@AITool("The command to run") String command) throws Exception {
+    public static Map<String, Object> runShell(@AIToolParam("The command to run") String command) throws Exception {
         System.out.println("executeShellCommand: " + command);
         Map<String, Object> result = new HashMap<>();
 
@@ -53,11 +52,10 @@ public class LocalShell {
         String error = stderrFuture.get();
         long executionTimeMs = endTime.toEpochMilli() - startTime.toEpochMilli();
 
-        // Populate result map with simple, serializable types
         result.put("threadId", Thread.currentThread().getName());
         result.put("pid", pid);
-        result.put("startTime", startTime.toString()); // Convert Instant to String
-        result.put("endTime", endTime.toString());     // Convert Instant to String
+        result.put("startTime", startTime.toString());
+        result.put("endTime", endTime.toString());
         result.put("executionTimeMs", executionTimeMs);
         result.put("exitCode", exitCode);
         result.put("stdout", output);
