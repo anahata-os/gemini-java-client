@@ -54,6 +54,8 @@ public final class GsonUtils {
         if (prettyPrinting) {
             builder.setPrettyPrinting();
         }
+        
+        builder.setLenient();
 
         return builder.create();
     }

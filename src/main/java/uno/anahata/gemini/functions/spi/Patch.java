@@ -13,8 +13,10 @@ import java.util.List;
 
 /**
  * A dedicated tool for applying diff patches to files, ensuring atomicity and safety.
+ * Too difficult for an LLM to create a well formed pat
  * @author AI
  */
+@Deprecated
 public class Patch {
     //too difficult for an AI to make a perfect patch, cant even get line numbers right
     //@AITool("Applies a unified diff patch to a file. It reads the file from disk, verifies its lastModified timestamp as a precondition, applies the patch, and writes the changes back. Returns the updated FileInfo.")

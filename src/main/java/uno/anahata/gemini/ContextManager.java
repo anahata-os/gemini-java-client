@@ -3,8 +3,10 @@ package uno.anahata.gemini;
 import com.google.genai.types.*;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -182,9 +184,22 @@ public class ContextManager {
             throw new IOException("Session file not found: " + id);
         }
 
-        String json = Files.readString(sessionPath, StandardCharsets.UTF_8);
-        Type listType = new TypeToken<ArrayList<Content>>() {}.getType();
-        List<Content> loadedContext = GSON.fromJson(json, listType);
+        List<Content> loadedContext = new ArrayList<>();
+        try (JsonReader reader = new JsonReader(new InputStreamReader(Files.newInputStream(sessionPath), StandardCharsets.UTF_8))) {
+            reader.setLenient(true); 
+            
+            // Check if it's an array (new format) or a stream of objects (old format)
+            if (reader.peek() == com.google.gson.stream.JsonToken.BEGIN_ARRAY) {
+                Type listType = new TypeToken<ArrayList<Content>>() {}.getType();
+                loadedContext = GSON.fromJson(reader, listType);
+            } else {
+                // Handle stream of objects for backwards compatibility
+                while (reader.hasNext()) {
+                    Content content = GSON.fromJson(reader, Content.class);
+                    loadedContext.add(content);
+                }
+            }
+        }
 
         setContext(loadedContext);
         notifyHistoryChange();
