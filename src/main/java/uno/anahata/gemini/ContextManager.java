@@ -2,13 +2,8 @@ package uno.anahata.gemini;
 
 import com.google.genai.types.*;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -17,17 +12,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.internal.GsonUtils;
 
+// V2: Refactored to use ChatMessage instead of Content
 public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
+    // TODO: Replace with Kryo
     private static final Gson GSON = GsonUtils.getGson();
 
-    private List<Content> context = new ArrayList<>();
+    private List<ChatMessage> context = new ArrayList<>();
     private final GeminiConfig config;
     private final ContextListener listener;
     private int totalTokenCount = 0;
@@ -35,7 +30,6 @@ public class ContextManager {
     public ContextManager(GeminiConfig config, ContextListener listener) {
         this.config = config;
         this.listener = listener;
-        //restoreSession();
     }
 
     public static ContextManager get() {
@@ -50,39 +44,40 @@ public class ContextManager {
         return totalTokenCount;
     }
 
-    public synchronized void add(GenerateContentResponseUsageMetadata usage, Content c) {
-        if (c != null) {
-            context.add(c);
-            logEntryToFile(c);
-            backupSession();
+    public synchronized void add(ChatMessage message) {
+        context.add(message);
+        
+        // TODO: Implement intelligent pruning for STATEFUL_REPLACE
+        
+        logEntryToFile(message);
+        // TODO: Re-implement backup with Kryo
+        // backupSession();
+        
+        if (message.getUsageMetadata() != null) {
+            message.getUsageMetadata().totalTokenCount().ifPresent(count -> this.totalTokenCount = count);
         }
-        if (usage != null) {
-            usage.totalTokenCount().ifPresent(count -> this.totalTokenCount = count);
-        }
-        listener.contentAdded(usage, c);
+        listener.contentAdded(message.getUsageMetadata(), message.getContent());
     }
 
-    public synchronized void addAll(List<Content> contents) {
-        for (Content content : contents) {
-            add(null, content);
-        }
-    }
-
-    private void logEntryToFile(Content content) {
+    private void logEntryToFile(ChatMessage message) {
         try {
+            Content content = message.getContent();
+            if (content == null) return;
+
             File historyDir = GeminiConfig.getWorkingFolder("history");
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"));
             String role = content.role().orElse("unknown");
-            String modelId = config.getApi().getModelId().replaceAll("[^a-zA-Z0-9.-]", "_");
+            String modelId = message.getModelId() != null ? message.getModelId().replaceAll("[^a-zA-Z0-9.-]", "_") : "unknown_model";
             String filename = String.format("%s-%s-%s-%s.log", timestamp, role, modelId, getContextId());
             Path logFilePath = historyDir.toPath().resolve(filename);
 
             StringBuilder logContent = new StringBuilder();
             logContent.append("--- HEADER ---\n");
+            logContent.append("Message ID: ").append(message.getId()).append("\n");
             logContent.append("Context ID: ").append(getContextId()).append("\n");
             logContent.append("Timestamp: ").append(timestamp).append("\n");
             logContent.append("Role: ").append(role).append("\n");
-            logContent.append("Model ID: ").append(config.getApi().getModelId()).append("\n");
+            logContent.append("Model ID: ").append(message.getModelId()).append("\n");
             logContent.append("--- PARTS ---\n");
 
             if (content.parts().isPresent()) {
@@ -108,13 +103,16 @@ public class ContextManager {
         logger.info("Chat history cleared.");
     }
 
-    public synchronized List<Content> getContext() {
+    public synchronized List<ChatMessage> getContext() {
         return new ArrayList<>(context);
     }
 
-    public synchronized void setContext(List<Content> newContext) {
+    public synchronized void setContext(List<ChatMessage> newContext) {
         this.context = new ArrayList<>(newContext);
-        this.totalTokenCount = this.context.stream().mapToInt(c -> c.toString().length() / 4).sum();
+        // Recalculate token count (crude estimation for now)
+        this.totalTokenCount = this.context.stream()
+            .mapToInt(cm -> cm.getContent() != null ? cm.getContent().toString().length() / 4 : 0)
+            .sum();
         logger.info("Estimated token count after setContext: " + this.totalTokenCount);
     }
 
@@ -123,27 +121,30 @@ public class ContextManager {
     }
 
     public String getSummaryAsString() {
-        List<Content> historyCopy = getContext();
+        List<ChatMessage> historyCopy = getContext();
         StringBuilder statusBlock = new StringBuilder();
         statusBlock.append("\n#  Context entries: ").append(historyCopy.size()).append("\n");
         statusBlock.append("\n-----------------------------------\n");
-        int contentIdx = 0;
-        for (Content content : historyCopy) {
+        
+        for (int i = 0; i < historyCopy.size(); i++) {
+            ChatMessage message = historyCopy.get(i);
+            Content content = message.getContent();
+            String role = content != null && content.role().isPresent() ? content.role().get() : "system";
             
-            statusBlock.append("\n[").append(contentIdx).append("][").append(content.role().get()).append("] ");
-            if (content.parts().isPresent()) {
+            statusBlock.append("\n[").append(i).append("][").append(role).append("] ");
+            statusBlock.append("[id: ").append(message.getId()).append("] ");
+            
+            if (content != null && content.parts().isPresent()) {
                 List<Part> parts = content.parts().get();
                 statusBlock.append(parts.size()).append(" Parts");
-                int partIdx = 0;
-                for (Part p : content.parts().get()) {
-                    statusBlock.append("\n\t[").append(contentIdx).append("/").append(partIdx).append("] ");
+                for (int j = 0; j < parts.size(); j++) {
+                    Part p = parts.get(j);
+                    statusBlock.append("\n\t[").append(i).append("/").append(j).append("] ");
                     statusBlock.append(PartUtils.summarize(p));
-                    partIdx++;
                 }
             } else {
                 statusBlock.append("0 (No Parts)");
             }
-            contentIdx++;
         }
         statusBlock.append("\n");
 
@@ -154,86 +155,18 @@ public class ContextManager {
         return config.getApplicationInstanceId() + "-" + System.identityHashCode(this);
     }
 
+    // TODO: Re-implement with Kryo
     public synchronized String saveSession(String name) throws IOException {
-        File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-        String filename = String.format("session-%s-%s.json", name, timestamp);
-        Path sessionPath = sessionsDir.toPath().resolve(filename);
-
-        String json = GSON.toJson(context);
-        Files.writeString(sessionPath, json, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-
-        logger.log(Level.INFO, "Session saved to {0}", sessionPath);
-        return StringUtils.removeEnd(filename, ".json");
+        throw new UnsupportedOperationException("Session saving is disabled until Kryo implementation.");
     }
 
+    // TODO: Re-implement with Kryo
     public synchronized List<String> listSavedSessions() throws IOException {
-        File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
-        if (!sessionsDir.exists()) {
-            return Collections.emptyList();
-        }
-        return Arrays.stream(sessionsDir.listFiles((dir, name) -> name.endsWith(".json")))
-                .map(file -> StringUtils.removeEnd(file.getName(), ".json"))
-                .collect(Collectors.toList());
+        throw new UnsupportedOperationException("Session listing is disabled until Kryo implementation.");
     }
 
+    // TODO: Re-implement with Kryo
     public synchronized void loadSession(String id) throws IOException {
-        File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
-        Path sessionPath = sessionsDir.toPath().resolve(id + ".json");
-        if (!Files.exists(sessionPath)) {
-            throw new IOException("Session file not found: " + id);
-        }
-
-        List<Content> loadedContext = new ArrayList<>();
-        try (JsonReader reader = new JsonReader(new InputStreamReader(Files.newInputStream(sessionPath), StandardCharsets.UTF_8))) {
-            reader.setLenient(true); 
-            
-            // Check if it's an array (new format) or a stream of objects (old format)
-            if (reader.peek() == com.google.gson.stream.JsonToken.BEGIN_ARRAY) {
-                Type listType = new TypeToken<ArrayList<Content>>() {}.getType();
-                loadedContext = GSON.fromJson(reader, listType);
-            } else {
-                // Handle stream of objects for backwards compatibility
-                while (reader.hasNext()) {
-                    Content content = GSON.fromJson(reader, Content.class);
-                    loadedContext.add(content);
-                }
-            }
-        }
-
-        setContext(loadedContext);
-        notifyHistoryChange();
-        logger.log(Level.INFO, "Session loaded from {0}", sessionPath);
+        throw new UnsupportedOperationException("Session loading is disabled until Kryo implementation.");
     }
-
-    private Path getAutoBackupPath() throws IOException {
-        File workDir = GeminiConfig.getWorkingFolder("sessions");
-        String filename = "autobackup-" + getContextId() + ".json";
-        return workDir.toPath().resolve(filename);
-    }
-    
-    private void backupSession() {
-        try {
-            Path backupPath = getAutoBackupPath();
-            String json = GSON.toJson(context);
-            Files.writeString(backupPath, json, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to create automatic session backup", e);
-        }
-    }
-    /*
-    private void restoreSession() {
-        try {
-            Path backupPath = getAutoBackupPath();
-            if (Files.exists(backupPath)) {
-                String json = Files.readString(backupPath, StandardCharsets.UTF_8);
-                Type listType = new TypeToken<ArrayList<Content>>() {}.getType();
-                List<Content> restoredContext = GSON.fromJson(json, listType);
-                setContext(restoredContext);
-                logger.log(Level.INFO, "Session restored from automatic backup: {0}", backupPath.getFileName());
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to restore session from automatic backup", e);
-        }
-    }*/
 }

@@ -11,6 +11,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import uno.anahata.gemini.functions.ContextBehavior;
 
 /**
  * A comprehensive, context-aware file operations tool that uses POJOs and timestamps
@@ -27,7 +28,7 @@ public class LocalFiles {
         return normalized.replaceAll("[^\\p{Print}\\t\\n]", "");
     }
 
-    @AIToolMethod(value = "Reads a single file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", requiresApproval = false)
+    @AIToolMethod(value = "Reads a single file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", requiresApproval = false, behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo readFile(
             @AIToolParam("The absolute path of the file to read.") String path
     ) throws IOException {
@@ -46,7 +47,7 @@ public class LocalFiles {
         return new FileInfo(path, content, lastModified, size);
     }
 
-    @AIToolMethod("Writes content to a file, but only if the file has not been modified since it was last read. It uses the lastModified timestamp from the FileInfo object as a precondition. Returns the updated FileInfo object.")
+    @AIToolMethod(value = "Writes content to a file, but only if the file has not been modified since it was last read. It uses the lastModified timestamp from the FileInfo object as a precondition. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo writeFile(
             @AIToolParam("A FileInfo object containing the path, new content, and the expected last modified timestamp. OPTIMISTIC USAGE: If you have just performed a successful write/patch, you can use the 'lastModified' from the returned FileInfo object for the next immediate write on the same file, saving a 'readFile' call.")
             FileInfo fileInfo
@@ -70,7 +71,7 @@ public class LocalFiles {
         return readFile(fileInfo.path);
     }
 
-    @AIToolMethod("Creates a new file with the given content, creating parent directories if necessary. Throws an IOException if a file or directory already exists at the specified path.")
+    @AIToolMethod(value = "Creates a new file with the given content, creating parent directories if necessary. Throws an IOException if a file or directory already exists at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo createFile(
             @AIToolParam("The absolute path of the file to create.") String path,
             @AIToolParam("The initial content to write to the file. Can be empty.") String content
@@ -86,7 +87,7 @@ public class LocalFiles {
         return readFile(path);
     }
 
-    @AIToolMethod("Appends content to the end of a file. Returns the updated FileInfo object.")
+    @AIToolMethod(value = "Appends content to the end of a file. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo appendToFile(
             @AIToolParam("The absolute path of the file to append to.") String path,
             @AIToolParam("The content to append.") String content
@@ -95,7 +96,7 @@ public class LocalFiles {
         return readFile(path);
     }
 
-    @AIToolMethod("Deletes a file at the specified path.")
+    @AIToolMethod(value = "Deletes a file at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static String deleteFile(
             @AIToolParam("The absolute path of the file to delete.") String path
     ) throws IOException {
@@ -107,7 +108,7 @@ public class LocalFiles {
         return "Successfully deleted file: " + path;
     }
 
-    @AIToolMethod("Moves or renames a file. Returns the FileInfo of the new file.")
+    @AIToolMethod(value = "Moves or renames a file. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo moveFile(
             @AIToolParam("The absolute path of the file to move.") String sourcePath,
             @AIToolParam("The absolute path of the destination.") String targetPath
@@ -121,7 +122,7 @@ public class LocalFiles {
         return readFile(targetPath);
     }
 
-    @AIToolMethod("Copies a file from a source path to a destination path. Returns the FileInfo of the new file.")
+    @AIToolMethod(value = "Copies a file from a source path to a destination path. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo copyFile(
             @AIToolParam("The absolute path of the source file.") String sourcePath,
             @AIToolParam("The absolute path of the destination file.") String destinationPath

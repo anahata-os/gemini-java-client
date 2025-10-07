@@ -11,15 +11,15 @@ import java.util.logging.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.functions.FunctionPrompter;
-import uno.anahata.gemini.functions.FunctionManager; // Use the new FunctionManager2
-import uno.anahata.gemini.functions.spi.ContextWindow;
+import uno.anahata.gemini.functions.FunctionManager;
 
+// V2: Refactored to use ChatMessage and the new architecture
 public class GeminiChat {
 
     private static final Logger logger = Logger.getLogger(GeminiChat.class.getName());
     public static final ThreadLocal<GeminiChat> currentChat = new ThreadLocal<>();
 
-    private final FunctionManager functionManager; // Use the new FunctionManager2
+    private final FunctionManager functionManager;
     private final GeminiConfig config;
     private final ContextManager contextManager;
     private long latency = -1;
@@ -32,7 +32,7 @@ public class GeminiChat {
             FunctionPrompter prompter,
             ContextListener listener) {
         this.config = config;
-        this.functionManager = new FunctionManager(this, config, prompter); // Instantiate the new FunctionManager2
+        this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager = new ContextManager(config, listener);
     }
 
@@ -49,26 +49,15 @@ public class GeminiChat {
         this.functionsEnabled = functionsEnabled;
     }
     
-    /**
-     * Helper method for the assistant 
-     * 
-     * @return the current chat
-     */
     public static GeminiChat get() {
         return currentChat.get();
     }
     
     private Content buildSystemInstructions() {
         List<Part> parts = new ArrayList<>();
-        
-        // 1. Core Principles from file
         parts.add(config.getCoreSystemInstructionPart());
-        
-        // 2. Host-Specific Role & Directives (e.g., NetBeans info, IDE alerts)
         parts.addAll(config.getHostSpecificSystemInstructionParts());
         
-        
-        // 3. AI Operational Status
         String chatStatusBlock = "- Chat: " + this + "\n";
         chatStatusBlock += "- Model Id: " + config.getApi().getModelId()+ "\n";
         chatStatusBlock += "- ContextManager: " + contextManager+ "\n";
@@ -78,74 +67,42 @@ public class GeminiChat {
         if (latency > 0) {
             chatStatusBlock += "- Latency (last successfull user/model round trip): " + latency + " ms.\n";
         }
-         
         if (lastApiError != null) {
             chatStatusBlock += "- Last API Error: \n" + lastApiError + " ms.\n";
         }
-        
         parts.add(Part.fromText(chatStatusBlock));
-        
-        // 4. AI Context Index
         
         String contextStatusBlock = "\nContext id:" + contextManager.getContextId();
         contextStatusBlock += String.format("\nTotal Token Count: %d\nToken Threshold: %d\n",
             contextManager.getTotalTokenCount(),
-            ContextWindow.TOKEN_THRESHOLD
+            uno.anahata.gemini.functions.spi.ContextWindow.getTokenThreshold()
         );
-        
         contextStatusBlock += "\n";
         contextStatusBlock += contextManager.getSummaryAsString();
         contextStatusBlock += "\n-------------------------------------------------------------------";
-        
         parts.add(Part.fromText(contextStatusBlock));
         
-        // 4. Reference Appendix (Verbose environment details)
         parts.add(config.getSystemInstructionsAppendix());
         
-        for (Part part : parts) {
-            logger.info("-SystemInstruction:[" + parts.indexOf(part) + "]" + part.text().get());
-        }
         return Content.builder().parts(parts).build();
     }
     
-    
-
     private GenerateContentConfig makeGenerateContentConfig() {
         GenerateContentConfig.Builder builder = GenerateContentConfig.builder()
                 .systemInstruction(buildSystemInstructions())
-                .thinkingConfig(ThinkingConfig.builder().thinkingBudget(-1))
                 .temperature(0f);
         
-        GoogleSearch googleSearch = GoogleSearch.builder().build();
-            GoogleSearchRetrieval googleSearchRetrieval = GoogleSearchRetrieval.builder().build();
-            ToolCodeExecution codeExecution = ToolCodeExecution.builder().build();
-            GoogleMaps googleMaps = GoogleMaps.builder().build();
-            ToolComputerUse computerUse = ToolComputerUse.builder().build();
-            
         if (functionsEnabled) {
-            //logger.info("Functions ENABLED");
             builder
                     .tools(functionManager.getFunctionTool())
                     .toolConfig(functionManager.getToolConfig());
         } else {
-            //logger.info("Functions DISABLED");
-            Tool googleTools = Tool.builder()
-                    .googleSearch(googleSearch)
-                    //.googleSearchRetrieval(googleSearchRetrieval)
-                    //.codeExecution(codeExecution)
-                    //.googleMaps(googleMaps)
-                    //.computerUse(computerUse)
-                    .build();
-            //builder.tools(Tool.builder().googleSearch().googleSearchRetrieval(GoogleSearchRetrieval.builder().dynamicRetrievalConfig(dynamicRetrievalConfig)).build());
-            
+            Tool googleTools = Tool.builder().googleSearch(GoogleSearch.builder().build()).build();
             builder.tools(googleTools);
-            
         }
         
         return builder.build();
     }
-
-
 
     public void init() {
         startTime = new Date();
@@ -160,73 +117,81 @@ public class GeminiChat {
         contextManager.clear();
     }
 
-
     public void sendText(String message) {
         sendContent(Content.fromParts(Part.fromText(message)));
     }
 
     public void sendContent(Content content) {
         if (content != null) {
-            contextManager.add(null, content);
+            ChatMessage userMessage = new ChatMessage(config.getApi().getModelId(), content, null, null, null);
+            contextManager.add(userMessage);
         }
 
-        // This is the main loop that sends the context to the model and processes the response.
-        // It will continue to loop as long as the model returns function calls.
-        // A final non-function-call response will break the loop.
         while (true) {
-            GenerateContentResponse resp = sendToModelWithRetry(contextManager.getContext());
-            //here we should unblock the UI
+            List<Content> apiContext = buildApiContext(contextManager.getContext());
+            GenerateContentResponse resp = sendToModelWithRetry(apiContext);
+
             if (resp.candidates().isPresent() && !resp.candidates().get().isEmpty()) {
                 Candidate cand = resp.candidates().get().get(0);
                 if (cand.content().isPresent()) {
-                    Content modelResponse = cand.content().get();
-                    contextManager.add(resp.usageMetadata().orElse(null), modelResponse);
+                    Content modelResponseContent = cand.content().get();
+                    ChatMessage modelMessage = new ChatMessage(
+                        config.getApi().getModelId(),
+                        modelResponseContent,
+                        null, // Responses will be linked later
+                        resp.usageMetadata().orElse(null),
+                        cand.groundingMetadata().orElse(null)
+                    );
+                    contextManager.add(modelMessage);
                     
-                    // Check if the response contains function calls
-                    if (!checkResponseForFunctionCalls(modelResponse)) {
-                        // If no function calls, we are done with this turn.
+                    if (!processAndReloopForFunctionCalls(modelMessage)) {
                         break; 
                     }
-                    // If there were function calls, the loop continues to send the results back to the model.
-                    
                 } else {
-                    // No content in the candidate, so we are done.
                     break;
                 }
             } else {
-                // No candidates in the response, so we are done.
-                contextManager.add(resp.usageMetadata().orElse(null), null);
+                // Handle cases with no candidates (e.g., safety filters)
+                ChatMessage emptyModelMessage = new ChatMessage(config.getApi().getModelId(), null, null, resp.usageMetadata().orElse(null), null);
+                contextManager.add(emptyModelMessage);
                 break;
             }
         }
     }
 
-    /**
-     * Processes function calls from a model's response.
-     * @param modelResponse The response from the model.
-     * @return true if function calls were processed, false otherwise.
-     */
-    private boolean checkResponseForFunctionCalls(Content modelResponse) {
-        int contentIdx = contextManager.getContext().indexOf(modelResponse);
-        List<Content> invocationResults = functionManager.processFunctionCalls(modelResponse, contentIdx);
+    private boolean processAndReloopForFunctionCalls(ChatMessage modelMessage) {
+        List<FunctionResponse> functionResponses = functionManager.processFunctionCalls(modelMessage);
 
-        if (invocationResults.isEmpty()) {
-            return false;
+        if (functionResponses.isEmpty()) {
+            return false; // No function calls, break the loop
         }
 
-        contextManager.addAll(invocationResults);
-        return true;
+        // Create a new message to hold the function responses
+        Content functionResponseContent = Content.builder()
+            .role("tool") // Use "tool" role for function responses
+            .parts(functionResponses.stream().map(fr -> (Part) Part.fromFunctionResponse(fr.name().get(), (java.util.Map)fr.response().get())).collect(java.util.stream.Collectors.toList()))
+            .build();
+            
+        ChatMessage functionResponseMessage = new ChatMessage(
+            config.getApi().getModelId(),
+            functionResponseContent,
+            null, // This message *is* the response, no further responses to link
+            null, // No new usage metadata for this internal step
+            null
+        );
+        contextManager.add(functionResponseMessage);
+        
+        return true; // Function calls were processed, continue the loop
     }
     
     private void recordLastApiError(Exception e) {
         this.lastApiError = new Date() + "\n" + ExceptionUtils.getStackTrace(e);
     }
 
-
     private GenerateContentResponse sendToModelWithRetry(List<Content> context) {
         int maxRetries = 5;
-        long initialDelayMillis = 1000; // Start with 1 second
-        long maxDelayMillis = 30000;    // Cap at 30 seconds
+        long initialDelayMillis = 1000;
+        long maxDelayMillis = 30000;
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
@@ -235,54 +200,54 @@ public class GeminiChat {
                 long ts = System.currentTimeMillis();
                 GenerateContentResponse ret = getGoogleGenAIClient().models.generateContent(config.getApi().getModelId(), context, gcc);
                 lastApiError = null;
-                ts = System.currentTimeMillis() - ts;
-                latency = ts;
-                logger.info(ts + " ms. Received response from model for " + context.size() + " content elements. functions enabled: " + functionsEnabled);
-                return ret; // Success
+                latency = System.currentTimeMillis() - ts;
+                logger.info(latency + " ms. Received response from model for " + context.size() + " content elements.");
+                return ret;
             } catch (Exception e) {
                 recordLastApiError(e);
                 if (e.toString().contains("429") || e.toString().contains("503") || e.toString().contains("500")) {
                     if (attempt == maxRetries - 1) {
-                        logger.log(Level.SEVERE, "Quota exceeded or server overloaded. Max retries reached. Aborting.", e);
+                        logger.log(Level.SEVERE, "Max retries reached. Aborting.", e);
                         throw new RuntimeException("Failed to get response from model after " + maxRetries + " attempts.", e);
                     }
-
-                    // Calculate delay with exponential backoff and jitter
                     long delayMillis = (long) (initialDelayMillis * Math.pow(2, attempt));
-                    delayMillis = Math.min(delayMillis, maxDelayMillis); // Cap the delay
-                    long jitter = (long) (Math.random() * 500); // Add up to 500ms jitter
-                    long totalDelay = delayMillis + jitter;
-
+                    delayMillis = Math.min(delayMillis, maxDelayMillis);
+                    long jitter = (long) (Math.random() * 500);
                     try {
-                        logger.info("Quota exceeded or server overloaded. Retrying in " + totalDelay + " ms. " + e);
-                        // This sleep is on the SwingWorker's background thread, which is acceptable.
-                        Thread.sleep(totalDelay);
+                        Thread.sleep(delayMillis + jitter);
                     } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt(); // Preserve the interrupted status
-                        logger.log(Level.WARNING, "Retry delay was interrupted.", ie);
+                        Thread.currentThread().interrupt();
                         throw new RuntimeException("Chat was interrupted during retry delay.", ie);
                     }
                 } else {
-                    logger.log(Level.SEVERE, "Unknown error received from google's servers", e);
+                    logger.log(Level.SEVERE, "Unknown error from Google's servers", e);
                     throw new RuntimeException(e);
                 }
             }
         }
-        // This part should be unreachable, but the compiler might require a return statement.
         throw new IllegalStateException("Exited retry loop unexpectedly.");
     }
     
+    private List<Content> buildApiContext(List<ChatMessage> chatHistory) {
+        List<Content> apiContext = new ArrayList<>();
+        // TODO: Implement the "Active Workspace" consolidation here
+        for (ChatMessage message : chatHistory) {
+            if (message.getContent() != null) {
+                apiContext.add(message.getContent());
+            }
+        }
+        return apiContext;
+    }
+
     public Client getGoogleGenAIClient() {
         return config.getClient();
     }
 
-    public List<Content> getContext() {
+    public List<ChatMessage> getContext() {
         return contextManager.getContext();
     }
     
     public ContextManager getContextManager() {
         return contextManager;
     }
-    
-    
 }

@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.ContextManager;
@@ -56,8 +57,8 @@ public class ContextWindow {
         }
 
         ContextManager hm = chat.getContextManager();
-        List<Content> contentList = hm.getContext();
-        int contentCountBefore = contentList.size();
+        List<ChatMessage> originalMessages = hm.getContext();
+        int contentCountBefore = originalMessages.size();
 
         Set<Integer> contentIndicesToRemove = new HashSet<>();
         List<int[]> partRefsToRemove = new ArrayList<>();
@@ -76,12 +77,14 @@ public class ContextWindow {
         }
 
         int partsModified = 0;
+        // Handle part removals first by replacing the ChatMessage
         for (int[] partRef : partRefsToRemove) {
             int contentIndex = partRef[0];
             int partIndex = partRef[1];
 
-            if (contentIndex >= 0 && contentIndex < contentList.size()) {
-                Content oldContent = contentList.get(contentIndex);
+            if (contentIndex >= 0 && contentIndex < originalMessages.size()) {
+                ChatMessage oldMessage = originalMessages.get(contentIndex);
+                Content oldContent = oldMessage.getContent();
                 if (oldContent != null && oldContent.parts().isPresent()) {
                     List<Part> oldParts = oldContent.parts().get();
                     if (partIndex >= 0 && partIndex < oldParts.size()) {
@@ -89,10 +92,15 @@ public class ContextWindow {
                         newParts.remove(partIndex);
 
                         if (newParts.isEmpty()) {
+                            // Mark the whole message for removal if no parts are left
                             contentIndicesToRemove.add(contentIndex);
                         } else {
                             Content newContent = Content.builder().role(oldContent.role().get()).parts(newParts).build();
-                            contentList.set(contentIndex, newContent);
+                            ChatMessage newMessage = new ChatMessage(
+                                oldMessage.getModelId(), newContent, oldMessage.getFunctionResponses(),
+                                oldMessage.getUsageMetadata(), oldMessage.getGroundingMetadata()
+                            );
+                            originalMessages.set(contentIndex, newMessage); // Replace in the list
                             partsModified++;
                         }
                     }
@@ -100,21 +108,22 @@ public class ContextWindow {
             }
         }
 
-        List<Integer> sortedIndices = new ArrayList<>(contentIndicesToRemove);
-        Collections.sort(sortedIndices, Collections.reverseOrder());
-
-        int contentRemoved = 0;
-        for (int index : sortedIndices) {
-            if (index > 0 && index < contentList.size()) {
-                contentList.remove(index);
-                contentRemoved++;
+        List<ChatMessage> messagesToRemove = new ArrayList<>();
+        for (int index : contentIndicesToRemove) {
+            if (index >= 0 && index < originalMessages.size()) {
+                messagesToRemove.add(originalMessages.get(index));
             }
         }
 
-        int contentCountAfter = contentList.size();
+        if (!messagesToRemove.isEmpty()) {
+            originalMessages.removeAll(messagesToRemove);
+        }
 
-        hm.setContext(contentList);
+        // After modifications, set the context back.
+        hm.setContext(originalMessages);
         hm.notifyHistoryChange();
+
+        int contentCountAfter = originalMessages.size();
 
         File historyFolder = GeminiConfig.getWorkingFolder("history");
         SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMdd-HHmmss");
@@ -122,7 +131,7 @@ public class ContextWindow {
         File pruneSummaryfile = new File(historyFolder, timestamp + "-prune.md");
         Files.writeString(pruneSummaryfile.toPath(), removedParts);
 
-        return "Pruning complete. Removed " + partsModified + " Parts  and " + contentRemoved + " entire Content entries. "
+        return "Pruning complete. Removed " + partsModified + " Parts and " + messagesToRemove.size() + " entire Content entries. "
                 + "\nTotal History entries: Before: " + contentCountBefore + " after:" + contentCountAfter + ". "
                 + "\nPruned content summary saved to: " + pruneSummaryfile + " " + pruneSummaryfile.length() + " bytes"
                 + "\nUI refresh started.";

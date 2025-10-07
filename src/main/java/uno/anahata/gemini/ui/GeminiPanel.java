@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.commons.lang3.StringUtils;
+import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.ContextManager;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
@@ -262,7 +263,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             // If the context is not dirty, perform a normal incremental render.
             if (c != null) {
                 ContentRenderer renderer = new ContentRenderer(editorKitProvider);
-                int contentIdx = chat.getContextManager().getContext().indexOf(c);
+                int contentIdx = chat.getContextManager().getContext().size() - 1; // Render the last one
                 JComponent messageComponent = renderer.render(c, contentIdx);
                 chatContentPanel.add(messageComponent);
                 chatContentPanel.revalidate(); // Revalidate the container for proper layout.
@@ -301,10 +302,11 @@ public class GeminiPanel extends JPanel implements ContextListener {
         logger.info("Performing full UI redraw due to dirty context.");
         chatContentPanel.removeAll();
 
-        for (Content contentItem : chat.getContext()) {
+        for (ChatMessage chatMessage : chat.getContext()) {
+            Content contentItem = chatMessage.getContent();
             if (contentItem != null) {
                 ContentRenderer renderer = new ContentRenderer(editorKitProvider);
-                int contentIdx = chat.getContextManager().getContext().indexOf(contentItem);
+                int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
                 JComponent messageComponent = renderer.render(contentItem, contentIdx);
                 chatContentPanel.add(messageComponent);
             }

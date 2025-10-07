@@ -24,4 +24,10 @@ public @interface AIToolMethod {
      * @return True if approval is required, false otherwise.
      */
     boolean requiresApproval() default true;
+    
+    /**
+     * Defines how the output of this tool should be treated within the chat context.
+     * @return The context behavior.
+     */
+    ContextBehavior behavior() default ContextBehavior.EPHEMERAL;
 }

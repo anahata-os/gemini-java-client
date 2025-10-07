@@ -15,9 +15,12 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.lang.reflect.Modifier;
 import java.util.logging.Level;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.JobInfo;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.util.GeminiSchemaGenerator;
 
+// V2: Refactored to work with ChatMessage and the new architecture
 public class FunctionManager {
 
     private static final Logger logger = Logger.getLogger(FunctionManager.class.getName());
@@ -31,6 +34,9 @@ public class FunctionManager {
 
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
+    
+    // TODO: Implement FailureTracker logic
+    // private final FailureTracker failureTracker = new FailureTracker();
 
     public FunctionManager(GeminiChat chat, GeminiConfig config, FunctionPrompter prompter) {
         this.chat = chat;
@@ -66,106 +72,87 @@ public class FunctionManager {
         return Tool.builder().functionDeclarations(fds).build();
     }
 
-    public List<Content> processFunctionCalls(Content modelResponse, int contentIdx) {
-        List<Content> results = new ArrayList<>();
+    /**
+     * Processes function calls from a model's response message.
+     * This is the main entry point for tool execution.
+     * @param modelResponseMessage The ChatMessage containing the model's response.
+     * @return A List of FunctionResponse objects, ready to be sent back to the model.
+     */
+    public List<FunctionResponse> processFunctionCalls(ChatMessage modelResponseMessage) {
+        Content modelResponseContent = modelResponseMessage.getContent();
+        int contentIdx = chat.getContextManager().getContext().indexOf(modelResponseMessage);
+        
         List<FunctionCall> allProposedCalls = new ArrayList<>();
-        modelResponse.parts().ifPresent(parts -> {
+        modelResponseContent.parts().ifPresent(parts -> {
             for (Part part : parts) {
                 part.functionCall().ifPresent(allProposedCalls::add);
             }
         });
 
         if (allProposedCalls.isEmpty()) {
-            return Collections.emptyList(); // No function calls present
+            return Collections.emptyList();
         }
         
-        Content promptContent = modelResponse;
-        boolean otherPartsPresent = false;
-        List<FunctionCall> preApprovedCalls = new ArrayList<>();
-        List<FunctionCall> notPreapprovedCalls = new ArrayList<>();
-        for (Part part : modelResponse.parts().get()) {
-            if (part.functionCall().isPresent()) {
-                FunctionCall fc = part.functionCall().get();
-                if (alwaysApproveFunctions.contains(fc.name().get())) {
-                    preApprovedCalls.add(fc);
-                } else {
-                    notPreapprovedCalls.add(fc);
-                }
-            } else {
-                otherPartsPresent = true;
-            }
-        }
-
-        boolean skipPrompt = notPreapprovedCalls.isEmpty() && !otherPartsPresent;
-        
-        logger.info("skip prompt: " + skipPrompt);
-
-        PromptResult promptResult = skipPrompt 
-                ? new PromptResult(preApprovedCalls, notPreapprovedCalls, "")
-                : prompter.prompt(promptContent, contentIdx, alwaysApproveFunctions, neverApproveFunctions);
-
-        
+        // User Approval Step
+        PromptResult promptResult = prompter.prompt(modelResponseContent, contentIdx, alwaysApproveFunctions, neverApproveFunctions);
         List<FunctionCall> allApprovedCalls = promptResult.approvedFunctions;
 
-        if (allApprovedCalls.isEmpty() && promptResult.deniedFunctions.isEmpty() && (promptResult.userComment == null || promptResult.userComment.trim().isEmpty())) {
-            return Collections.emptyList(); // User cancelled and provided no comment.
+        if (allApprovedCalls.isEmpty()) {
+            // TODO: Handle denied calls and user comments by creating new ChatMessages
+            return Collections.emptyList();
         }
 
-        // 1. Handle approved function calls and their responses
-        ImmutableList.Builder<Part> functionResponsePartsBuilder = ImmutableList.builder();
+        List<FunctionResponse> responses = new ArrayList<>();
         for (FunctionCall approvedCall : allApprovedCalls) {
+            // Generate a stable ID for the call-response link
+            String anahataId = approvedCall.id().orElse(UUID.randomUUID().toString());
+            
             try {
                 GeminiChat.currentChat.set(chat);
                 Method method = functionCallMethods.get(approvedCall.name().get());
                 if (method == null) {
                     throw new RuntimeException("Tool not found: " + approvedCall.name());
                 }
-                Object funcResponse = invokeFunctionMethod(method, approvedCall.args().get());
+
+                // TODO: Implement FailureTracker check here
+                
+                // TODO: Implement async handling via "asynchronous" artificial parameter
+                
+                Object funcResponsePayload = invokeFunctionMethod(method, approvedCall.args().get());
                 
                 Map<String, Object> responseMap;
-                if (funcResponse != null && !(funcResponse instanceof String || funcResponse instanceof Number || funcResponse instanceof Boolean || funcResponse instanceof Collection || funcResponse.getClass().isArray())) {
-                     JsonElement jsonElement = GSON.toJsonTree(funcResponse);
+                if (funcResponsePayload instanceof JobInfo) {
+                    // Special handling for async jobs
+                    responseMap = GSON.fromJson(GSON.toJson(funcResponsePayload), Map.class);
+                } else if (funcResponsePayload != null && !(funcResponsePayload instanceof String || funcResponsePayload instanceof Number || funcResponsePayload instanceof Boolean || funcResponsePayload instanceof Collection || funcResponsePayload.getClass().isArray())) {
+                     JsonElement jsonElement = GSON.toJsonTree(funcResponsePayload);
                      responseMap = GSON.fromJson(jsonElement, Map.class);
                 } else {
                     responseMap = new HashMap<>();
-                    responseMap.put("output", funcResponse == null ? "" : funcResponse);
+                    responseMap.put("output", funcResponsePayload == null ? "" : funcResponsePayload);
                 }
                 
-                functionResponsePartsBuilder.add(Part.fromFunctionResponse(approvedCall.name().get(), responseMap));
+                responses.add(FunctionResponse.builder()
+                    .id(anahataId)
+                    .name(approvedCall.name().get())
+                    .response(responseMap)
+                    .build());
 
             } catch (Exception e) {
+                // TODO: Record failure in FailureTracker
                 Map<String, Object> errorMap = new HashMap<>();
                 errorMap.put("error", ExceptionUtils.getStackTrace(e));
-                functionResponsePartsBuilder.add(Part.fromFunctionResponse(approvedCall.name().get(), errorMap));
+                responses.add(FunctionResponse.builder()
+                    .id(anahataId)
+                    .name(approvedCall.name().get())
+                    .response(errorMap)
+                    .build());
             } finally {
                 GeminiChat.currentChat.remove();
             }
         }
-        ImmutableList<Part> functionResponseParts = functionResponsePartsBuilder.build();
-        if (!functionResponseParts.isEmpty()) {
-            results.add(Content.builder().role("function").parts(functionResponseParts).build());
-        }
-
-        // 2. Handle denied functions
-        if (!promptResult.deniedFunctions.isEmpty()) {
-            ImmutableList.Builder<Part> deniedPartsBuilder = ImmutableList.builder();
-            for (FunctionCall deniedCall : promptResult.deniedFunctions) {
-                String denialMessage = String.format(
-                        "User denied function call: %s",
-                        deniedCall.name().get()
-                );
-                deniedPartsBuilder.add(Part.fromText(denialMessage));
-            }
-            results.add(Content.builder().role("model").parts(deniedPartsBuilder.build()).build());
-        }
-
-
-        // 3. Handle user comment
-        if (promptResult.userComment != null && !promptResult.userComment.trim().isEmpty()) {
-            results.add(Content.builder().role("user").parts(Part.fromText(promptResult.userComment)).build());
-        }
-
-        return results;
+        
+        return responses;
     }
 
     private Object invokeFunctionMethod(Method method, Map<String, Object> argsFromModel) throws Exception {
@@ -212,6 +199,9 @@ public class FunctionManager {
             properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), paramDescription));
             required.add(paramName);
         }
+        
+        // Add the "asynchronous" artificial parameter
+        properties.put("asynchronous", Schema.builder().type(Type.Known.BOOLEAN).description("Set to true to run this task in the background and return a job ID immediately.").build());
 
         Schema paramsSchema = Schema.builder()
                 .type("OBJECT")
