@@ -1,7 +1,6 @@
 package uno.anahata.gemini;
 
 import com.google.genai.types.*;
-import com.google.gson.Gson;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,14 +12,15 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import uno.anahata.gemini.internal.PartUtils;
-import uno.anahata.gemini.internal.GsonUtils;
 
-// V2: Refactored to use ChatMessage instead of Content
+/**
+ * V3: A stateful context manager using a rich ChatMessage model.
+ * It handles intelligent pruning, workspace state management, and session persistence.
+ * @author Anahata
+ */
 public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
-    // TODO: Replace with Kryo
-    private static final Gson GSON = GsonUtils.getGson();
 
     private List<ChatMessage> context = new ArrayList<>();
     private final GeminiConfig config;
@@ -45,18 +45,52 @@ public class ContextManager {
     }
 
     public synchronized void add(ChatMessage message) {
+        handleStatefulReplace(message);
         context.add(message);
-        
-        // TODO: Implement intelligent pruning for STATEFUL_REPLACE
-        
         logEntryToFile(message);
-        // TODO: Re-implement backup with Kryo
-        // backupSession();
         
         if (message.getUsageMetadata() != null) {
-            message.getUsageMetadata().totalTokenCount().ifPresent(count -> this.totalTokenCount = count);
+            this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
         }
-        listener.contentAdded(message.getUsageMetadata(), message.getContent());
+        listener.contentAdded(message);
+    }
+    
+    private void handleStatefulReplace(ChatMessage newMessage) {
+        extractResourceIdentifier(newMessage).ifPresent(newResourceId -> {
+            Iterator<ChatMessage> iterator = context.iterator();
+            while (iterator.hasNext()) {
+                ChatMessage oldMessage = iterator.next();
+                extractResourceIdentifier(oldMessage).ifPresent(oldResourceId -> {
+                    if (newResourceId.equals(oldResourceId)) {
+                        logger.log(Level.INFO, "STATEFUL_REPLACE: Pruning old message {0} for resource {1}", new Object[]{oldMessage.getId(), newResourceId});
+                        iterator.remove();
+                    }
+                });
+            }
+        });
+    }
+
+    private Optional<String> extractResourceIdentifier(ChatMessage message) {
+        if (message.getContent() == null || !message.getContent().parts().isPresent()) {
+            return Optional.empty();
+        }
+        for (Part part : message.getContent().parts().get()) {
+            if (part.functionResponse().isPresent()) {
+                FunctionResponse fr = part.functionResponse().get();
+                String toolName = fr.name().orElse("");
+
+                if (toolName.equals("LocalFiles.readFile") || toolName.equals("LocalFiles.writeFile")) {
+                    if (fr.response().isPresent() && fr.response().get() instanceof Map) {
+                        Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
+                        Object path = responseMap.get("path");
+                        if (path instanceof String) {
+                            return Optional.of((String) path);
+                        }
+                    }
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private void logEntryToFile(ChatMessage message) {
@@ -109,11 +143,27 @@ public class ContextManager {
 
     public synchronized void setContext(List<ChatMessage> newContext) {
         this.context = new ArrayList<>(newContext);
-        // Recalculate token count (crude estimation for now)
         this.totalTokenCount = this.context.stream()
-            .mapToInt(cm -> cm.getContent() != null ? cm.getContent().toString().length() / 4 : 0)
+            .mapToInt(cm -> {
+                if (cm.getUsageMetadata() != null) {
+                    return cm.getUsageMetadata().totalTokenCount().orElse(0);
+                }
+                if (cm.getContent() != null) {
+                    return cm.getContent().toString().length() / 4; 
+                }
+                return 0;
+            })
             .sum();
-        logger.info("Estimated token count after setContext: " + this.totalTokenCount);
+        logger.info("Context set. New token count: " + this.totalTokenCount);
+        notifyHistoryChange();
+    }
+    
+    public synchronized void pruneById(String id) {
+        boolean removed = context.removeIf(message -> message.getId().equals(id));
+        if (removed) {
+            logger.info("Pruned message with ID: " + id);
+            notifyHistoryChange();
+        }
     }
 
     public void notifyHistoryChange() {
@@ -155,17 +205,14 @@ public class ContextManager {
         return config.getApplicationInstanceId() + "-" + System.identityHashCode(this);
     }
 
-    // TODO: Re-implement with Kryo
     public synchronized String saveSession(String name) throws IOException {
         throw new UnsupportedOperationException("Session saving is disabled until Kryo implementation.");
     }
 
-    // TODO: Re-implement with Kryo
     public synchronized List<String> listSavedSessions() throws IOException {
         throw new UnsupportedOperationException("Session listing is disabled until Kryo implementation.");
     }
 
-    // TODO: Re-implement with Kryo
     public synchronized void loadSession(String id) throws IOException {
         throw new UnsupportedOperationException("Session loading is disabled until Kryo implementation.");
     }

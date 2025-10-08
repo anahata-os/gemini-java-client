@@ -249,24 +249,25 @@ public class GeminiPanel extends JPanel implements ContextListener {
     }
 
     @Override
-    public void contentAdded(GenerateContentResponseUsageMetadata usage, Content c) {
+    public void contentAdded(ChatMessage message) {
         SwingUtilities.invokeLater(() -> {
-            updateUsageLabel(usage);
+            updateUsageLabel(message.getUsageMetadata());
 
-            // If a full refresh is already pending from contextModified(),
-            // do nothing here. The upcoming renderDirtyContext() call
-            // will render this newly added content as part of the full refresh.
             if (contextDirty) {
-                return; // FIX: Simply exit, avoiding the redundant render.
+                return;
             }
 
-            // If the context is not dirty, perform a normal incremental render.
-            if (c != null) {
+            if (message.getContent() != null) {
                 ContentRenderer renderer = new ContentRenderer(editorKitProvider);
-                int contentIdx = chat.getContextManager().getContext().size() - 1; // Render the last one
-                JComponent messageComponent = renderer.render(c, contentIdx);
-                chatContentPanel.add(messageComponent);
-                chatContentPanel.revalidate(); // Revalidate the container for proper layout.
+                int contentIdx = chat.getContextManager().getContext().size() - 1;
+                JComponent messageComponent = renderer.render(message, contentIdx, chat.getContextManager());
+                
+                ChatMessageJPanel messageContainer = new ChatMessageJPanel(message);
+                messageContainer.setLayout(new BorderLayout());
+                messageContainer.add(messageComponent, BorderLayout.CENTER);
+                
+                chatContentPanel.add(messageContainer);
+                chatContentPanel.revalidate();
                 chatContentPanel.repaint();
             }
 
@@ -291,24 +292,26 @@ public class GeminiPanel extends JPanel implements ContextListener {
     public void contextModified() {
         contextDirty = true;
         SwingUtilities.invokeLater(() -> renderDirtyContext());
-        logger.info("Context marked as dirty. A full redraw will .");
+        logger.info("Context marked as dirty. A full redraw will occur.");
     }
 
-    /**
-     * Full redraw
-     */
     private void renderDirtyContext() {
+        if (!contextDirty) return;
         contextDirty = false;
         logger.info("Performing full UI redraw due to dirty context.");
         chatContentPanel.removeAll();
 
         for (ChatMessage chatMessage : chat.getContext()) {
-            Content contentItem = chatMessage.getContent();
-            if (contentItem != null) {
+            if (chatMessage.getContent() != null) {
                 ContentRenderer renderer = new ContentRenderer(editorKitProvider);
                 int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
-                JComponent messageComponent = renderer.render(contentItem, contentIdx);
-                chatContentPanel.add(messageComponent);
+                JComponent messageComponent = renderer.render(chatMessage, contentIdx, chat.getContextManager());
+                
+                ChatMessageJPanel messageContainer = new ChatMessageJPanel(chatMessage);
+                messageContainer.setLayout(new BorderLayout());
+                messageContainer.add(messageComponent, BorderLayout.CENTER);
+                
+                chatContentPanel.add(messageContainer);
             }
         }
 

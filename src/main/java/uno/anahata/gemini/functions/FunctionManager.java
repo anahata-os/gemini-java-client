@@ -16,7 +16,9 @@ import java.lang.reflect.Modifier;
 import java.util.logging.Level;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.JobInfo;
+import uno.anahata.gemini.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.util.GeminiSchemaGenerator;
 
@@ -31,13 +33,11 @@ public class FunctionManager {
     private final Map<String, Method> functionCallMethods = new HashMap<>();
     private final Tool coreTools;
     private final ToolConfig toolConfig;
+    private final FailureTracker failureTracker = new FailureTracker();
 
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
     
-    // TODO: Implement FailureTracker logic
-    // private final FailureTracker failureTracker = new FailureTracker();
-
     public FunctionManager(GeminiChat chat, GeminiConfig config, FunctionPrompter prompter) {
         this.chat = chat;
         this.prompter = prompter;
@@ -94,7 +94,7 @@ public class FunctionManager {
         }
         
         // User Approval Step
-        PromptResult promptResult = prompter.prompt(modelResponseContent, contentIdx, alwaysApproveFunctions, neverApproveFunctions);
+        PromptResult promptResult = prompter.prompt(modelResponseMessage, contentIdx, alwaysApproveFunctions, neverApproveFunctions);
         List<FunctionCall> allApprovedCalls = promptResult.approvedFunctions;
 
         if (allApprovedCalls.isEmpty()) {
@@ -108,17 +108,45 @@ public class FunctionManager {
             String anahataId = approvedCall.id().orElse(UUID.randomUUID().toString());
             
             try {
+                // FailureTracker Check
+                if (failureTracker.isBlocked(approvedCall)) {
+                    throw new RuntimeException("Tool call is temporarily blocked due to repeated failures.");
+                }
+
                 GeminiChat.currentChat.set(chat);
                 Method method = functionCallMethods.get(approvedCall.name().get());
                 if (method == null) {
                     throw new RuntimeException("Tool not found: " + approvedCall.name());
                 }
+                
+                // ASYNC HANDLING LOGIC START
+                Map<String, Object> args = new HashMap<>(approvedCall.args().get()); // Make a mutable copy
+                Object asyncFlag = args.remove("asynchronous"); // Remove the artificial parameter
+                boolean isAsync = asyncFlag instanceof Boolean && (Boolean) asyncFlag;
 
-                // TODO: Implement FailureTracker check here
-                
-                // TODO: Implement async handling via "asynchronous" artificial parameter
-                
-                Object funcResponsePayload = invokeFunctionMethod(method, approvedCall.args().get());
+                Object funcResponsePayload;
+
+                if (isAsync) {
+                    final String jobId = UUID.randomUUID().toString();
+                    funcResponsePayload = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + approvedCall.name().get(), null);
+                    
+                    Executors.cachedThreadPool.submit(() -> {
+                        try {
+                            GeminiChat.currentChat.set(chat); // Propagate ThreadLocal
+                            Object result = invokeFunctionMethod(method, args);
+                            // TODO: Proactively notify the model of job completion via GeminiChat
+                            logger.info("Asynchronous job " + jobId + " completed successfully with result: " + result);
+                        } catch (Exception e) {
+                            // TODO: Proactively notify the model of job failure via GeminiChat
+                            logger.log(Level.SEVERE, "Asynchronous job " + jobId + " failed.", e);
+                        } finally {
+                            GeminiChat.currentChat.remove();
+                        }
+                    });
+                } else {
+                    funcResponsePayload = invokeFunctionMethod(method, args);
+                }
+                // ASYNC HANDLING LOGIC END
                 
                 Map<String, Object> responseMap;
                 if (funcResponsePayload instanceof JobInfo) {
@@ -139,7 +167,7 @@ public class FunctionManager {
                     .build());
 
             } catch (Exception e) {
-                // TODO: Record failure in FailureTracker
+                failureTracker.recordFailure(approvedCall, e);
                 Map<String, Object> errorMap = new HashMap<>();
                 errorMap.put("error", ExceptionUtils.getStackTrace(e));
                 responses.add(FunctionResponse.builder()

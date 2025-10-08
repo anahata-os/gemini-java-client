@@ -30,6 +30,8 @@ import javax.swing.JTextArea;
 import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
+import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.ContextManager;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer.ConfirmationState;
 import uno.anahata.gemini.ui.render.PartType;
@@ -55,7 +57,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     }
 
     @Override
-    public PromptResult prompt(Content modelResponse, int contentIdx, Set<String> alwaysApprove, Set<String> alwaysDeny) {
+    public PromptResult prompt(ChatMessage modelMessage, int contentIdx, Set<String> alwaysApprove, Set<String> alwaysDeny) {
         try {
             SwingUtilities.invokeAndWait(() -> {
                 interactiveRenderers.clear();
@@ -63,7 +65,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
                 deniedFunctions.clear();
                 userComment = "";
                 
-                initComponents(modelResponse, contentIdx, alwaysApprove, alwaysDeny);
+                initComponents(modelMessage, contentIdx, alwaysApprove, alwaysDeny);
                 pack();
                 setSize(1024, 768);
                 setLocationRelativeTo(getOwner());
@@ -75,20 +77,20 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
             Thread.currentThread().interrupt();
             return new PromptResult(
                 Collections.emptyList(), 
-                collectAllProposedFunctions(modelResponse), 
+                collectAllProposedFunctions(modelMessage.getContent()), 
                 "Error showing confirmation dialog. Check IDE log for details."
             );
         }
         return new PromptResult(approvedFunctions, deniedFunctions, userComment);
     }
 
-    private void initComponents(Content modelResponse, int contentIdx, Set<String> alwaysApprove, Set<String> neverApprove) {
+    private void initComponents(ChatMessage modelMessage, int contentIdx, Set<String> alwaysApprove, Set<String> neverApprove) {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
 
         ContentRenderer renderer = new ContentRenderer(editorKitProvider);
         PartRenderer defaultFcRenderer = renderer.getDefaultRendererForType(PartType.FUNCTION_CALL);
 
-        final List<? extends Part> parts = modelResponse.parts().get();
+        final List<? extends Part> parts = modelMessage.getContent().parts().get();
         
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {
@@ -99,7 +101,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
             }
         }
 
-        JComponent renderedContent = renderer.render(modelResponse, contentIdx);
+        JComponent renderedContent = renderer.render(modelMessage, contentIdx, ContextManager.get());
         
         // FIX: Wrap the rendered content in a ScrollablePanel to enforce width constraints.
         JPanel contentWrapper = new ScrollablePanel();

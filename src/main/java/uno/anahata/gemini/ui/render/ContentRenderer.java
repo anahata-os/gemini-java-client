@@ -3,6 +3,7 @@ package uno.anahata.gemini.ui.render;
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.FunctionResponse;
+import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -16,8 +17,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JLabel;
@@ -26,12 +29,12 @@ import javax.swing.JSeparator;
 import javax.swing.Scrollable;
 import javax.swing.border.Border;
 import org.apache.commons.text.StringEscapeUtils;
+import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.ContextManager;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 /**
- * V3 Renderer: Orchestrates the rendering of a {@link Content} object by
- * building a hierarchy of standard Swing components (JPanel, JLabel, etc.)
- * This provides robust and predictable layout.
+ * V5 Renderer: Adds a manual prune button to each message.
  *
  * @author pablo-ai
  */
@@ -62,19 +65,47 @@ public class ContentRenderer {
         return typeRendererMap.get(partType);
     }
 
-    public JComponent render(Content content, int contentIdx) {
+    public JComponent render(ChatMessage message, int contentIdx, ContextManager contextManager) {
+        Content content = message.getContent();
         String role = content.role().orElse("model");
 
         JPanel messagePanel = new JPanel(new BorderLayout());
         messagePanel.setBorder(getBorderForRole(role));
 
-        JLabel header = new JLabel(String.format("%S [%d]", role, contentIdx));
-        header.setOpaque(true);
-        header.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
-        header.setBackground(getBackgroundColor(role, true));
-        header.setForeground(getForegroundColor(role));
-        messagePanel.add(header, BorderLayout.NORTH);
+        // Header Panel
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(true);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+        headerPanel.setBackground(getBackgroundColor(role, true));
 
+        // Header Text
+        String headerText = String.format("<html><b>%S</b> [%d]", role, contentIdx);
+        if ("model".equalsIgnoreCase(role)) {
+            headerText += " <font color='#666666'>- " + StringEscapeUtils.escapeHtml4(message.getModelId()) + "</font>";
+        } else if ("user".equalsIgnoreCase(role)) {
+            headerText += " <font color='#666666'>- " + System.getProperty("user.name") + "</font>";
+        }
+        
+        Optional<GenerateContentResponseUsageMetadata> usageOpt = Optional.ofNullable(message.getUsageMetadata());
+        if (usageOpt.isPresent()) {
+            headerText += String.format(" <font color='#888888'><i>(Tokens: %d)</i></font>", usageOpt.get().totalTokenCount().orElse(0));
+        }
+        headerText += "</html>";
+        
+        JLabel headerLabel = new JLabel(headerText);
+        headerLabel.setForeground(getForegroundColor(role));
+        headerPanel.add(headerLabel, BorderLayout.CENTER);
+
+        // Prune Button
+        JButton pruneButton = new JButton("X");
+        pruneButton.setMargin(new Insets(0, 4, 0, 4));
+        pruneButton.setToolTipText("Remove this message from the context");
+        pruneButton.addActionListener(e -> contextManager.pruneById(message.getId()));
+        headerPanel.add(pruneButton, BorderLayout.EAST);
+        
+        messagePanel.add(headerPanel, BorderLayout.NORTH);
+
+        // Content Panel
         JPanel contentPanel = new ScrollablePanel();
         contentPanel.setLayout(new GridBagLayout());
         contentPanel.setOpaque(true);
@@ -136,6 +167,7 @@ public class ContentRenderer {
         switch (role.toLowerCase()) {
             case "user": return BorderFactory.createLineBorder(new Color(144, 198, 149), 2, true);
             case "function": return BorderFactory.createLineBorder(new Color(240, 173, 78), 2, true);
+            case "tool": return BorderFactory.createLineBorder(new Color(200, 180, 220), 2, true); // Added for tool role
             default: return BorderFactory.createLineBorder(new Color(160, 195, 232), 2, true);
         }
     }
@@ -144,6 +176,7 @@ public class ContentRenderer {
         switch (role.toLowerCase()) {
             case "user": return isHeader ? new Color(212, 237, 218) : new Color(233, 247, 239);
             case "function": return isHeader ? new Color(252, 248, 227) : new Color(255, 250, 240);
+            case "tool": return isHeader ? new Color(242, 238, 247) : new Color(250, 248, 252); // Added for tool role
             default: return isHeader ? new Color(221, 234, 248) : new Color(240, 248, 255);
         }
     }
@@ -152,6 +185,7 @@ public class ContentRenderer {
         switch (role.toLowerCase()) {
             case "user": return new Color(21, 87, 36);
             case "function": return new Color(138, 109, 59);
+            case "tool": return new Color(80, 60, 100); // Added for tool role
             default: return new Color(0, 123, 255);
         }
     }
