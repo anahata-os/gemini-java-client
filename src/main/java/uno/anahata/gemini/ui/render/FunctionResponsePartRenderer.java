@@ -3,23 +3,22 @@ package uno.anahata.gemini.ui.render;
 import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Font;
-import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JToggleButton;
 import uno.anahata.gemini.internal.GsonUtils;
+import uno.anahata.gemini.ui.StandaloneSwingGeminiConfig.UITheme;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
-/**
- * Renders a FunctionResponse Part into a collapsible Swing JPanel.
- *
- * @author pablo-ai
- */
 public class FunctionResponsePartRenderer implements PartRenderer {
+
+    private final UITheme theme;
+
+    public FunctionResponsePartRenderer(UITheme theme) {
+        this.theme = theme;
+    }
 
     @Override
     public JComponent render(Part part, EditorKitProvider editorKitProvider) {
@@ -28,43 +27,37 @@ public class FunctionResponsePartRenderer implements PartRenderer {
         }
 
         FunctionResponse fr = part.functionResponse().get();
-        Map<String, Object> responseMap = fr.response().get();
+        java.util.Map<String, Object> responseMap = fr.response().get();
 
         boolean isError = responseMap.containsKey("error");
         Object contentToRender = isError ? responseMap.get("error") : (responseMap.containsKey("output") ? responseMap.get("output") : responseMap);
         String finalContentString = GsonUtils.prettyPrint(contentToRender);
         
-        // Create the content panel (the part that gets shown/hidden)
         JTextArea contentArea = new JTextArea(finalContentString);
         contentArea.setEditable(false);
         contentArea.setLineWrap(true);
         contentArea.setWrapStyleWord(true);
-        // FIX: Increase font size for better readability
-        contentArea.setFont(new Font("SF Mono", Font.PLAIN, 14));
+        contentArea.setFont(theme.getMonoFont());
         contentArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         if (isError) {
-            contentArea.setBackground(new Color(51, 28, 28)); // #331c1c
-            contentArea.setForeground(Color.RED);
+            contentArea.setBackground(theme.getFunctionErrorBg());
+            contentArea.setForeground(theme.getFunctionErrorFg());
         } else {
-            contentArea.setBackground(Color.BLACK);
-            contentArea.setForeground(new Color(0, 255, 0)); // Green
+            contentArea.setBackground(theme.getFunctionResponseBg());
+            contentArea.setForeground(theme.getFunctionResponseFg());
         }
         
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.add(contentArea, BorderLayout.CENTER);
-        contentPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        contentPanel.setBorder(BorderFactory.createLineBorder(java.awt.Color.GRAY));
 
-        // Create the toggle button
         JToggleButton toggleButton = new JToggleButton("Tool Output");
-        toggleButton.setSelected(isError); // Show errors by default
+        toggleButton.setSelected(isError);
         contentPanel.setVisible(isError);
 
-        toggleButton.addActionListener(e -> {
-            contentPanel.setVisible(toggleButton.isSelected());
-        });
+        toggleButton.addActionListener(e -> contentPanel.setVisible(toggleButton.isSelected()));
 
-        // Create the main container panel
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setOpaque(false);
         mainPanel.add(toggleButton, BorderLayout.NORTH);

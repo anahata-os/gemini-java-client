@@ -8,10 +8,13 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import uno.anahata.gemini.functions.spi.LocalFiles;
 
 public abstract class GeminiConfig {
 
@@ -36,41 +39,38 @@ public abstract class GeminiConfig {
         return getApi().getClient();
     }
 
-    // --- NEW Building Block Methods ---
-
-    /**
-     * Returns the foundational system instructions (e.g., core principles).
-     * @return 
-     */
     public Part getCoreSystemInstructionPart() {
         String processedManual = SYSTEM_INSTRUCTIONS
                 .replace("${work.dir}", getWorkingFolder().getAbsolutePath());
         return Part.fromText(processedManual);
     }
 
-    /**
-     * Returns a list of parts specific to the host environment (e.g., NetBeans-specific directives).
-     * To be implemented by subclasses.
-     * @return 
-     */
     public abstract List<Part> getHostSpecificSystemInstructionParts();
 
-    /**
-     * Returns the verbose, low-priority summary of the runtime environment.
-     */
     public Part getSystemInstructionsAppendix() {
         return Part.fromText(computeDynamicEnvSummary());
     }
     
-    // --- End Building Block Methods ---
-
     public Content getStartupContent() {
         List<Part> parts = getStartupParts();
         return Content.fromParts(parts.toArray(new Part[parts.size()]));
     }
     
     public List<Part> getStartupParts() {
-        return Collections.singletonList(Part.fromText("Read startup.md in your work directory"));
+        File startupDotMd = new File(getWorkingFolder(), "startup.md");
+        if (startupDotMd.exists()) {
+            try {
+                return Collections.singletonList(Part.fromText(Files.readString(startupDotMd.toPath())));
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Exception reading " + startupDotMd + " no startup message will be sent to the model", e);
+                return Collections.EMPTY_LIST;
+            }
+            
+        } else {
+            logger.info("File  " + startupDotMd + " does not exist, no startup message will be sent to the model");
+            return Collections.EMPTY_LIST;
+        }
+        
     }
 
     public List<Class<?>> getAutomaticFunctionClasses() {
@@ -116,5 +116,29 @@ public abstract class GeminiConfig {
         return sb.toString();
     }
     
-    
+    // --- Configurability Methods ---
+
+    public String getApiKeyFileName() {
+        return "gemini-api-keys.txt";
+    }
+
+    public int getFailureTrackerMaxFailures() {
+        return 3;
+    }
+
+    public long getFailureTrackerTimeWindowMs() {
+        return 5 * 60 * 1000; // 5 minutes
+    }
+
+    public int getApiMaxRetries() {
+        return 5;
+    }
+
+    public long getApiInitialDelayMillis() {
+        return 1000;
+    }
+
+    public long getApiMaxDelayMillis() {
+        return 30000;
+    }
 }

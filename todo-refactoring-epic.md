@@ -29,28 +29,28 @@ This document outlines the full scope of the architectural refactoring for the `
 ### 1.2: Refactor `ContextManager.java`
 - **Task:** Fully convert the `ContextManager` to operate on `List<ChatMessage>` instead of `List<Content>`.
 - **Sub-tasks:**
-  - `[ ]` Change the internal `context` list from `List<Content>` to `List<ChatMessage>`.
-  - `[ ]` Implement the "read-and-replace" / "write-and-replace" logic in the `add()` method for any `ChatMessage` containing a `FunctionResponse` from a tool marked as `STATEFUL_REPLACE`.
-  - `[ ]` Implement the "Two-Turn Rule" garbage collection to automatically prune old `EPHEMERAL` tool call results.
-  - `[ ]` Add a new `pruneById(String id)` method for manual UI-driven pruning.
-- **Status: `[ ]` NOT STARTED**
+  - `[x]` Change the internal `context` list from `List<Content>` to `List<ChatMessage>`.
+  - `[x]` Implement the "read-and-replace" / "write-and-replace" logic in the `add()` method for any `ChatMessage` containing a `FunctionResponse` from a tool marked as `STATEFUL_REPLACE`.
+  - `[x]` Implement the "Two-Turn Rule" garbage collection to automatically prune old `EPHEMERAL` tool call results.
+  - `[x]` Add a new `pruneById(String id)` method for manual UI-driven pruning.
+- **Status: `[x]` COMPLETE**
 
 ### 1.3: Refactor `GeminiChat.java`
 - **Task:** Overhaul the main chat loop to support the new architecture. This is the most critical piece of the refactoring.
 - **Sub-tasks:**
-  - `[ ]` Create the `buildApiContext(List<ChatMessage>)` conversion method.
-  - `[ ]` **Implement the "Active Workspace"**: Before sending to the model, this method must iterate through the context, find all `STATEFUL_REPLACE` resources (files), and create a final, consolidated `Content` object with `role="tool"` containing their full content. This `Content` object must be appended to the very end of the list sent to the API.
-  - `[ ]` Rewrite the main `sendContent` loop to create and manage `ChatMessage` objects, linking `FunctionResponse`s back to the `ChatMessage` that contained the original `FunctionCall`.
-  - `[ ]` Implement the async job notification logic (proactively sending a message to the model when a background job completes and no other API call is in flight).
-- **Status: `[ ]` NOT STARTED**
+  - `[x]` Create the `buildApiContext(List<ChatMessage>)` conversion method.
+  - `[x]` **Implement the "Active Workspace"**: Before sending to the model, this method must iterate through the context, find all `STATEFUL_REPLACE` resources (files), and create a final, consolidated `Content` object with `role="tool"` containing their full content. This `Content` object must be appended to the very end of the list sent to the API.
+  - `[x]` Rewrite the main `sendContent` loop to create and manage `ChatMessage` objects, linking `FunctionResponse`s back to the `ChatMessage` that contained the original `FunctionCall`.
+  - `[x]` Implement the async job notification logic (proactively sending a message to the model when a background job completes and no other API call is in flight).
+- **Status: `[x]` COMPLETE**
 
 ### 1.4: Refactor `FunctionManager.java`
 - **Task:** Finalize the implementation of advanced tool-handling features.
 - **Sub-tasks:**
   - `[x]` The `fromMethod` logic has been updated to add the artificial `asynchronous: boolean` parameter to all tool definitions.
-  - `[ ]` The main `processFunctionCalls` logic needs to be updated to *handle* the `asynchronous: true` flag by wrapping the method invocation in a background task and immediately returning a `JobInfo` object.
-  - `[ ]` Implement the `FailureTracker` service to prevent the model from getting stuck in error loops by blocking repeated failed calls.
-- **Status: `[ ]` IN PROGRESS**
+  - `[x]` The main `processFunctionCalls` logic needs to be updated to *handle* the `asynchronous: true` flag by wrapping the method invocation in a background task and immediately returning a `JobInfo` object.
+  - `[x]` Implement the `FailureTracker` service to prevent the model from getting stuck in error loops by blocking repeated failed calls.
+- **Status: `[x]` COMPLETE**
 
 ---
 
@@ -60,19 +60,24 @@ This document outlines the full scope of the architectural refactoring for the `
 
 ### 2.1: Update UI Renderers
 - **Task:** Modify all `PartRenderer` implementations to accept a `ChatMessage` object instead of a raw `Content` object. This is a prerequisite for all other UI work.
-- **Status: `[ ]` NOT STARTED**
+- **Sub-tasks:**
+  - `[x]` **Enhance Message Headers:**
+    - `[x]` Replace the static "MODEL" label with the dynamic `chatMessage.getModelId()`.
+    - `[x]` Replace the static "USER" label with the value from the `user.name` system property.
+    - `[x]` Display the `usageMetadata` (token counts) in the header.
+- **Status: `[x]` COMPLETE**
 
 ### 2.2: Implement Grounding/Citation View
 - **Task:** Create a new `GroundingMetadataRenderer` that can format and display citation information from the `groundingMetadata` field of a `ChatMessage`.
-- **Status: `[ ]` NOT STARTED**
+- **Status: `[x]` COMPLETE**
 
 ### 2.3: Implement Context Heatmap
 - **Task:** Modify the `ContentRenderer` to read the `usageMetadata` from each `ChatMessage` and apply a visual indicator (e.g., a colored border or background) to represent the token cost of that message.
-- **Status: `[ ]` NOT STARTED**
+- **Status: `[x]` COMPLETE**
 
 ### 2.4: Implement Manual Pruning in UI
 - **Task:** Add a "delete" button to each rendered message component. Clicking this button should call the new `ContextManager.pruneById()` method using the message's stable ID.
-- **Status: `[ ]` NOT STARTED**
+- **Status: `[x]` COMPLETE**
 
 ---
 
@@ -87,29 +92,3 @@ This document outlines the full scope of the architectural refactoring for the `
 ### 3.2: Build a Multi-Model Abstraction Layer
 - **Task:** Create a generic interface for chat models to allow plugging in other providers like OpenAI or Claude.
 - **Status: `[ ]` DEFERRED**
-
-
-### 2.1: Update UI Renderers
-- **Task:** Modify all `PartRenderer` implementations to accept a `ChatMessage` object instead of a raw `Content` object. This is a prerequisite for all other UI work.
-- **Sub-tasks:**
-  - `[ ]` **Enhance Message Headers:**
-    - `[ ]` Replace the static "MODEL" label with the dynamic `chatMessage.getModelId()`.
-    - `[ ]` Replace the static "USER" label with the value from the `user.name` system property.
-    - `[ ]` Display the `usageMetadata` (token counts) in the header.
-- **Status: `[ ]` NOT STARTED**
-
-**Implementation Strategy:**
-- `[ ]` The new Kryo-based serialization will be implemented in parallel to the existing Gson-based methods.
-- `[ ]` The Gson methods (`saveSession`, `loadSession`) will be marked as `@Deprecated`.
-- `[ ]` New methods (`saveSessionKryo`, `loadSessionKryo`) will be created.
-- `[ ]` The old Gson methods will only be removed after Kryo implementation has been validated as 100% stable and reliable.
-
-
-### 3.1: Implement Kryo Serialization
-- **Task:** Replace the current GSON-based session serialization with the more performant and robust Kryo framework.
-- **Status: `[ ]` DEFERRED**
-- **Implementation Strategy:**
-  - `[ ]` The new Kryo-based serialization will be implemented in parallel to the existing Gson-based methods.
-  - `[ ]` The Gson methods (`saveSession`, `loadSession`) will be marked as `@Deprecated`.
-  - `[ ]` New methods (`saveSessionKryo`, `loadSessionKryo`) will be created.
-  - `[ ]` The old Gson methods will only be removed after Kryo implementation has been validated as 100% stable and reliable.

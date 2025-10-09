@@ -1,11 +1,13 @@
 package uno.anahata.gemini.functions.pojos;
 
+import uno.anahata.gemini.StatefulResource;
+
 /**
  * A POJO to hold file information, including content and metadata.
  * This object is used for context-aware file operations.
  * @author AI
  */
-public class FileInfo {
+public class FileInfo implements StatefulResource {
     /** The absolute path to the file. */
     public String path;
 
@@ -36,5 +38,10 @@ public class FileInfo {
                ", size=" + size +
                ", content.length=" + (content != null ? content.length() : 0) +
                '}';
+    }
+
+    @Override
+    public String getResourceId() {
+        return path;
     }
 }

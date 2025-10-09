@@ -2,29 +2,20 @@ package uno.anahata.gemini;
 
 import com.google.genai.Client;
 import com.google.genai.types.*;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import com.google.gson.Gson;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.functions.FunctionPrompter;
+import uno.anahata.gemini.internal.GsonUtils;
 
-/**
- * V3: The central orchestrator for the chat, refactored to use the robust ChatMessage model.
- * It manages the main message loop, API communication, and coordinates with the
- * ContextManager and FunctionManager to handle the full lifecycle of a conversation turn.
- * It introduces the "Active Workspace" concept to ensure stateful resources are always in context.
- * @author Anahata
- */
 public class GeminiChat {
 
     private static final Logger logger = Logger.getLogger(GeminiChat.class.getName());
+    private static final Gson GSON = GsonUtils.getGson();
     public static final ThreadLocal<GeminiChat> currentChat = new ThreadLocal<>();
 
     private final FunctionManager functionManager;
@@ -33,6 +24,7 @@ public class GeminiChat {
     private long latency = -1;
     private boolean functionsEnabled = true;
     private String lastApiError = null;
+    private volatile boolean isProcessing = false;
     private Date startTime;
 
     public GeminiChat(
@@ -40,8 +32,9 @@ public class GeminiChat {
             FunctionPrompter prompter,
             ContextListener listener) {
         this.config = config;
-        this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager = new ContextManager(config, listener);
+        this.functionManager = new FunctionManager(this, config, prompter);
+        this.contextManager.setFunctionManager(this.functionManager);
     }
 
     public long getLatency() {
@@ -130,44 +123,51 @@ public class GeminiChat {
     }
 
     public void sendContent(Content content) {
-        if (content != null) {
-            ChatMessage userMessage = new ChatMessage(config.getApi().getModelId(), content, null, null, null);
-            contextManager.add(userMessage);
+        if (isProcessing) {
+            logger.warning("A request is already in progress. Ignoring new request.");
+            return;
         }
-
-        // Main processing loop
-        while (true) {
-            List<Content> apiContext = buildApiContext(contextManager.getContext());
-            GenerateContentResponse resp = sendToModelWithRetry(apiContext);
-
-            if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
-                logger.warning("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
-                Content emptyContent = Content.builder().role("model").parts(Part.fromText("[No response from model]")).build();
-                ChatMessage emptyModelMessage = new ChatMessage(config.getApi().getModelId(), emptyContent, null, resp.usageMetadata().orElse(null), null);
-                contextManager.add(emptyModelMessage);
-                break;
-            }
-            
-            Candidate cand = resp.candidates().get().get(0);
-            if (cand.content() == null || !cand.content().isPresent()) {
-                 logger.warning("Received candidate with no content. Breaking loop.");
-                 break;
+        isProcessing = true;
+        try {
+            if (content != null) {
+                ChatMessage userMessage = new ChatMessage(config.getApi().getModelId(), content, null, null, null);
+                contextManager.add(userMessage);
             }
 
-            Content modelResponseContent = cand.content().get();
-            ChatMessage modelMessage = new ChatMessage(
-                config.getApi().getModelId(),
-                modelResponseContent,
-                null,
-                resp.usageMetadata().orElse(null),
-                cand.groundingMetadata().orElse(null)
-            );
-            contextManager.add(modelMessage);
+            while (true) {
+                List<Content> apiContext = buildApiContext(contextManager.getContext());
+                GenerateContentResponse resp = sendToModelWithRetry(apiContext);
 
-            // Check for function calls and re-loop if necessary
-            if (!processAndReloopForFunctionCalls(modelMessage)) {
-                break; // No function calls, so the turn is complete.
+                if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
+                    logger.warning("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
+                    Content emptyContent = Content.builder().role("model").parts(Part.fromText("[No response from model]")).build();
+                    ChatMessage emptyModelMessage = new ChatMessage(config.getApi().getModelId(), emptyContent, null, resp.usageMetadata().orElse(null), null);
+                    contextManager.add(emptyModelMessage);
+                    break;
+                }
+
+                Candidate cand = resp.candidates().get().get(0);
+                if (cand.content() == null || !cand.content().isPresent()) {
+                    logger.warning("Received candidate with no content. Breaking loop.");
+                    break;
+                }
+
+                Content modelResponseContent = cand.content().get();
+                ChatMessage modelMessage = new ChatMessage(
+                        config.getApi().getModelId(),
+                        modelResponseContent,
+                        null,
+                        resp.usageMetadata().orElse(null),
+                        cand.groundingMetadata().orElse(null)
+                );
+                contextManager.add(modelMessage);
+
+                if (!processAndReloopForFunctionCalls(modelMessage)) {
+                    break; 
+                }
             }
+        } finally {
+            isProcessing = false;
         }
     }
 
@@ -175,16 +175,13 @@ public class GeminiChat {
         List<FunctionResponse> functionResponses = functionManager.processFunctionCalls(modelMessageWithCalls);
 
         if (functionResponses.isEmpty()) {
-            return false; // No function calls were approved or executed, break the loop.
+            return false;
         }
 
-        // Link responses back to the original message
         modelMessageWithCalls.setFunctionResponses(functionResponses);
 
-        // Create a new message to hold all the function responses for this turn.
         List<Part> responseParts = functionResponses.stream()
             .map(fr -> {
-                // The SDK requires a Map for the response, so we ensure it is one.
                 Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
                 return Part.fromFunctionResponse(fr.name().get(), responseMap);
             })
@@ -198,13 +195,13 @@ public class GeminiChat {
         ChatMessage functionResponseMessage = new ChatMessage(
             config.getApi().getModelId(),
             functionResponseContent,
-            modelMessageWithCalls.getId(), // Link to the message that made the call
-            null, // No new usage metadata for this internal step
+            modelMessageWithCalls.getId(),
+            null,
             null
         );
         contextManager.add(functionResponseMessage);
         
-        return true; // Function calls were processed, continue the loop to get the model's summary.
+        return true;
     }
 
     private void recordLastApiError(Exception e) {
@@ -212,9 +209,9 @@ public class GeminiChat {
     }
 
     private GenerateContentResponse sendToModelWithRetry(List<Content> context) {
-        int maxRetries = 5;
-        long initialDelayMillis = 1000;
-        long maxDelayMillis = 30000;
+        int maxRetries = config.getApiMaxRetries();
+        long initialDelayMillis = config.getApiInitialDelayMillis();
+        long maxDelayMillis = config.getApiMaxDelayMillis();
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
@@ -251,57 +248,13 @@ public class GeminiChat {
         throw new IllegalStateException("Exited retry loop unexpectedly.");
     }
 
-    /**
-     * This is the core of the "Active Workspace" concept.
-     * It converts our rich ChatMessage history into the flat List<Content>
-     * that the Google API expects, while ensuring that all stateful resources
-     * are consolidated and presented to the model in every turn.
-     * @param chatHistory The full history of ChatMessage objects.
-     * @return A List of Content objects ready for the API.
-     */
     private List<Content> buildApiContext(List<ChatMessage> chatHistory) {
-        // 1. Direct conversion of all messages to their raw Content.
-        List<Content> apiContext = chatHistory.stream()
+        // FIX: Removed the "Active Workspace" consolidation logic.
+        // The ContextManager's "read-and-replace" logic is the correct way to handle state.
+        return chatHistory.stream()
                 .map(ChatMessage::getContent)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-
-        // 2. ACTIVE WORKSPACE CONSOLIDATION:
-        //    Scan the entire history for the *latest version* of any stateful resources
-        //    (like files) and consolidate them into a single, final "tool" content block.
-        //    This ensures the model *always* has the most current view of the workspace.
-        Map<String, Part> activeWorkspace = new java.util.HashMap<>();
-        for (ChatMessage message : chatHistory) {
-            if (message.getContent() == null || !message.getContent().parts().isPresent()) continue;
-            
-            for (Part part : message.getContent().parts().get()) {
-                if (part.functionResponse().isPresent()) {
-                    FunctionResponse fr = part.functionResponse().get();
-                    String toolName = fr.name().orElse("");
-                    
-                    // This logic mirrors ContextManager's stateful check.
-                    if (toolName.equals("LocalFiles.readFile") || toolName.equals("LocalFiles.writeFile")) {
-                        Optional.ofNullable(fr.response().get())
-                            .filter(r -> r instanceof Map)
-                            .map(r -> ((Map<String, Object>) r).get("path"))
-                            .filter(p -> p instanceof String)
-                            .map(p -> (String) p)
-                            .ifPresent(path -> activeWorkspace.put(path, part)); // Overwrites older versions
-                    }
-                }
-            }
-        }
-
-        if (!activeWorkspace.isEmpty()) {
-            logger.info("Active Workspace: Consolidating " + activeWorkspace.size() + " stateful resources.");
-            Content workspaceContent = Content.builder()
-                .role("tool")
-                .parts(new ArrayList<>(activeWorkspace.values()))
-                .build();
-            apiContext.add(workspaceContent);
-        }
-
-        return apiContext;
     }
 
     public Client getGoogleGenAIClient() {
@@ -312,7 +265,33 @@ public class GeminiChat {
         return contextManager.getContext();
     }
 
+
+
     public ContextManager getContextManager() {
         return contextManager;
+    }
+    
+    public FunctionManager getFunctionManager() {
+        return functionManager;
+    }
+
+    public void notifyJobCompletion(JobInfo jobInfo) {
+        if (isProcessing) {
+            logger.log(Level.INFO, "Chat is busy. Job completion notification for {0} will be queued.", jobInfo.getJobId());
+            // In a more robust system, we would queue this and check later.
+            // For now, we just log and drop to prevent API errors.
+            return;
+        }
+
+        logger.log(Level.INFO, "Job {0} completed. Adding result to context passively.", jobInfo.getJobId());
+        Map<String, Object> responseMap = GSON.fromJson(GSON.toJson(jobInfo), Map.class);
+        FunctionResponse fr = FunctionResponse.builder().name("async_job_result").response(responseMap).build();
+        Part part = Part.fromFunctionResponse(fr.name().get(), (Map<String, Object>) fr.response().get());
+        Content notificationContent = Content.builder().role("tool").parts(part).build();
+        
+        // FIX: Add the result to the context instead of sending it directly.
+        // The model will see this on the next user turn.
+        ChatMessage jobResultMessage = new ChatMessage(config.getApi().getModelId(), notificationContent, null, null, null);
+        contextManager.add(jobResultMessage);
     }
 }

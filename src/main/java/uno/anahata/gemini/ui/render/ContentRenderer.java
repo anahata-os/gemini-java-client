@@ -31,27 +31,26 @@ import javax.swing.border.Border;
 import org.apache.commons.text.StringEscapeUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.ContextManager;
+import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.ui.StandaloneSwingGeminiConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
-/**
- * V5 Renderer: Adds a manual prune button to each message.
- *
- * @author pablo-ai
- */
 public class ContentRenderer {
 
     private final Map<PartType, PartRenderer> typeRendererMap;
     private final Map<Part, PartRenderer> instanceRendererMap;
     private final EditorKitProvider editorKitProvider;
+    private final StandaloneSwingGeminiConfig.UITheme theme;
 
-    public ContentRenderer(EditorKitProvider editorKitProvider) {
+    public ContentRenderer(EditorKitProvider editorKitProvider, GeminiConfig config) {
         this.editorKitProvider = editorKitProvider;
+        this.theme = (config instanceof StandaloneSwingGeminiConfig) ? ((StandaloneSwingGeminiConfig) config).getTheme() : new StandaloneSwingGeminiConfig.UITheme();
         this.typeRendererMap = new HashMap<>();
         this.instanceRendererMap = new HashMap<>();
 
         typeRendererMap.put(PartType.TEXT, new TextPartRenderer());
-        typeRendererMap.put(PartType.FUNCTION_CALL, new FunctionCallPartRenderer());
-        typeRendererMap.put(PartType.FUNCTION_RESPONSE, new FunctionResponsePartRenderer());
+        typeRendererMap.put(PartType.FUNCTION_CALL, new FunctionCallPartRenderer(theme));
+        typeRendererMap.put(PartType.FUNCTION_RESPONSE, new FunctionResponsePartRenderer(theme));
         typeRendererMap.put(PartType.BLOB, new BlobPartRenderer());
         typeRendererMap.put(PartType.CODE_EXECUTION_RESULT, new CodeExecutionResultPartRenderer());
         typeRendererMap.put(PartType.EXECUTABLE_CODE, new ExecutableCodePartRenderer());
@@ -70,15 +69,14 @@ public class ContentRenderer {
         String role = content.role().orElse("model");
 
         JPanel messagePanel = new JPanel(new BorderLayout());
-        messagePanel.setBorder(getBorderForRole(role));
+        int tokenCount = message.getUsageMetadata() != null ? message.getUsageMetadata().totalTokenCount().orElse(0) : 0;
+        messagePanel.setBorder(getBorderForRole(role, tokenCount));
 
-        // Header Panel
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(true);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         headerPanel.setBackground(getBackgroundColor(role, true));
 
-        // Header Text
         String headerText = String.format("<html><b>%S</b> [%d]", role, contentIdx);
         if ("model".equalsIgnoreCase(role)) {
             headerText += " <font color='#666666'>- " + StringEscapeUtils.escapeHtml4(message.getModelId()) + "</font>";
@@ -96,7 +94,6 @@ public class ContentRenderer {
         headerLabel.setForeground(getForegroundColor(role));
         headerPanel.add(headerLabel, BorderLayout.CENTER);
 
-        // Prune Button
         JButton pruneButton = new JButton("X");
         pruneButton.setMargin(new Insets(0, 4, 0, 4));
         pruneButton.setToolTipText("Remove this message from the context");
@@ -105,7 +102,6 @@ public class ContentRenderer {
         
         messagePanel.add(headerPanel, BorderLayout.NORTH);
 
-        // Content Panel
         JPanel contentPanel = new ScrollablePanel();
         contentPanel.setLayout(new GridBagLayout());
         contentPanel.setOpaque(true);
@@ -155,6 +151,12 @@ public class ContentRenderer {
                 contentPanel.add(unsupportedLabel, gbc);
             }
         }
+        
+        if (message.getGroundingMetadata() != null) {
+            gbc.insets = new Insets(10, 0, 0, 0);
+            GroundingMetadataRenderer groundingRenderer = new GroundingMetadataRenderer(message.getGroundingMetadata());
+            contentPanel.add(groundingRenderer, gbc);
+        }
 
         gbc.weighty = 1;
         contentPanel.add(Box.createVerticalGlue(), gbc);
@@ -163,30 +165,45 @@ public class ContentRenderer {
         return messagePanel;
     }
 
-    private Border getBorderForRole(String role) {
+    private Border getBorderForRole(String role, int tokenCount) {
+        Color baseColor;
         switch (role.toLowerCase()) {
-            case "user": return BorderFactory.createLineBorder(new Color(144, 198, 149), 2, true);
-            case "function": return BorderFactory.createLineBorder(new Color(240, 173, 78), 2, true);
-            case "tool": return BorderFactory.createLineBorder(new Color(200, 180, 220), 2, true); // Added for tool role
-            default: return BorderFactory.createLineBorder(new Color(160, 195, 232), 2, true);
+            case "user": baseColor = theme.getUserBorder(); break;
+            case "model": baseColor = theme.getModelBorder(); break;
+            case "tool": baseColor = theme.getToolBorder(); break;
+            default: baseColor = theme.getDefaultBorder(); break;
         }
+
+        double heat = Math.min(1.0, (double) tokenCount / 4096.0);
+        
+        int r = (int) (baseColor.getRed() * (1 - heat) + 255 * heat);
+        int g = (int) (baseColor.getGreen() * (1 - heat) + 100 * heat);
+        int b = (int) (baseColor.getBlue() * (1 - heat) + 30 * heat);
+
+        Color finalColor = new Color(
+            Math.max(0, Math.min(255, r)),
+            Math.max(0, Math.min(255, g)),
+            Math.max(0, Math.min(255, b))
+        );
+
+        return BorderFactory.createLineBorder(finalColor, 2, true);
     }
 
     private Color getBackgroundColor(String role, boolean isHeader) {
         switch (role.toLowerCase()) {
-            case "user": return isHeader ? new Color(212, 237, 218) : new Color(233, 247, 239);
-            case "function": return isHeader ? new Color(252, 248, 227) : new Color(255, 250, 240);
-            case "tool": return isHeader ? new Color(242, 238, 247) : new Color(250, 248, 252); // Added for tool role
-            default: return isHeader ? new Color(221, 234, 248) : new Color(240, 248, 255);
+            case "user": return isHeader ? theme.getUserHeaderBg() : theme.getUserContentBg();
+            case "model": return isHeader ? theme.getModelHeaderBg() : theme.getModelContentBg();
+            case "tool": return isHeader ? theme.getToolHeaderBg() : theme.getToolContentBg();
+            default: return isHeader ? theme.getDefaultHeaderBg() : theme.getDefaultContentBg();
         }
     }
 
     private Color getForegroundColor(String role) {
         switch (role.toLowerCase()) {
-            case "user": return new Color(21, 87, 36);
-            case "function": return new Color(138, 109, 59);
-            case "tool": return new Color(80, 60, 100); // Added for tool role
-            default: return new Color(0, 123, 255);
+            case "user": return theme.getUserHeaderFg();
+            case "model": return theme.getModelHeaderFg();
+            case "tool": return theme.getToolHeaderFg();
+            default: return theme.getFontColor();
         }
     }
 

@@ -258,7 +258,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             }
 
             if (message.getContent() != null) {
-                ContentRenderer renderer = new ContentRenderer(editorKitProvider);
+                ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
                 int contentIdx = chat.getContextManager().getContext().size() - 1;
                 JComponent messageComponent = renderer.render(message, contentIdx, chat.getContextManager());
                 
@@ -303,7 +303,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         for (ChatMessage chatMessage : chat.getContext()) {
             if (chatMessage.getContent() != null) {
-                ContentRenderer renderer = new ContentRenderer(editorKitProvider);
+                ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
                 int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
                 JComponent messageComponent = renderer.render(chatMessage, contentIdx, chat.getContextManager());
                 

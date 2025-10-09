@@ -1,8 +1,10 @@
 package uno.anahata.gemini;
 
 import com.google.genai.types.*;
+import com.google.gson.Gson;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -11,25 +13,35 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import uno.anahata.gemini.functions.ContextBehavior;
+import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
 
 /**
- * V3: A stateful context manager using a rich ChatMessage model.
- * It handles intelligent pruning, workspace state management, and session persistence.
+ * V8: A stateful context manager using the StatefulResource interface.
+ * This version uses a type-safe, interface-based approach to identify and manage
+ * stateful resources, and correctly handles multiple resources in a single message.
  * @author Anahata
  */
 public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
+    private static final Gson GSON = GsonUtils.getGson();
 
     private List<ChatMessage> context = new ArrayList<>();
     private final GeminiConfig config;
     private final ContextListener listener;
+    private FunctionManager functionManager;
     private int totalTokenCount = 0;
 
     public ContextManager(GeminiConfig config, ContextListener listener) {
         this.config = config;
         this.listener = listener;
+    }
+    
+    public void setFunctionManager(FunctionManager functionManager) {
+        this.functionManager = functionManager;
     }
 
     public static ContextManager get() {
@@ -48,49 +60,66 @@ public class ContextManager {
         handleStatefulReplace(message);
         context.add(message);
         logEntryToFile(message);
-        
+
         if (message.getUsageMetadata() != null) {
             this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
         }
+
+        if (isUserMessage(message)) {
+            pruneOldEphemeralResults();
+        }
+
         listener.contentAdded(message);
     }
-    
+
     private void handleStatefulReplace(ChatMessage newMessage) {
-        extractResourceIdentifier(newMessage).ifPresent(newResourceId -> {
-            Iterator<ChatMessage> iterator = context.iterator();
-            while (iterator.hasNext()) {
-                ChatMessage oldMessage = iterator.next();
-                extractResourceIdentifier(oldMessage).ifPresent(oldResourceId -> {
-                    if (newResourceId.equals(oldResourceId)) {
-                        logger.log(Level.INFO, "STATEFUL_REPLACE: Pruning old message {0} for resource {1}", new Object[]{oldMessage.getId(), newResourceId});
-                        iterator.remove();
-                    }
-                });
+        List<String> newResourceIds = extractResourceIdentifiers(newMessage);
+        if (newResourceIds.isEmpty()) {
+            return;
+        }
+        
+        Iterator<ChatMessage> iterator = context.iterator();
+        while (iterator.hasNext()) {
+            ChatMessage oldMessage = iterator.next();
+            List<String> oldResourceIds = extractResourceIdentifiers(oldMessage);
+            for (String newId : newResourceIds) {
+                if (oldResourceIds.contains(newId)) {
+                    logger.log(Level.INFO, "STATEFUL_REPLACE: Pruning old message {0} for resource {1}", new Object[]{oldMessage.getId(), newId});
+                    iterator.remove();
+                    break; 
+                }
             }
-        });
+        }
     }
 
-    private Optional<String> extractResourceIdentifier(ChatMessage message) {
-        if (message.getContent() == null || !message.getContent().parts().isPresent()) {
-            return Optional.empty();
+    public List<String> extractResourceIdentifiers(ChatMessage message) {
+        if (functionManager == null || message.getContent() == null || !message.getContent().parts().isPresent()) {
+            return Collections.emptyList();
         }
+        
+        List<String> identifiers = new ArrayList<>();
         for (Part part : message.getContent().parts().get()) {
             if (part.functionResponse().isPresent()) {
                 FunctionResponse fr = part.functionResponse().get();
                 String toolName = fr.name().orElse("");
 
-                if (toolName.equals("LocalFiles.readFile") || toolName.equals("LocalFiles.writeFile")) {
-                    if (fr.response().isPresent() && fr.response().get() instanceof Map) {
-                        Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
-                        Object path = responseMap.get("path");
-                        if (path instanceof String) {
-                            return Optional.of((String) path);
+                if (functionManager.getContextBehavior(toolName) == ContextBehavior.STATEFUL_REPLACE) {
+                    Method toolMethod = functionManager.getToolMethod(toolName);
+                    if (toolMethod != null) {
+                        Class<?> returnType = toolMethod.getReturnType();
+                        if (StatefulResource.class.isAssignableFrom(returnType)) {
+                            try {
+                                Object pojo = GSON.fromJson(GSON.toJsonTree(fr.response().get()), returnType);
+                                identifiers.add(((StatefulResource) pojo).getResourceId());
+                            } catch (Exception e) {
+                                logger.log(Level.WARNING, "Could not extract resource ID for stateful tool " + toolName, e);
+                            }
                         }
                     }
                 }
             }
         }
-        return Optional.empty();
+        return identifiers;
     }
 
     private void logEntryToFile(ChatMessage message) {
@@ -149,7 +178,7 @@ public class ContextManager {
                     return cm.getUsageMetadata().totalTokenCount().orElse(0);
                 }
                 if (cm.getContent() != null) {
-                    return cm.getContent().toString().length() / 4; 
+                    return cm.getContent().toString().length() / 4; // Rough estimate
                 }
                 return 0;
             })
@@ -157,11 +186,15 @@ public class ContextManager {
         logger.info("Context set. New token count: " + this.totalTokenCount);
         notifyHistoryChange();
     }
-    
+
     public synchronized void pruneById(String id) {
-        boolean removed = context.removeIf(message -> message.getId().equals(id));
+        pruneByIds(Collections.singletonList(id));
+    }
+    
+    public synchronized void pruneByIds(List<String> ids) {
+        boolean removed = context.removeIf(message -> ids.contains(message.getId()));
         if (removed) {
-            logger.info("Pruned message with ID: " + id);
+            logger.info("Pruned " + ids.size() + " messages by ID.");
             notifyHistoryChange();
         }
     }
@@ -175,15 +208,15 @@ public class ContextManager {
         StringBuilder statusBlock = new StringBuilder();
         statusBlock.append("\n#  Context entries: ").append(historyCopy.size()).append("\n");
         statusBlock.append("\n-----------------------------------\n");
-        
+
         for (int i = 0; i < historyCopy.size(); i++) {
             ChatMessage message = historyCopy.get(i);
             Content content = message.getContent();
             String role = content != null && content.role().isPresent() ? content.role().get() : "system";
-            
+
             statusBlock.append("\n[").append(i).append("][").append(role).append("] ");
             statusBlock.append("[id: ").append(message.getId()).append("] ");
-            
+
             if (content != null && content.parts().isPresent()) {
                 List<Part> parts = content.parts().get();
                 statusBlock.append(parts.size()).append(" Parts");
@@ -200,7 +233,7 @@ public class ContextManager {
 
         return statusBlock.toString();
     }
-    
+
     public String getContextId() {
         return config.getApplicationInstanceId() + "-" + System.identityHashCode(this);
     }
@@ -215,5 +248,58 @@ public class ContextManager {
 
     public synchronized void loadSession(String id) throws IOException {
         throw new UnsupportedOperationException("Session loading is disabled until Kryo implementation.");
+    }
+
+    private boolean isUserMessage(ChatMessage message) {
+        return message.getContent() != null && "user".equals(message.getContent().role().orElse(null));
+    }
+
+    private void pruneOldEphemeralResults() {
+        if (functionManager == null) return;
+        final int turnsToKeep = 2;
+        List<Integer> userMessageIndices = new ArrayList<>();
+        for (int i = context.size() - 1; i >= 0; i--) {
+            if (isUserMessage(context.get(i))) {
+                userMessageIndices.add(i);
+            }
+        }
+
+        if (userMessageIndices.size() <= turnsToKeep) {
+            return;
+        }
+
+        int pruneCutoffIndex = userMessageIndices.get(turnsToKeep);
+
+        List<String> idsToPrune = new ArrayList<>();
+        for (int i = 0; i < pruneCutoffIndex; i++) {
+            ChatMessage message = context.get(i);
+            if (isEphemeralToolMessage(message)) {
+                idsToPrune.add(message.getId());
+            }
+        }
+
+        if (!idsToPrune.isEmpty()) {
+            logger.log(Level.INFO, "Two-Turn Rule: Pruning {0} old ephemeral messages.", idsToPrune.size());
+            pruneByIds(idsToPrune);
+        }
+    }
+
+    private boolean isEphemeralToolMessage(ChatMessage message) {
+        if (functionManager == null || message.getContent() == null || !message.getContent().parts().isPresent()) {
+            return false;
+        }
+        for (Part part : message.getContent().parts().get()) {
+            String toolName = "";
+            if (part.functionCall().isPresent()) {
+                toolName = part.functionCall().get().name().orElse("");
+            } else if (part.functionResponse().isPresent()) {
+                toolName = part.functionResponse().get().name().orElse("");
+            }
+            
+            if (!toolName.isEmpty() && functionManager.getContextBehavior(toolName) == ContextBehavior.EPHEMERAL) {
+                return true;
+            }
+        }
+        return false;
     }
 }

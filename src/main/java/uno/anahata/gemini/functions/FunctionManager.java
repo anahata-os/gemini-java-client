@@ -22,7 +22,7 @@ import uno.anahata.gemini.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.util.GeminiSchemaGenerator;
 
-// V2: Refactored to work with ChatMessage and the new architecture
+// V4: Passes the entire GeminiChat instance to the prompter for context.
 public class FunctionManager {
 
     private static final Logger logger = Logger.getLogger(FunctionManager.class.getName());
@@ -33,7 +33,7 @@ public class FunctionManager {
     private final Map<String, Method> functionCallMethods = new HashMap<>();
     private final Tool coreTools;
     private final ToolConfig toolConfig;
-    private final FailureTracker failureTracker = new FailureTracker();
+    private final FailureTracker failureTracker;
 
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
@@ -41,6 +41,7 @@ public class FunctionManager {
     public FunctionManager(GeminiChat chat, GeminiConfig config, FunctionPrompter prompter) {
         this.chat = chat;
         this.prompter = prompter;
+        this.failureTracker = new FailureTracker(config);
         List<Class<?>> allClasses = new ArrayList<>();
         allClasses.add(LocalFiles.class);
         allClasses.add(LocalShell.class);
@@ -72,15 +73,8 @@ public class FunctionManager {
         return Tool.builder().functionDeclarations(fds).build();
     }
 
-    /**
-     * Processes function calls from a model's response message.
-     * This is the main entry point for tool execution.
-     * @param modelResponseMessage The ChatMessage containing the model's response.
-     * @return A List of FunctionResponse objects, ready to be sent back to the model.
-     */
     public List<FunctionResponse> processFunctionCalls(ChatMessage modelResponseMessage) {
         Content modelResponseContent = modelResponseMessage.getContent();
-        int contentIdx = chat.getContextManager().getContext().indexOf(modelResponseMessage);
         
         List<FunctionCall> allProposedCalls = new ArrayList<>();
         modelResponseContent.parts().ifPresent(parts -> {
@@ -93,35 +87,30 @@ public class FunctionManager {
             return Collections.emptyList();
         }
         
-        // User Approval Step
-        PromptResult promptResult = prompter.prompt(modelResponseMessage, contentIdx, alwaysApproveFunctions, neverApproveFunctions);
+        PromptResult promptResult = prompter.prompt(modelResponseMessage, this.chat);
         List<FunctionCall> allApprovedCalls = promptResult.approvedFunctions;
 
         if (allApprovedCalls.isEmpty()) {
-            // TODO: Handle denied calls and user comments by creating new ChatMessages
             return Collections.emptyList();
         }
 
         List<FunctionResponse> responses = new ArrayList<>();
         for (FunctionCall approvedCall : allApprovedCalls) {
-            // Generate a stable ID for the call-response link
             String anahataId = approvedCall.id().orElse(UUID.randomUUID().toString());
             
             try {
-                // FailureTracker Check
                 if (failureTracker.isBlocked(approvedCall)) {
-                    throw new RuntimeException("Tool call is temporarily blocked due to repeated failures.");
+                    throw new RuntimeException("Tool call '" + approvedCall.name().get() + "' is temporarily blocked due to repeated failures.");
                 }
 
                 GeminiChat.currentChat.set(chat);
                 Method method = functionCallMethods.get(approvedCall.name().get());
                 if (method == null) {
-                    throw new RuntimeException("Tool not found: " + approvedCall.name());
+                    throw new RuntimeException("Tool not found: '" + approvedCall.name().get() + "' available tools: " + functionCallMethods.keySet());
                 }
                 
-                // ASYNC HANDLING LOGIC START
-                Map<String, Object> args = new HashMap<>(approvedCall.args().get()); // Make a mutable copy
-                Object asyncFlag = args.remove("asynchronous"); // Remove the artificial parameter
+                Map<String, Object> args = new HashMap<>(approvedCall.args().get());
+                Object asyncFlag = args.remove("asynchronous");
                 boolean isAsync = asyncFlag instanceof Boolean && (Boolean) asyncFlag;
 
                 Object funcResponsePayload;
@@ -131,26 +120,28 @@ public class FunctionManager {
                     funcResponsePayload = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + approvedCall.name().get(), null);
                     
                     Executors.cachedThreadPool.submit(() -> {
+                        JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + approvedCall.name().get(), null);
                         try {
-                            GeminiChat.currentChat.set(chat); // Propagate ThreadLocal
+                            GeminiChat.currentChat.set(chat);
                             Object result = invokeFunctionMethod(method, args);
-                            // TODO: Proactively notify the model of job completion via GeminiChat
-                            logger.info("Asynchronous job " + jobId + " completed successfully with result: " + result);
+                            completedJobInfo.setStatus(JobStatus.COMPLETED);
+                            completedJobInfo.setResult(result);
+                            logger.info("Asynchronous job " + jobId + " completed successfully.");
                         } catch (Exception e) {
-                            // TODO: Proactively notify the model of job failure via GeminiChat
+                            completedJobInfo.setStatus(JobStatus.FAILED);
+                            completedJobInfo.setResult(ExceptionUtils.getStackTrace(e));
                             logger.log(Level.SEVERE, "Asynchronous job " + jobId + " failed.", e);
                         } finally {
+                            chat.notifyJobCompletion(completedJobInfo);
                             GeminiChat.currentChat.remove();
                         }
                     });
                 } else {
                     funcResponsePayload = invokeFunctionMethod(method, args);
                 }
-                // ASYNC HANDLING LOGIC END
                 
                 Map<String, Object> responseMap;
                 if (funcResponsePayload instanceof JobInfo) {
-                    // Special handling for async jobs
                     responseMap = GSON.fromJson(GSON.toJson(funcResponsePayload), Map.class);
                 } else if (funcResponsePayload != null && !(funcResponsePayload instanceof String || funcResponsePayload instanceof Number || funcResponsePayload instanceof Boolean || funcResponsePayload instanceof Collection || funcResponsePayload.getClass().isArray())) {
                      JsonElement jsonElement = GSON.toJsonTree(funcResponsePayload);
@@ -228,7 +219,6 @@ public class FunctionManager {
             required.add(paramName);
         }
         
-        // Add the "asynchronous" artificial parameter
         properties.put("asynchronous", Schema.builder().type(Type.Known.BOOLEAN).description("Set to true to run this task in the background and return a job ID immediately.").build());
 
         Schema paramsSchema = Schema.builder()
@@ -261,5 +251,28 @@ public class FunctionManager {
 
     public ToolConfig getToolConfig() {
         return toolConfig;
+    }
+    
+    public ContextBehavior getContextBehavior(String toolName) {
+        Method method = functionCallMethods.get(toolName);
+        if (method != null) {
+            AIToolMethod annotation = method.getAnnotation(AIToolMethod.class);
+            if (annotation != null) {
+                return annotation.behavior();
+            }
+        }
+        return ContextBehavior.EPHEMERAL;
+    }
+    
+    public Method getToolMethod(String toolName) {
+        return functionCallMethods.get(toolName);
+    }
+
+    public Set<String> getAlwaysApproveFunctions() {
+        return alwaysApproveFunctions;
+    }
+
+    public Set<String> getNeverApproveFunctions() {
+        return neverApproveFunctions;
     }
 }

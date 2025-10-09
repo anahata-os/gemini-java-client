@@ -31,7 +31,8 @@ import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.ContextManager;
+import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer.ConfirmationState;
 import uno.anahata.gemini.ui.render.PartType;
@@ -57,7 +58,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     }
 
     @Override
-    public PromptResult prompt(ChatMessage modelMessage, int contentIdx, Set<String> alwaysApprove, Set<String> alwaysDeny) {
+    public PromptResult prompt(ChatMessage modelMessage, GeminiChat chat) {
         try {
             SwingUtilities.invokeAndWait(() -> {
                 interactiveRenderers.clear();
@@ -65,7 +66,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
                 deniedFunctions.clear();
                 userComment = "";
                 
-                initComponents(modelMessage, contentIdx, alwaysApprove, alwaysDeny);
+                initComponents(modelMessage, chat);
                 pack();
                 setSize(1024, 768);
                 setLocationRelativeTo(getOwner());
@@ -84,26 +85,33 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         return new PromptResult(approvedFunctions, deniedFunctions, userComment);
     }
 
-    private void initComponents(ChatMessage modelMessage, int contentIdx, Set<String> alwaysApprove, Set<String> neverApprove) {
+    private void initComponents(ChatMessage modelMessage, GeminiChat chat) {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
-
-        ContentRenderer renderer = new ContentRenderer(editorKitProvider);
+        GeminiConfig config = chat.getContextManager().getConfig();
+        ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
         PartRenderer defaultFcRenderer = renderer.getDefaultRendererForType(PartType.FUNCTION_CALL);
 
         final List<? extends Part> parts = modelMessage.getContent().parts().get();
         
+        Set<String> alwaysApprove = chat.getFunctionManager().getAlwaysApproveFunctions();
+        Set<String> neverApprove = chat.getFunctionManager().getNeverApproveFunctions();
+        
+        StandaloneSwingGeminiConfig.UITheme theme = (config instanceof StandaloneSwingGeminiConfig)
+            ? ((StandaloneSwingGeminiConfig) config).getTheme()
+            : new StandaloneSwingGeminiConfig.UITheme();
+        
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {
                 FunctionCall fc = part.functionCall().get();
-                InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, defaultFcRenderer, alwaysApprove, neverApprove);
+                InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, defaultFcRenderer, alwaysApprove, neverApprove, theme);
                 interactiveRenderers.add(interactiveRenderer);
                 renderer.registerRenderer(part, interactiveRenderer);
             }
         }
 
-        JComponent renderedContent = renderer.render(modelMessage, contentIdx, ContextManager.get());
+        int contentIdx = chat.getContextManager().getContext().indexOf(modelMessage);
+        JComponent renderedContent = renderer.render(modelMessage, contentIdx, chat.getContextManager());
         
-        // FIX: Wrap the rendered content in a ScrollablePanel to enforce width constraints.
         JPanel contentWrapper = new ScrollablePanel();
         contentWrapper.setLayout(new BorderLayout());
         contentWrapper.add(renderedContent, BorderLayout.CENTER);
@@ -181,10 +189,6 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         return all;
     }
     
-    /**
-     * A panel that implements Scrollable to enforce that its width matches the
-     * viewport width. This is the definitive fix for the line-wrapping issue.
-     */
     private static class ScrollablePanel extends JPanel implements Scrollable {
         @Override
         public Dimension getPreferredScrollableViewportSize() {
@@ -200,7 +204,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         }
         @Override
         public boolean getScrollableTracksViewportWidth() {
-            return true; // This is the magic!
+            return true;
         }
         @Override
         public boolean getScrollableTracksViewportHeight() {

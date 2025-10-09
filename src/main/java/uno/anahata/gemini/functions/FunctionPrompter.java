@@ -2,8 +2,8 @@ package uno.anahata.gemini.functions;
 
 import com.google.genai.types.FunctionCall;
 import java.util.List;
-import java.util.Set;
 import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.GeminiChat;
 
 /**
  * An interface for UI components that can prompt the user to confirm a batch of
@@ -12,7 +12,7 @@ import uno.anahata.gemini.ChatMessage;
  *
  * @author pablo-ai
  */
-public interface FunctionPrompter {    
+public interface FunctionPrompter {
 
     /**
      * Prompts the user to confirm a list of function calls from the model's
@@ -20,10 +20,11 @@ public interface FunctionPrompter {
      *
      * @param modelMessage The full ChatMessage from the model, containing one or
      * more function calls.
+     * @param chat The current GeminiChat instance, providing access to context and configuration.
      * @return A result object containing the lists of approved and denied
      * functions, and any user comment.
      */
-    PromptResult prompt(ChatMessage modelMessage, int contentIdx, Set<String> alwaysApprove, Set<String> alwaysDeny);
+    PromptResult prompt(ChatMessage modelMessage, GeminiChat chat);
 
     /**
      * A simple value object to hold the results from the prompt.
