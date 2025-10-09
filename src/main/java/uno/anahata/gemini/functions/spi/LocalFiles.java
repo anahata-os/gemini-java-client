@@ -47,28 +47,29 @@ public class LocalFiles {
         return new FileInfo(path, content, lastModified, size);
     }
 
-    @AIToolMethod(value = "Writes content to a file, but only if the file has not been modified since it was last read. It uses the lastModified timestamp from the FileInfo object as a precondition. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Writes content to a file, but only if the file has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo writeFile(
-            @AIToolParam("A FileInfo object containing the path, new content, and the expected last modified timestamp. OPTIMISTIC USAGE: If you have just performed a successful write/patch, you can use the 'lastModified' from the returned FileInfo object for the next immediate write on the same file, saving a 'readFile' call.")
-            FileInfo fileInfo
+            @AIToolParam("The absolute path of the file to write to.") String path,
+            @AIToolParam("The new content to write to the file.") String content,
+            @AIToolParam("The expected 'last modified' timestamp of the file on disk. The write will fail if the actual timestamp is different. Use 0 if the file is not expected to exist.") long lastModified
     ) throws IOException {
-        Path filePath = Paths.get(fileInfo.path);
+        Path filePath = Paths.get(path);
 
         if (Files.exists(filePath)) {
             long currentLastModified = Files.getLastModifiedTime(filePath).toMillis();
-            if (currentLastModified != fileInfo.lastModified) {
-                throw new IOException("File modification conflict. The file at " + fileInfo.path +
-                                      " was modified on disk after it was read. Expected timestamp: " + fileInfo.lastModified +
+            if (currentLastModified != lastModified) {
+                throw new IOException("File modification conflict. The file at " + path +
+                                      " was modified on disk after it was read. Expected timestamp: " + lastModified +
                                       ", but found: " + currentLastModified);
             }
-        } else if (fileInfo.lastModified > 0) {
-             throw new IOException("File modification conflict. The file at " + fileInfo.path +
-                                      " was expected to exist with timestamp " + fileInfo.lastModified + " but it has been deleted.");
+        } else if (lastModified > 0) {
+             throw new IOException("File modification conflict. The file at " + path +
+                                      " was expected to exist with timestamp " + lastModified + " but it has been deleted.");
         }
 
-        Files.writeString(filePath, sanitize(fileInfo.content));
+        Files.writeString(filePath, sanitize(content));
 
-        return readFile(fileInfo.path);
+        return readFile(path);
     }
 
     @AIToolMethod(value = "Creates a new file with the given content, creating parent directories if necessary. Throws an IOException if a file or directory already exists at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)
