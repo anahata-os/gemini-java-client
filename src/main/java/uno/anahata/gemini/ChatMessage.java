@@ -28,7 +28,12 @@ public class ChatMessage {
     private List<FunctionResponse> functionResponses;
 
     public ChatMessage(String modelId, Content content, String parentId, GenerateContentResponseUsageMetadata usageMetadata, GroundingMetadata groundingMetadata) {
-        this.id = UUID.randomUUID().toString();
+        this(UUID.randomUUID().toString(), modelId, content, parentId, usageMetadata, groundingMetadata);
+    }
+    
+    // New constructor to preserve ID during modification
+    public ChatMessage(String id, String modelId, Content content, String parentId, GenerateContentResponseUsageMetadata usageMetadata, GroundingMetadata groundingMetadata) {
+        this.id = id;
         this.modelId = modelId;
         this.content = content;
         this.parentId = parentId;

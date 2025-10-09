@@ -18,6 +18,7 @@ import java.awt.dnd.DropTargetDropEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,6 +59,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
     private final EditorKitProvider editorKitProvider;
     private JScrollPane chatScrollPane;
     private JPanel chatContentPanel;
+    private ContextHeatmapPanel heatmapPanel;
+    private JTabbedPane tabbedPane;
 
     public GeminiPanel() {
         this(new DefaultEditorKitProvider());
@@ -160,7 +163,14 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         chatScrollPane = new JScrollPane(chatContentPanel);
         chatScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        add(chatScrollPane, BorderLayout.CENTER);
+        
+        heatmapPanel = new ContextHeatmapPanel();
+        
+        tabbedPane = new JTabbedPane();
+        tabbedPane.addTab("Chat", chatScrollPane);
+        tabbedPane.addTab("Context Heatmap", heatmapPanel);
+        
+        add(tabbedPane, BorderLayout.CENTER);
 
         southPanel = new JPanel(new BorderLayout());
         attachmentsPanel = new AttachmentsPanel();
@@ -252,6 +262,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
     public void contentAdded(ChatMessage message) {
         SwingUtilities.invokeLater(() -> {
             updateUsageLabel(message.getUsageMetadata());
+            heatmapPanel.updateContext(chat.getContextManager().getContext());
 
             if (contextDirty) {
                 return;
@@ -283,6 +294,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             chatContentPanel.removeAll();
             chatContentPanel.repaint();
             updateUsageLabel(null);
+            heatmapPanel.updateContext(Collections.emptyList());
             attachmentsPanel.clearStagedParts();
             initChatInSwingWorker();
         });
@@ -300,8 +312,9 @@ public class GeminiPanel extends JPanel implements ContextListener {
         contextDirty = false;
         logger.info("Performing full UI redraw due to dirty context.");
         chatContentPanel.removeAll();
+        List<ChatMessage> currentContext = chat.getContext();
 
-        for (ChatMessage chatMessage : chat.getContext()) {
+        for (ChatMessage chatMessage : currentContext) {
             if (chatMessage.getContent() != null) {
                 ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
                 int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
@@ -314,7 +327,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 chatContentPanel.add(messageContainer);
             }
         }
-
+        
+        heatmapPanel.updateContext(currentContext);
         chatContentPanel.revalidate();
         chatContentPanel.repaint();
     }

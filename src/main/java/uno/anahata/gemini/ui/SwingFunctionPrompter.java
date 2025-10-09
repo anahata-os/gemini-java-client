@@ -96,9 +96,9 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         Set<String> alwaysApprove = chat.getFunctionManager().getAlwaysApproveFunctions();
         Set<String> neverApprove = chat.getFunctionManager().getNeverApproveFunctions();
         
-        StandaloneSwingGeminiConfig.UITheme theme = (config instanceof StandaloneSwingGeminiConfig)
-            ? ((StandaloneSwingGeminiConfig) config).getTheme()
-            : new StandaloneSwingGeminiConfig.UITheme();
+        SwingGeminiConfig.UITheme theme = (config instanceof SwingGeminiConfig)
+            ? ((SwingGeminiConfig) config).getTheme()
+            : new SwingGeminiConfig.UITheme();
         
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {

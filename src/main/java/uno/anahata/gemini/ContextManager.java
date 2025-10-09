@@ -1,10 +1,7 @@
 package uno.anahata.gemini;
 
 import com.google.genai.types.*;
-import com.google.gson.Gson;
-import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -13,21 +10,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import uno.anahata.gemini.functions.ContextBehavior;
 import uno.anahata.gemini.functions.FunctionManager;
-import uno.anahata.gemini.internal.GsonUtils;
+import uno.anahata.gemini.internal.ContentUtils;
+import uno.anahata.gemini.internal.FunctionUtils;
+import uno.anahata.gemini.internal.FunctionUtils.Fingerprint;
 import uno.anahata.gemini.internal.PartUtils;
 
-/**
- * V8: A stateful context manager using the StatefulResource interface.
- * This version uses a type-safe, interface-based approach to identify and manage
- * stateful resources, and correctly handles multiple resources in a single message.
- * @author Anahata
- */
 public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
-    private static final Gson GSON = GsonUtils.getGson();
 
     private List<ChatMessage> context = new ArrayList<>();
     private final GeminiConfig config;
@@ -39,21 +32,13 @@ public class ContextManager {
         this.config = config;
         this.listener = listener;
     }
-    
+
     public void setFunctionManager(FunctionManager functionManager) {
         this.functionManager = functionManager;
     }
 
     public static ContextManager get() {
         return GeminiChat.get().getContextManager();
-    }
-
-    public GeminiConfig getConfig() {
-        return config;
-    }
-
-    public synchronized int getTotalTokenCount() {
-        return totalTokenCount;
     }
 
     public synchronized void add(ChatMessage message) {
@@ -73,66 +58,142 @@ public class ContextManager {
     }
 
     private void handleStatefulReplace(ChatMessage newMessage) {
-        List<String> newResourceIds = extractResourceIdentifiers(newMessage);
+        List<String> newResourceIds = newMessage.getContent().parts().orElse(Collections.emptyList()).stream()
+            .filter(part -> part.functionResponse().isPresent())
+            .map(part -> FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager))
+            .flatMap(Optional::stream)
+            .collect(Collectors.toList());
+
         if (newResourceIds.isEmpty()) {
             return;
         }
-        
-        Iterator<ChatMessage> iterator = context.iterator();
-        while (iterator.hasNext()) {
-            ChatMessage oldMessage = iterator.next();
-            List<String> oldResourceIds = extractResourceIdentifiers(oldMessage);
-            for (String newId : newResourceIds) {
-                if (oldResourceIds.contains(newId)) {
-                    logger.log(Level.INFO, "STATEFUL_REPLACE: Pruning old message {0} for resource {1}", new Object[]{oldMessage.getId(), newId});
-                    iterator.remove();
-                    break; 
-                }
+
+        Set<Fingerprint> staleFingerprints = new HashSet<>();
+        for (int i = 0; i < context.size(); i++) {
+            ChatMessage currentMessage = context.get(i);
+            if (!"tool".equals(currentMessage.getContent().role().orElse(""))) {
+                continue;
             }
-        }
-    }
 
-    public List<String> extractResourceIdentifiers(ChatMessage message) {
-        if (functionManager == null || message.getContent() == null || !message.getContent().parts().isPresent()) {
-            return Collections.emptyList();
-        }
-        
-        List<String> identifiers = new ArrayList<>();
-        for (Part part : message.getContent().parts().get()) {
-            if (part.functionResponse().isPresent()) {
-                FunctionResponse fr = part.functionResponse().get();
-                String toolName = fr.name().orElse("");
+            for (Part part : currentMessage.getContent().parts().orElse(Collections.emptyList())) {
+                if (part.functionResponse().isPresent()) {
+                    FunctionResponse fr = part.functionResponse().get();
+                    Optional<String> resourceIdOpt = FunctionUtils.getResourceIdIfStateful(fr, functionManager);
 
-                if (functionManager.getContextBehavior(toolName) == ContextBehavior.STATEFUL_REPLACE) {
-                    Method toolMethod = functionManager.getToolMethod(toolName);
-                    if (toolMethod != null) {
-                        Class<?> returnType = toolMethod.getReturnType();
-                        if (StatefulResource.class.isAssignableFrom(returnType)) {
-                            try {
-                                Object pojo = GSON.fromJson(GSON.toJsonTree(fr.response().get()), returnType);
-                                identifiers.add(((StatefulResource) pojo).getResourceId());
-                            } catch (Exception e) {
-                                logger.log(Level.WARNING, "Could not extract resource ID for stateful tool " + toolName, e);
-                            }
-                        }
+                    if (resourceIdOpt.isPresent() && newResourceIds.contains(resourceIdOpt.get())) {
+                        //findAndFingerprintStaleCall(i - 1, fr, staleFingerprints);
                     }
                 }
             }
         }
-        return identifiers;
+
+        if (staleFingerprints.isEmpty()) {
+            return;
+        }
+
+        List<ChatMessage> newContext = new ArrayList<>();
+        boolean contextWasModified = false;
+
+        for (ChatMessage message : context) {
+            List<Part> partsToRemove = new ArrayList<>();
+            Content currentContent = message.getContent();
+            
+            for (Part part : currentContent.parts().orElse(Collections.emptyList())) {
+                if (part.functionCall().isPresent() && staleFingerprints.contains(FunctionUtils.fingerprintOf(part.functionCall().get()))) {
+                    partsToRemove.add(part);
+                } else if (part.functionResponse().isPresent()) {
+                    Optional<Fingerprint> callFingerprint = findCallFingerprintForResponse(message, part.functionResponse().get());
+                    if (callFingerprint.isPresent() && staleFingerprints.contains(callFingerprint.get())) {
+                        partsToRemove.add(part);
+                    }
+                }
+            }
+
+            if (partsToRemove.isEmpty()) {
+                newContext.add(message);
+            } else {
+                contextWasModified = true;
+                Content newContent = ContentUtils.cloneAndRemoveParts(currentContent, partsToRemove);
+                if (newContent.parts().isPresent() && !newContent.parts().get().isEmpty()) {
+                    ChatMessage replacement = new ChatMessage(
+                        message.getId(), message.getModelId(), newContent, message.getParentId(),
+                        message.getUsageMetadata(), message.getGroundingMetadata()
+                    );
+                    replacement.setFunctionResponses(message.getFunctionResponses());
+                    newContext.add(replacement);
+                    logger.log(Level.INFO, "Pruned {0} stale part(s) from message {1}", new Object[]{partsToRemove.size(), message.getId()});
+                } else {
+                    logger.log(Level.INFO, "Removed empty message {0} after pruning all its parts.", message.getId());
+                }
+            }
+        }
+
+        if (contextWasModified) {
+            this.context = newContext;
+            notifyHistoryChange();
+        }
+    }
+    
+    private Optional<Fingerprint> findCallFingerprintForResponse(ChatMessage toolMessage, FunctionResponse response) {
+        int toolMessageIndex = context.indexOf(toolMessage);
+        if (toolMessageIndex <= 0) return Optional.empty();
+        
+        ChatMessage modelMessage = context.get(toolMessageIndex - 1);
+        if (!"model".equals(modelMessage.getContent().role().orElse(""))) return Optional.empty();
+
+        return modelMessage.getContent().parts().orElse(Collections.emptyList()).stream()
+            .filter(p -> p.functionCall().isPresent())
+            .map(p -> p.functionCall().get())
+            .filter(fc -> fc.name().orElse("").equals(response.name().orElse("")))
+            .findFirst()
+            .map(FunctionUtils::fingerprintOf);
     }
 
+    private void findAndFingerprintStaleCall(int modelMessageIndex, FunctionResponse staleResponse, Set<Fingerprint> staleFingerprints) {
+        if (modelMessageIndex < 0) {
+            logger.log(Level.WARNING, "Found a stale FunctionResponse for tool ''{0}'' but it has no preceding message.", staleResponse.name());
+            return;
+        }
+
+        ChatMessage modelMessage = context.get(modelMessageIndex);
+        if (!"model".equals(modelMessage.getContent().role().orElse(""))) {
+            logger.log(Level.WARNING, "Found a stale FunctionResponse for tool ''{0}'' but the preceding message is not from the model (role={1}).", new Object[]{staleResponse.name(), modelMessage.getContent().role().orElse("null")});
+            return;
+        }
+
+        Optional<FunctionCall> matchingCall = modelMessage.getContent().parts().orElse(Collections.emptyList()).stream()
+            .filter(p -> p.functionCall().isPresent())
+            .map(p -> p.functionCall().get())
+            .filter(fc -> fc.name().orElse("").equals(staleResponse.name().orElse("")))
+            .findFirst();
+
+        if (matchingCall.isPresent()) {
+            staleFingerprints.add(FunctionUtils.fingerprintOf(matchingCall.get()));
+        } else {
+            logger.log(Level.WARNING, "Found a stale FunctionResponse for tool ''{0}'' but could not find the matching FunctionCall in the preceding model message (id={1}). The response will be pruned, but the call may remain.", new Object[]{staleResponse.name(), modelMessage.getId()});
+        }
+    }
+
+    public GeminiConfig getConfig() {
+        return config;
+    }
+
+    public synchronized int getTotalTokenCount() {
+        return totalTokenCount;
+    }
+    
     private void logEntryToFile(ChatMessage message) {
         try {
             Content content = message.getContent();
             if (content == null) return;
 
-            File historyDir = GeminiConfig.getWorkingFolder("history");
+            Path historyDir = config.getWorkingFolder("history").toPath();
+            Files.createDirectories(historyDir);
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"));
             String role = content.role().orElse("unknown");
             String modelId = message.getModelId() != null ? message.getModelId().replaceAll("[^a-zA-Z0-9.-]", "_") : "unknown_model";
             String filename = String.format("%s-%s-%s-%s.log", timestamp, role, modelId, getContextId());
-            Path logFilePath = historyDir.toPath().resolve(filename);
+            Path logFilePath = historyDir.resolve(filename);
 
             StringBuilder logContent = new StringBuilder();
             logContent.append("--- HEADER ---\n");
@@ -187,51 +248,63 @@ public class ContextManager {
         notifyHistoryChange();
     }
 
-    public synchronized void pruneById(String id) {
-        pruneByIds(Collections.singletonList(id));
-    }
-    
-    public synchronized void pruneByIds(List<String> ids) {
-        boolean removed = context.removeIf(message -> ids.contains(message.getId()));
+    public synchronized void pruneMessages(List<String> uids, String reason) {
+        boolean removed = context.removeIf(message -> uids.contains(message.getId()));
         if (removed) {
-            logger.info("Pruned " + ids.size() + " messages by ID.");
+            logger.log(Level.INFO, "Pruned {0} message(s). Reason: {1}", new Object[]{uids.size(), reason});
             notifyHistoryChange();
         }
+    }
+    
+    public synchronized void pruneParts(String messageUID, List<Integer> partIndices, String reason) {
+        for (int i = 0; i < context.size(); i++) {
+            ChatMessage message = context.get(i);
+            if (message.getId().equals(messageUID)) {
+                Content originalContent = message.getContent();
+                if (originalContent == null || !originalContent.parts().isPresent()) {
+                    logger.log(Level.WARNING, "Message {0} has no parts to prune.", messageUID);
+                    return;
+                }
+
+                List<Part> originalParts = originalContent.parts().get();
+                List<Part> partsToKeep = new ArrayList<>();
+                for (int j = 0; j < originalParts.size(); j++) {
+                    if (!partIndices.contains(j)) {
+                        partsToKeep.add(originalParts.get(j));
+                    }
+                }
+
+                if (partsToKeep.size() == originalParts.size()) {
+                     logger.log(Level.WARNING, "None of the specified part indices {0} found in message {1}", new Object[]{partIndices, messageUID});
+                     return;
+                }
+
+                logger.log(Level.INFO, "Pruning {0} part(s) from message {1}. Reason: {2}", new Object[]{originalParts.size() - partsToKeep.size(), messageUID, reason});
+
+                if (partsToKeep.isEmpty()) {
+                    pruneMessages(Collections.singletonList(messageUID), "Message became empty after pruning parts. Original reason: " + reason);
+                } else {
+                    Content newContent = Content.builder()
+                        .role(originalContent.role().orElse(null))
+                        .parts(partsToKeep)
+                        .build();
+                    
+                    ChatMessage replacement = new ChatMessage(
+                        message.getId(), message.getModelId(), newContent, message.getParentId(),
+                        message.getUsageMetadata(), message.getGroundingMetadata()
+                    );
+                    replacement.setFunctionResponses(message.getFunctionResponses());
+                    context.set(i, replacement);
+                    notifyHistoryChange();
+                }
+                return;
+            }
+        }
+        logger.log(Level.WARNING, "Could not find message with ID {0} to prune parts.", messageUID);
     }
 
     public void notifyHistoryChange() {
         listener.contextModified();
-    }
-
-    public String getSummaryAsString() {
-        List<ChatMessage> historyCopy = getContext();
-        StringBuilder statusBlock = new StringBuilder();
-        statusBlock.append("\n#  Context entries: ").append(historyCopy.size()).append("\n");
-        statusBlock.append("\n-----------------------------------\n");
-
-        for (int i = 0; i < historyCopy.size(); i++) {
-            ChatMessage message = historyCopy.get(i);
-            Content content = message.getContent();
-            String role = content != null && content.role().isPresent() ? content.role().get() : "system";
-
-            statusBlock.append("\n[").append(i).append("][").append(role).append("] ");
-            statusBlock.append("[id: ").append(message.getId()).append("] ");
-
-            if (content != null && content.parts().isPresent()) {
-                List<Part> parts = content.parts().get();
-                statusBlock.append(parts.size()).append(" Parts");
-                for (int j = 0; j < parts.size(); j++) {
-                    Part p = parts.get(j);
-                    statusBlock.append("\n\t[").append(i).append("/").append(j).append("] ");
-                    statusBlock.append(PartUtils.summarize(p));
-                }
-            } else {
-                statusBlock.append("0 (No Parts)");
-            }
-        }
-        statusBlock.append("\n");
-
-        return statusBlock.toString();
     }
 
     public String getContextId() {
@@ -280,7 +353,7 @@ public class ContextManager {
 
         if (!idsToPrune.isEmpty()) {
             logger.log(Level.INFO, "Two-Turn Rule: Pruning {0} old ephemeral messages.", idsToPrune.size());
-            pruneByIds(idsToPrune);
+            pruneMessages(idsToPrune, "Automatic pruning of old ephemeral tool calls.");
         }
     }
 
@@ -301,5 +374,36 @@ public class ContextManager {
             }
         }
         return false;
+    }
+    
+     public String getSummaryAsString() {
+        List<ChatMessage> historyCopy = getContext();
+        StringBuilder statusBlock = new StringBuilder();
+        statusBlock.append("\n#  Context entries: ").append(historyCopy.size()).append("\n");
+        statusBlock.append("\n-----------------------------------\n");
+
+        for (int i = 0; i < historyCopy.size(); i++) {
+            ChatMessage message = historyCopy.get(i);
+            Content content = message.getContent();
+            String role = content != null && content.role().isPresent() ? content.role().get() : "system";
+
+            statusBlock.append("\n[").append(i).append("][").append(role).append("] ");
+            statusBlock.append("[id: ").append(message.getId()).append("] ");
+
+            if (content != null && content.parts().isPresent()) {
+                List<Part> parts = content.parts().get();
+                statusBlock.append(parts.size()).append(" Parts");
+                for (int j = 0; j < parts.size(); j++) {
+                    Part p = parts.get(j);
+                    statusBlock.append("\n\t[").append(i).append("/").append(j).append("] ");
+                    statusBlock.append(PartUtils.summarize(p));
+                }
+            } else {
+                statusBlock.append("0 (No Parts)");
+            }
+        }
+        statusBlock.append("\n");
+
+        return statusBlock.toString();
     }
 }

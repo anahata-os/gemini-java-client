@@ -14,7 +14,7 @@ import uno.anahata.gemini.ui.functions.ScreenCapture;
 /**
  * A simple, concrete GeminiConfig for standalone Swing applications.
  */
-public class StandaloneSwingGeminiConfig extends GeminiConfig {
+public class SwingGeminiConfig extends GeminiConfig {
     
     private final GeminiAPI api = new GeminiAPI(this);
 
@@ -65,7 +65,7 @@ public class StandaloneSwingGeminiConfig extends GeminiConfig {
         public Color modelHeaderFg = new Color(0, 123, 255);
         public Color modelBorder = new Color(160, 195, 232); // Restored Blue Border
 
-        public Color toolHeaderBg = new Color(242, 238, 247);
+        public Color toolHeaderBg = new Color(223, 213, 235); // More saturated purple
         public Color toolContentBg = new Color(250, 248, 252);
         public Color toolHeaderFg = new Color(80, 60, 100);
         public Color toolBorder = new Color(200, 180, 220); // Restored Purple/Violet Border

@@ -202,7 +202,7 @@ public class FunctionManager {
 
     public FunctionDeclaration fromMethod(Method method) {
         if (!Modifier.isStatic(method.getModifiers())) {
-            throw new IllegalArgumentException("Only static methods are supported.");
+            throw new IllegalArgumentException("Only static methods are supported. Not static: " + method);
         }
         AIToolMethod methodAnnotation = method.getAnnotation(AIToolMethod.class);
         String functionDescription = methodAnnotation.value();

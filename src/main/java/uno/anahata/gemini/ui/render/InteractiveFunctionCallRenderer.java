@@ -8,7 +8,7 @@ import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
-import uno.anahata.gemini.ui.StandaloneSwingGeminiConfig;
+import uno.anahata.gemini.ui.SwingGeminiConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class InteractiveFunctionCallRenderer implements PartRenderer {
@@ -16,11 +16,11 @@ public class InteractiveFunctionCallRenderer implements PartRenderer {
     public enum ConfirmationState { YES, NO, ALWAYS, NEVER }
 
     private final FunctionCall functionCall;
-    private final StandaloneSwingGeminiConfig.UITheme theme;
+    private final SwingGeminiConfig.UITheme theme;
     private ConfirmationState selectedState;
     private final JToggleButton yesButton, noButton, alwaysButton, neverButton;
 
-    public InteractiveFunctionCallRenderer(FunctionCall functionCall, PartRenderer defaultRenderer, Set<String> alwaysApprove, Set<String> neverApprove, StandaloneSwingGeminiConfig.UITheme theme) {
+    public InteractiveFunctionCallRenderer(FunctionCall functionCall, PartRenderer defaultRenderer, Set<String> alwaysApprove, Set<String> neverApprove, SwingGeminiConfig.UITheme theme) {
         this.functionCall = functionCall;
         this.theme = theme;
         this.selectedState = ConfirmationState.YES;

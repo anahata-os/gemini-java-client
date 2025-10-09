@@ -32,7 +32,7 @@ import org.apache.commons.text.StringEscapeUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.ContextManager;
 import uno.anahata.gemini.GeminiConfig;
-import uno.anahata.gemini.ui.StandaloneSwingGeminiConfig;
+import uno.anahata.gemini.ui.SwingGeminiConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class ContentRenderer {
@@ -40,11 +40,11 @@ public class ContentRenderer {
     private final Map<PartType, PartRenderer> typeRendererMap;
     private final Map<Part, PartRenderer> instanceRendererMap;
     private final EditorKitProvider editorKitProvider;
-    private final StandaloneSwingGeminiConfig.UITheme theme;
+    private final SwingGeminiConfig.UITheme theme;
 
     public ContentRenderer(EditorKitProvider editorKitProvider, GeminiConfig config) {
         this.editorKitProvider = editorKitProvider;
-        this.theme = (config instanceof StandaloneSwingGeminiConfig) ? ((StandaloneSwingGeminiConfig) config).getTheme() : new StandaloneSwingGeminiConfig.UITheme();
+        this.theme = (config instanceof SwingGeminiConfig) ? ((SwingGeminiConfig) config).getTheme() : new SwingGeminiConfig.UITheme();
         this.typeRendererMap = new HashMap<>();
         this.instanceRendererMap = new HashMap<>();
 
@@ -67,6 +67,7 @@ public class ContentRenderer {
     public JComponent render(ChatMessage message, int contentIdx, ContextManager contextManager) {
         Content content = message.getContent();
         String role = content.role().orElse("model");
+        List<? extends Part> parts = content.parts().orElse(Collections.emptyList());
 
         JPanel messagePanel = new JPanel(new BorderLayout());
         int tokenCount = message.getUsageMetadata() != null ? message.getUsageMetadata().totalTokenCount().orElse(0) : 0;
@@ -97,7 +98,10 @@ public class ContentRenderer {
         JButton pruneButton = new JButton("X");
         pruneButton.setMargin(new Insets(0, 4, 0, 4));
         pruneButton.setToolTipText("Remove this message from the context");
-        pruneButton.addActionListener(e -> contextManager.pruneById(message.getId()));
+        pruneButton.addActionListener(e -> contextManager.pruneMessages(
+            Collections.singletonList(message.getId()), 
+            "User pruned message from UI"
+        ));
         headerPanel.add(pruneButton, BorderLayout.EAST);
         
         messagePanel.add(headerPanel, BorderLayout.NORTH);
@@ -114,7 +118,6 @@ public class ContentRenderer {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.NORTHWEST;
 
-        List<? extends Part> parts = content.parts().orElse(Collections.emptyList());
         for (int i = 0; i < parts.size(); i++) {
             if (i > 0) {
                 gbc.insets = new Insets(10, 0, 10, 0);
@@ -168,25 +171,20 @@ public class ContentRenderer {
     private Border getBorderForRole(String role, int tokenCount) {
         Color baseColor;
         switch (role.toLowerCase()) {
-            case "user": baseColor = theme.getUserBorder(); break;
-            case "model": baseColor = theme.getModelBorder(); break;
-            case "tool": baseColor = theme.getToolBorder(); break;
-            default: baseColor = theme.getDefaultBorder(); break;
+            case "user":
+                baseColor = theme.getUserBorder();
+                break;
+            case "model":
+                baseColor = theme.getModelBorder();
+                break;
+            case "tool":
+                baseColor = theme.getToolBorder();
+                break;
+            default:
+                baseColor = theme.getDefaultBorder();
+                break;
         }
-
-        double heat = Math.min(1.0, (double) tokenCount / 4096.0);
-        
-        int r = (int) (baseColor.getRed() * (1 - heat) + 255 * heat);
-        int g = (int) (baseColor.getGreen() * (1 - heat) + 100 * heat);
-        int b = (int) (baseColor.getBlue() * (1 - heat) + 30 * heat);
-
-        Color finalColor = new Color(
-            Math.max(0, Math.min(255, r)),
-            Math.max(0, Math.min(255, g)),
-            Math.max(0, Math.min(255, b))
-        );
-
-        return BorderFactory.createLineBorder(finalColor, 2, true);
+        return BorderFactory.createLineBorder(baseColor, 2, true);
     }
 
     private Color getBackgroundColor(String role, boolean isHeader) {
