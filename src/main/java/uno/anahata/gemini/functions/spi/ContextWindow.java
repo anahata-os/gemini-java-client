@@ -60,7 +60,7 @@ public class ContextWindow {
     @AIToolMethod(value = "Prunes one or several parts from a given message.", requiresApproval = true)
     public static String pruneParts(
             @AIToolParam("The unique, stable ID of the ChatMessage containing the parts.") String messageUID,
-            @AIToolParam("A list of zero-based indices of the parts to remove.") List<Integer> parts,
+            @AIToolParam("A list of zero-based indices of the parts to remove.") List<Number> parts,
             @AIToolParam("A brief rationale for why the parts are being removed.") String reason
     ) throws Exception {
         ContextManager.get().pruneParts(messageUID, parts, reason);
