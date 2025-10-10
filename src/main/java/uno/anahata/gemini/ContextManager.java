@@ -15,7 +15,6 @@ import uno.anahata.gemini.functions.ContextBehavior;
 import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.internal.ContentUtils;
 import uno.anahata.gemini.internal.FunctionUtils;
-import uno.anahata.gemini.internal.FunctionUtils.Fingerprint;
 import uno.anahata.gemini.internal.PartUtils;
 
 public class ContextManager {
@@ -42,6 +41,7 @@ public class ContextManager {
     }
 
     public synchronized void add(ChatMessage message) {
+        // Must be called before adding the new message to the context
         handleStatefulReplace(message);
         context.add(message);
         logEntryToFile(message);
@@ -57,120 +57,66 @@ public class ContextManager {
         listener.contentAdded(message);
     }
 
+    /**
+     * When a new message contains a FunctionResponse for a StatefulResource (e.g., a file read),
+     * this method finds and removes all previous FunctionResponse parts in the context that refer
+     * to the same resourceId. This prevents the context from holding stale data.
+     *
+     * @param newMessage The message being added to the context.
+     */
     private void handleStatefulReplace(ChatMessage newMessage) {
+        if (functionManager == null) {
+            return;
+        }
+        
+        // 1. Get resource IDs from the new message's FunctionResponses
         List<String> newResourceIds = newMessage.getContent().parts().orElse(Collections.emptyList()).stream()
             .filter(part -> part.functionResponse().isPresent())
             .map(part -> FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager))
             .flatMap(Optional::stream)
+            .distinct()
             .collect(Collectors.toList());
 
         if (newResourceIds.isEmpty()) {
             return;
         }
 
-        Set<Fingerprint> staleFingerprints = new HashSet<>();
-        for (int i = 0; i < context.size(); i++) {
-            ChatMessage currentMessage = context.get(i);
-            if (!"tool".equals(currentMessage.getContent().role().orElse(""))) {
-                continue;
-            }
+        logger.log(Level.INFO, "New stateful resource(s) detected: {0}. Scanning context for stale responses.", newResourceIds);
 
-            for (Part part : currentMessage.getContent().parts().orElse(Collections.emptyList())) {
-                if (part.functionResponse().isPresent()) {
-                    FunctionResponse fr = part.functionResponse().get();
-                    Optional<String> resourceIdOpt = FunctionUtils.getResourceIdIfStateful(fr, functionManager);
-
-                    if (resourceIdOpt.isPresent() && newResourceIds.contains(resourceIdOpt.get())) {
-                        //findAndFingerprintStaleCall(i - 1, fr, staleFingerprints);
-                    }
-                }
-            }
-        }
-
-        if (staleFingerprints.isEmpty()) {
-            return;
-        }
-
-        List<ChatMessage> newContext = new ArrayList<>();
-        boolean contextWasModified = false;
-
-        for (ChatMessage message : context) {
-            List<Part> partsToRemove = new ArrayList<>();
-            Content currentContent = message.getContent();
-            
-            for (Part part : currentContent.parts().orElse(Collections.emptyList())) {
-                if (part.functionCall().isPresent() && staleFingerprints.contains(FunctionUtils.fingerprintOf(part.functionCall().get()))) {
-                    partsToRemove.add(part);
-                } else if (part.functionResponse().isPresent()) {
-                    Optional<Fingerprint> callFingerprint = findCallFingerprintForResponse(message, part.functionResponse().get());
-                    if (callFingerprint.isPresent() && staleFingerprints.contains(callFingerprint.get())) {
-                        partsToRemove.add(part);
-                    }
-                }
-            }
-
-            if (partsToRemove.isEmpty()) {
-                newContext.add(message);
-            } else {
-                contextWasModified = true;
-                Content newContent = ContentUtils.cloneAndRemoveParts(currentContent, partsToRemove);
-                if (newContent.parts().isPresent() && !newContent.parts().get().isEmpty()) {
-                    ChatMessage replacement = new ChatMessage(
-                        message.getId(), message.getModelId(), newContent, message.getParentId(),
-                        message.getUsageMetadata(), message.getGroundingMetadata()
-                    );
-                    replacement.setFunctionResponses(message.getFunctionResponses());
-                    newContext.add(replacement);
-                    logger.log(Level.INFO, "Pruned {0} stale part(s) from message {1}", new Object[]{partsToRemove.size(), message.getId()});
-                } else {
-                    logger.log(Level.INFO, "Removed empty message {0} after pruning all its parts.", message.getId());
-                }
-            }
-        }
-
-        if (contextWasModified) {
-            this.context = newContext;
-            notifyHistoryChange();
-        }
-    }
-    
-    private Optional<Fingerprint> findCallFingerprintForResponse(ChatMessage toolMessage, FunctionResponse response) {
-        int toolMessageIndex = context.indexOf(toolMessage);
-        if (toolMessageIndex <= 0) return Optional.empty();
+        // 2. Concurrently identify parts to prune in the existing context
+        Map<String, List<Integer>> partsToPruneByMessage = new HashMap<>();
         
-        ChatMessage modelMessage = context.get(toolMessageIndex - 1);
-        if (!"model".equals(modelMessage.getContent().role().orElse(""))) return Optional.empty();
+        // Iterate over a copy to avoid ConcurrentModificationException as pruneParts modifies the list
+        List<ChatMessage> contextSnapshot = new ArrayList<>(this.context);
 
-        return modelMessage.getContent().parts().orElse(Collections.emptyList()).stream()
-            .filter(p -> p.functionCall().isPresent())
-            .map(p -> p.functionCall().get())
-            .filter(fc -> fc.name().orElse("").equals(response.name().orElse("")))
-            .findFirst()
-            .map(FunctionUtils::fingerprintOf);
-    }
+        for (int i = 0; i < contextSnapshot.size(); i++) {
+            ChatMessage message = contextSnapshot.get(i);
+            
+            List<Part> parts = message.getContent().parts().orElse(Collections.emptyList());
+            for (int j = 0; j < parts.size(); j++) {
+                Part part = parts.get(j);
+                if (part.functionResponse().isPresent()) {
+                    Optional<String> resourceIdOpt = FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager);
+                    if (resourceIdOpt.isPresent() && newResourceIds.contains(resourceIdOpt.get())) {
+                        partsToPruneByMessage.computeIfAbsent(message.getId(), k -> new ArrayList<>()).add(j);
+                    }
+                }
+            }
+        }
 
-    private void findAndFingerprintStaleCall(int modelMessageIndex, FunctionResponse staleResponse, Set<Fingerprint> staleFingerprints) {
-        if (modelMessageIndex < 0) {
-            logger.log(Level.WARNING, "Found a stale FunctionResponse for tool ''{0}'' but it has no preceding message.", staleResponse.name());
+        // 3. Prune the identified parts from the actual context
+        if (partsToPruneByMessage.isEmpty()) {
             return;
         }
 
-        ChatMessage modelMessage = context.get(modelMessageIndex);
-        if (!"model".equals(modelMessage.getContent().role().orElse(""))) {
-            logger.log(Level.WARNING, "Found a stale FunctionResponse for tool ''{0}'' but the preceding message is not from the model (role={1}).", new Object[]{staleResponse.name(), modelMessage.getContent().role().orElse("null")});
-            return;
-        }
+        logger.log(Level.INFO, "Found {0} message(s) with stale FunctionResponses to prune.", partsToPruneByMessage.size());
 
-        Optional<FunctionCall> matchingCall = modelMessage.getContent().parts().orElse(Collections.emptyList()).stream()
-            .filter(p -> p.functionCall().isPresent())
-            .map(p -> p.functionCall().get())
-            .filter(fc -> fc.name().orElse("").equals(staleResponse.name().orElse("")))
-            .findFirst();
-
-        if (matchingCall.isPresent()) {
-            staleFingerprints.add(FunctionUtils.fingerprintOf(matchingCall.get()));
-        } else {
-            logger.log(Level.WARNING, "Found a stale FunctionResponse for tool ''{0}'' but could not find the matching FunctionCall in the preceding model message (id={1}). The response will be pruned, but the call may remain.", new Object[]{staleResponse.name(), modelMessage.getId()});
+        for (Map.Entry<String, List<Integer>> entry : partsToPruneByMessage.entrySet()) {
+            String messageUID = entry.getKey();
+            // Create a List<Number> for the pruneParts method signature
+            List<Number> partIndices = new ArrayList<>(entry.getValue());
+            String reason = "Pruning stale FunctionResponse for resource(s): " + String.join(", ", newResourceIds);
+            pruneParts(messageUID, partIndices, reason);
         }
     }
 
@@ -256,7 +202,7 @@ public class ContextManager {
         }
     }
     
-    public synchronized void pruneParts(String messageUID, List<Integer> partIndices, String reason) {
+    public synchronized void pruneParts(String messageUID, List<Number> partIndices, String reason) {
         for (int i = 0; i < context.size(); i++) {
             ChatMessage message = context.get(i);
             if (message.getId().equals(messageUID)) {
@@ -268,8 +214,13 @@ public class ContextManager {
 
                 List<Part> originalParts = originalContent.parts().get();
                 List<Part> partsToKeep = new ArrayList<>();
+                
+                final Set<Long> indicesToPrune = partIndices.stream()
+                                                            .map(Number::longValue)
+                                                            .collect(Collectors.toSet());
+
                 for (int j = 0; j < originalParts.size(); j++) {
-                    if (!partIndices.contains(j)) {
+                    if (!indicesToPrune.contains((long) j)) {
                         partsToKeep.add(originalParts.get(j));
                     }
                 }
@@ -282,7 +233,10 @@ public class ContextManager {
                 logger.log(Level.INFO, "Pruning {0} part(s) from message {1}. Reason: {2}", new Object[]{originalParts.size() - partsToKeep.size(), messageUID, reason});
 
                 if (partsToKeep.isEmpty()) {
-                    pruneMessages(Collections.singletonList(messageUID), "Message became empty after pruning parts. Original reason: " + reason);
+                    // Instead of calling pruneMessages, just remove it directly to avoid re-entrancy issues
+                    context.remove(i);
+                    logger.log(Level.INFO, "Message {0} became empty and was removed after pruning parts.", messageUID);
+                    notifyHistoryChange();
                 } else {
                     Content newContent = Content.builder()
                         .role(originalContent.role().orElse(null))
@@ -297,7 +251,7 @@ public class ContextManager {
                     context.set(i, replacement);
                     notifyHistoryChange();
                 }
-                return;
+                return; 
             }
         }
         logger.log(Level.WARNING, "Could not find message with ID {0} to prune parts.", messageUID);
