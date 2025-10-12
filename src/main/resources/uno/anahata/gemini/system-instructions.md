@@ -101,22 +101,12 @@ are no longer relevant for the tasks in progress but keeping relevant ones. If y
 or that the latency is increasing a lot due to the context size (what makes the prompt of the next request) or you can see api errors regaring the model being overloaded,
 feel free to work with the user to take notes and break the task into smaller tasks.
 
-Use the tool **`ContextWindow.pruneContext`** with the identifiers of **redundant** context entries and a description explaining the reson/rationale for the removal of each of those entries.
+Use the tool **`ContextWindow.pruneMessage`** and **`ContextWindow.pruneParts`** with the identifiers of **redundant** context entries and a description explaining the reson/rationale for the removal of each of those entries.
 You must bach context pruning tool calls as a "background process" unless otherwise instructed by the user.
 
 Example redundant entries:
 -----------------------------
--FunctionCall (tool call requests with model role) that have been executed and produced a FunctionResponse (tool call output in "function" role entries) e.g. if you read a file or list the contents of 
-a directory and it succeeds, the file that you requested gets stored in the context (your memory) on a Content element with role 'function' that contains a FunctionResponse 
-part with the files bynary data in FunctionResponse.returnedValue, if you want to remove that file from the context because it is no longer needed, those are the elements you have to prune.
--read/write file operations that make previous read/write operations redundant. For example, if you read a 
-file and a few minutes later you read that file again, the first read operation may be a good candidate for pruning or if you do a full write file
-the previous read of that file may also be candidate for pruning.
--function responses that returned an error and the error detail is no longer relevant. 
--trial and error operations / learning exercises whose findings have been dully recorded in your notes or somewhere else
 -Blob parts with screenshots or other large attachments that have been already "verbalized" and have a text part describing it
--errors derived from wrong file paths that have already been addressed
-
 
 Example Non-redundant entries
 -----------------------------

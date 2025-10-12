@@ -14,6 +14,8 @@ import uno.anahata.gemini.functions.spi.*;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.lang.reflect.Modifier;
 import java.util.logging.Level;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Executors;
@@ -22,7 +24,6 @@ import uno.anahata.gemini.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.util.GeminiSchemaGenerator;
 
-// V4: Passes the entire GeminiChat instance to the prompter for context.
 public class FunctionManager {
 
     private static final Logger logger = Logger.getLogger(FunctionManager.class.getName());
@@ -37,6 +38,16 @@ public class FunctionManager {
 
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
+    
+    @Getter
+    @AllArgsConstructor
+    public static class FunctionProcessingResult {
+        private final List<FunctionResponse> responses;
+        private final List<FunctionCall> deniedCalls;
+        private final String userComment;
+        // NEW FIELD: Maps a generated FunctionResponse to the Part that contained its FunctionCall.
+        private final Map<FunctionResponse, Part> responseToCallLinks;
+    }
     
     public FunctionManager(GeminiChat chat, GeminiConfig config, FunctionPrompter prompter) {
         this.chat = chat;
@@ -73,7 +84,7 @@ public class FunctionManager {
         return Tool.builder().functionDeclarations(fds).build();
     }
 
-    public List<FunctionResponse> processFunctionCalls(ChatMessage modelResponseMessage) {
+    public FunctionProcessingResult processFunctionCalls(ChatMessage modelResponseMessage) {
         Content modelResponseContent = modelResponseMessage.getContent();
         
         List<FunctionCall> allProposedCalls = new ArrayList<>();
@@ -84,15 +95,19 @@ public class FunctionManager {
         });
 
         if (allProposedCalls.isEmpty()) {
-            return Collections.emptyList();
+            return new FunctionProcessingResult(Collections.emptyList(), Collections.emptyList(), "", Collections.emptyMap());
         }
         
         PromptResult promptResult = prompter.prompt(modelResponseMessage, this.chat);
         List<FunctionCall> allApprovedCalls = promptResult.approvedFunctions;
 
         if (allApprovedCalls.isEmpty()) {
-            return Collections.emptyList();
+            return new FunctionProcessingResult(Collections.emptyList(), promptResult.deniedFunctions, promptResult.userComment, Collections.emptyMap());
         }
+
+        // NEW: Map to store the links from the generated response back to the call part.
+        Map<FunctionResponse, Part> responseToCallLinks = new HashMap<>();
+        List<? extends Part> originalParts = modelResponseMessage.getContent().parts().get();
 
         List<FunctionResponse> responses = new ArrayList<>();
         for (FunctionCall approvedCall : allApprovedCalls) {
@@ -151,11 +166,20 @@ public class FunctionManager {
                     responseMap.put("output", funcResponsePayload == null ? "" : funcResponsePayload);
                 }
                 
-                responses.add(FunctionResponse.builder()
+                FunctionResponse fr = FunctionResponse.builder()
                     .id(anahataId)
                     .name(approvedCall.name().get())
                     .response(responseMap)
-                    .build());
+                    .build();
+                responses.add(fr);
+
+                // NEW: Find the original Part and create the link.
+                for (Part part : originalParts) {
+                    if (part.functionCall().isPresent() && part.functionCall().get() == approvedCall) {
+                        responseToCallLinks.put(fr, part);
+                        break; 
+                    }
+                }
 
             } catch (Exception e) {
                 failureTracker.recordFailure(approvedCall, e);
@@ -171,7 +195,7 @@ public class FunctionManager {
             }
         }
         
-        return responses;
+        return new FunctionProcessingResult(responses, promptResult.deniedFunctions, promptResult.userComment, responseToCallLinks);
     }
 
     private Object invokeFunctionMethod(Method method, Map<String, Object> argsFromModel) throws Exception {

@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.internal.GsonUtils;
 
@@ -172,32 +173,65 @@ public class GeminiChat {
     }
 
     private boolean processAndReloopForFunctionCalls(ChatMessage modelMessageWithCalls) {
-        List<FunctionResponse> functionResponses = functionManager.processFunctionCalls(modelMessageWithCalls);
+        FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
+        List<FunctionResponse> functionResponses = processingResult.getResponses();
+
+        boolean hasFeedback = (processingResult.getDeniedCalls() != null && !processingResult.getDeniedCalls().isEmpty())
+                           || (processingResult.getUserComment() != null && !processingResult.getUserComment().trim().isEmpty());
+
+        if (hasFeedback) {
+            StringBuilder feedbackText = new StringBuilder("User has provided feedback on the proposed tool calls:\n");
+            if (processingResult.getDeniedCalls() != null && !processingResult.getDeniedCalls().isEmpty()) {
+                String denied = processingResult.getDeniedCalls().stream()
+                    .map(fc -> fc.name().orElse("unnamed function"))
+                    .collect(Collectors.joining(", "));
+                feedbackText.append("- The following calls were denied: [").append(denied).append("]\n");
+            }
+            if (processingResult.getUserComment() != null && !processingResult.getUserComment().trim().isEmpty()) {
+                feedbackText.append("- User's comment: '").append(processingResult.getUserComment()).append("'\n");
+            }
+            
+            Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText.toString())).build();
+            ChatMessage feedbackMessage = new ChatMessage(config.getApi().getModelId(), feedbackContent, null, null, null);
+            contextManager.add(feedbackMessage);
+        }
 
         if (functionResponses.isEmpty()) {
-            return false;
+            return hasFeedback;
         }
 
         modelMessageWithCalls.setFunctionResponses(functionResponses);
 
-        List<Part> responseParts = functionResponses.stream()
-            .map(fr -> {
-                Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
-                return Part.fromFunctionResponse(fr.name().get(), responseMap);
-            })
-            .collect(Collectors.toList());
+        // NEW: Build the Part-to-Part link map for the new ChatMessage.
+        Map<Part, Part> partLinks = new HashMap<>();
+        List<Part> responseParts = new ArrayList<>();
+
+        for (FunctionResponse fr : functionResponses) {
+            Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
+            Part responsePart = Part.fromFunctionResponse(fr.name().get(), responseMap);
+            responseParts.add(responsePart);
+            
+            // Use the map from the processing result to find the source call Part.
+            Part sourceCallPart = processingResult.getResponseToCallLinks().get(fr);
+            if (sourceCallPart != null) {
+                partLinks.put(responsePart, sourceCallPart);
+            }
+        }
             
         Content functionResponseContent = Content.builder()
             .role("tool")
             .parts(responseParts)
             .build();
             
+        // FIXED: Call the correct constructor with a new UUID.
         ChatMessage functionResponseMessage = new ChatMessage(
+            UUID.randomUUID().toString(),
             config.getApi().getModelId(),
             functionResponseContent,
             modelMessageWithCalls.getId(),
             null,
-            null
+            null,
+            partLinks // Pass the links
         );
         contextManager.add(functionResponseMessage);
         
@@ -249,8 +283,6 @@ public class GeminiChat {
     }
 
     private List<Content> buildApiContext(List<ChatMessage> chatHistory) {
-        // FIX: Removed the "Active Workspace" consolidation logic.
-        // The ContextManager's "read-and-replace" logic is the correct way to handle state.
         return chatHistory.stream()
                 .map(ChatMessage::getContent)
                 .filter(Objects::nonNull)
@@ -265,8 +297,6 @@ public class GeminiChat {
         return contextManager.getContext();
     }
 
-
-
     public ContextManager getContextManager() {
         return contextManager;
     }
@@ -278,8 +308,6 @@ public class GeminiChat {
     public void notifyJobCompletion(JobInfo jobInfo) {
         if (isProcessing) {
             logger.log(Level.INFO, "Chat is busy. Job completion notification for {0} will be queued.", jobInfo.getJobId());
-            // In a more robust system, we would queue this and check later.
-            // For now, we just log and drop to prevent API errors.
             return;
         }
 
@@ -289,8 +317,6 @@ public class GeminiChat {
         Part part = Part.fromFunctionResponse(fr.name().get(), (Map<String, Object>) fr.response().get());
         Content notificationContent = Content.builder().role("tool").parts(part).build();
         
-        // FIX: Add the result to the context instead of sending it directly.
-        // The model will see this on the next user turn.
         ChatMessage jobResultMessage = new ChatMessage(config.getApi().getModelId(), notificationContent, null, null, null);
         contextManager.add(jobResultMessage);
     }

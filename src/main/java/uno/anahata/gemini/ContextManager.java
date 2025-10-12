@@ -41,7 +41,6 @@ public class ContextManager {
     }
 
     public synchronized void add(ChatMessage message) {
-        // Must be called before adding the new message to the context
         handleStatefulReplace(message);
         context.add(message);
         logEntryToFile(message);
@@ -57,19 +56,9 @@ public class ContextManager {
         listener.contentAdded(message);
     }
 
-    /**
-     * When a new message contains a FunctionResponse for a StatefulResource (e.g., a file read),
-     * this method finds and removes all previous FunctionResponse parts in the context that refer
-     * to the same resourceId. This prevents the context from holding stale data.
-     *
-     * @param newMessage The message being added to the context.
-     */
     private void handleStatefulReplace(ChatMessage newMessage) {
-        if (functionManager == null) {
-            return;
-        }
-        
-        // 1. Get resource IDs from the new message's FunctionResponses
+        if (functionManager == null) return;
+
         List<String> newResourceIds = newMessage.getContent().parts().orElse(Collections.emptyList()).stream()
             .filter(part -> part.functionResponse().isPresent())
             .map(part -> FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager))
@@ -77,46 +66,28 @@ public class ContextManager {
             .distinct()
             .collect(Collectors.toList());
 
-        if (newResourceIds.isEmpty()) {
-            return;
-        }
+        if (newResourceIds.isEmpty()) return;
 
-        logger.log(Level.INFO, "New stateful resource(s) detected: {0}. Scanning context for stale responses.", newResourceIds);
+        logger.log(Level.INFO, "New stateful resource(s) detected: {0}. Scanning for stale parts.", newResourceIds);
 
-        // 2. Concurrently identify parts to prune in the existing context
-        Map<String, List<Integer>> partsToPruneByMessage = new HashMap<>();
-        
-        // Iterate over a copy to avoid ConcurrentModificationException as pruneParts modifies the list
-        List<ChatMessage> contextSnapshot = new ArrayList<>(this.context);
-
-        for (int i = 0; i < contextSnapshot.size(); i++) {
-            ChatMessage message = contextSnapshot.get(i);
-            
-            List<Part> parts = message.getContent().parts().orElse(Collections.emptyList());
-            for (int j = 0; j < parts.size(); j++) {
-                Part part = parts.get(j);
+        Set<Part> partsToPrune = new HashSet<>();
+        for (ChatMessage message : context) {
+            for (Part part : message.getContent().parts().orElse(Collections.emptyList())) {
                 if (part.functionResponse().isPresent()) {
                     Optional<String> resourceIdOpt = FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager);
                     if (resourceIdOpt.isPresent() && newResourceIds.contains(resourceIdOpt.get())) {
-                        partsToPruneByMessage.computeIfAbsent(message.getId(), k -> new ArrayList<>()).add(j);
+                        partsToPrune.add(part);
+                        Part callPart = message.getFunctionCallForResponse(part);
+                        if (callPart != null) {
+                            partsToPrune.add(callPart);
+                        }
                     }
                 }
             }
         }
 
-        // 3. Prune the identified parts from the actual context
-        if (partsToPruneByMessage.isEmpty()) {
-            return;
-        }
-
-        logger.log(Level.INFO, "Found {0} message(s) with stale FunctionResponses to prune.", partsToPruneByMessage.size());
-
-        for (Map.Entry<String, List<Integer>> entry : partsToPruneByMessage.entrySet()) {
-            String messageUID = entry.getKey();
-            // Create a List<Number> for the pruneParts method signature
-            List<Number> partIndices = new ArrayList<>(entry.getValue());
-            String reason = "Pruning stale FunctionResponse for resource(s): " + String.join(", ", newResourceIds);
-            pruneParts(messageUID, partIndices, reason);
+        if (!partsToPrune.isEmpty()) {
+            prunePartsByReference(new ArrayList<>(partsToPrune), "Pruning stale stateful resource and its associated call.");
         }
     }
 
@@ -233,7 +204,6 @@ public class ContextManager {
                 logger.log(Level.INFO, "Pruning {0} part(s) from message {1}. Reason: {2}", new Object[]{originalParts.size() - partsToKeep.size(), messageUID, reason});
 
                 if (partsToKeep.isEmpty()) {
-                    // Instead of calling pruneMessages, just remove it directly to avoid re-entrancy issues
                     context.remove(i);
                     logger.log(Level.INFO, "Message {0} became empty and was removed after pruning parts.", messageUID);
                     notifyHistoryChange();
@@ -245,7 +215,7 @@ public class ContextManager {
                     
                     ChatMessage replacement = new ChatMessage(
                         message.getId(), message.getModelId(), newContent, message.getParentId(),
-                        message.getUsageMetadata(), message.getGroundingMetadata()
+                        message.getUsageMetadata(), message.getGroundingMetadata(), message.getPartLinks()
                     );
                     replacement.setFunctionResponses(message.getFunctionResponses());
                     context.set(i, replacement);
@@ -255,6 +225,46 @@ public class ContextManager {
             }
         }
         logger.log(Level.WARNING, "Could not find message with ID {0} to prune parts.", messageUID);
+    }
+
+    public synchronized void prunePartsByReference(List<Part> partsToPrune, String reason) {
+        if (partsToPrune == null || partsToPrune.isEmpty()) return;
+
+        Set<Part> partsToPruneSet = new HashSet<>(partsToPrune);
+        boolean contextWasModified = false;
+
+        ListIterator<ChatMessage> iterator = context.listIterator();
+        while (iterator.hasNext()) {
+            ChatMessage currentMessage = iterator.next();
+            Content originalContent = currentMessage.getContent();
+            if (originalContent == null || !originalContent.parts().isPresent()) continue;
+
+            List<Part> originalParts = originalContent.parts().get();
+            if (Collections.disjoint(originalParts, partsToPruneSet)) continue;
+
+            List<Part> partsToKeep = originalParts.stream()
+                .filter(p -> !partsToPruneSet.contains(p))
+                .collect(Collectors.toList());
+
+            contextWasModified = true;
+            if (partsToKeep.isEmpty()) {
+                iterator.remove();
+                logger.log(Level.INFO, "Message {0} became empty and was removed after pruning parts.", currentMessage.getId());
+            } else {
+                Content newContent = ContentUtils.cloneAndRemoveParts(originalContent, partsToPrune);
+                ChatMessage replacement = new ChatMessage(
+                    currentMessage.getId(), currentMessage.getModelId(), newContent, currentMessage.getParentId(),
+                    currentMessage.getUsageMetadata(), currentMessage.getGroundingMetadata(), currentMessage.getPartLinks()
+                );
+                replacement.setFunctionResponses(currentMessage.getFunctionResponses());
+                iterator.set(replacement);
+            }
+        }
+
+        if (contextWasModified) {
+            logger.log(Level.INFO, "Pruned {0} part(s) by reference. Reason: {1}", new Object[]{partsToPrune.size(), reason});
+            notifyHistoryChange();
+        }
     }
 
     public void notifyHistoryChange() {
@@ -291,43 +301,53 @@ public class ContextManager {
             }
         }
 
-        if (userMessageIndices.size() <= turnsToKeep) {
-            return;
-        }
+        if (userMessageIndices.size() <= turnsToKeep) return;
 
         int pruneCutoffIndex = userMessageIndices.get(turnsToKeep);
-
-        List<String> idsToPrune = new ArrayList<>();
-        for (int i = 0; i < pruneCutoffIndex; i++) {
-            ChatMessage message = context.get(i);
-            if (isEphemeralToolMessage(message)) {
-                idsToPrune.add(message.getId());
+        Set<Part> partsToPrune = new HashSet<>();
+        
+        Map<Part, Part> callToResponseLink = new HashMap<>();
+        for (ChatMessage msg : context) {
+            if (msg.getPartLinks() != null) {
+                for (Map.Entry<Part, Part> entry : msg.getPartLinks().entrySet()) {
+                    callToResponseLink.put(entry.getValue(), entry.getKey());
+                }
             }
         }
 
-        if (!idsToPrune.isEmpty()) {
-            logger.log(Level.INFO, "Two-Turn Rule: Pruning {0} old ephemeral messages.", idsToPrune.size());
-            pruneMessages(idsToPrune, "Automatic pruning of old ephemeral tool calls.");
+        for (int i = 0; i < pruneCutoffIndex; i++) {
+            ChatMessage message = context.get(i);
+            if (message.getContent() == null || !message.getContent().parts().isPresent()) continue;
+
+            for (Part part : message.getContent().parts().get()) {
+                if (isPartEphemeral(part)) {
+                    partsToPrune.add(part);
+                    if (part.functionCall().isPresent()) {
+                        Part responsePart = callToResponseLink.get(part);
+                        if (responsePart != null) partsToPrune.add(responsePart);
+                    } else if (part.functionResponse().isPresent()) {
+                        Part callPart = message.getFunctionCallForResponse(part);
+                        if (callPart != null) partsToPrune.add(callPart);
+                    }
+                }
+            }
+        }
+
+        if (!partsToPrune.isEmpty()) {
+            logger.log(Level.INFO, "Two-Turn Rule: Pruning {0} old ephemeral parts.", partsToPrune.size());
+            prunePartsByReference(new ArrayList<>(partsToPrune), "Automatic pruning of old ephemeral tool calls and responses.");
         }
     }
 
-    private boolean isEphemeralToolMessage(ChatMessage message) {
-        if (functionManager == null || message.getContent() == null || !message.getContent().parts().isPresent()) {
-            return false;
+    private boolean isPartEphemeral(Part part) {
+        if (functionManager == null) return false;
+        String toolName = "";
+        if (part.functionCall().isPresent()) {
+            toolName = part.functionCall().get().name().orElse("");
+        } else if (part.functionResponse().isPresent()) {
+            toolName = part.functionResponse().get().name().orElse("");
         }
-        for (Part part : message.getContent().parts().get()) {
-            String toolName = "";
-            if (part.functionCall().isPresent()) {
-                toolName = part.functionCall().get().name().orElse("");
-            } else if (part.functionResponse().isPresent()) {
-                toolName = part.functionResponse().get().name().orElse("");
-            }
-            
-            if (!toolName.isEmpty() && functionManager.getContextBehavior(toolName) == ContextBehavior.EPHEMERAL) {
-                return true;
-            }
-        }
-        return false;
+        return !toolName.isEmpty() && functionManager.getContextBehavior(toolName) == ContextBehavior.EPHEMERAL;
     }
     
      public String getSummaryAsString() {
