@@ -69,33 +69,6 @@ public class ContextWindow {
 
     @AIToolMethod("Lists all entries in the context, including their stable IDs, roles, and a summary of their parts.")
     public static String listEntries() {
-        List<ChatMessage> historyCopy = ContextManager.get().getContext();
-        StringBuilder statusBlock = new StringBuilder();
-        statusBlock.append("\n#  Context entries: ").append(historyCopy.size()).append("\n");
-        statusBlock.append("\n-----------------------------------\n");
-
-        for (int i = 0; i < historyCopy.size(); i++) {
-            ChatMessage message = historyCopy.get(i);
-            Content content = message.getContent();
-            String role = content != null && content.role().isPresent() ? content.role().get() : "system";
-
-            statusBlock.append("\n[").append(i).append("][").append(role).append("] ");
-            statusBlock.append("[id: ").append(message.getId()).append("] ");
-
-            if (content != null && content.parts().isPresent()) {
-                List<Part> parts = content.parts().get();
-                statusBlock.append(parts.size()).append(" Parts");
-                for (int j = 0; j < parts.size(); j++) {
-                    Part p = parts.get(j);
-                    statusBlock.append("\n\t[").append(i).append("/").append(j).append("] ");
-                    statusBlock.append(PartUtils.summarize(p));
-                }
-            } else {
-                statusBlock.append("0 (No Parts)");
-            }
-        }
-        statusBlock.append("\n");
-
-        return statusBlock.toString();
+        return ContextManager.get().getSummaryAsString();
     }
 }

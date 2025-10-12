@@ -21,6 +21,8 @@ public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
 
+    private final ThreadLocal<Boolean> wasModifiedInCurrentOperation = new ThreadLocal<>();
+    
     private List<ChatMessage> context = new ArrayList<>();
     private final GeminiConfig config;
     private final ContextListener listener;
@@ -41,19 +43,29 @@ public class ContextManager {
     }
 
     public synchronized void add(ChatMessage message) {
-        handleStatefulReplace(message);
-        context.add(message);
-        logEntryToFile(message);
+        wasModifiedInCurrentOperation.set(false); // Reset for this operation
+        try {
+            handleStatefulReplace(message);
+            context.add(message);
+            logEntryToFile(message);
 
-        if (message.getUsageMetadata() != null) {
-            this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
+            if (message.getUsageMetadata() != null) {
+                this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
+            }
+
+            if (isUserMessage(message)) {
+                pruneOldEphemeralResults();
+            }
+
+            // Only fire contentAdded if no prune/modification happened during this add operation.
+            // If a modification did happen, contextModified will have been fired, which triggers a full UI refresh,
+            // making the incremental add redundant and causing the duplicate rendering.
+            if (!wasModifiedInCurrentOperation.get()) {
+                listener.contentAdded(message);
+            }
+        } finally {
+            wasModifiedInCurrentOperation.remove(); // Clean up the thread local
         }
-
-        if (isUserMessage(message)) {
-            pruneOldEphemeralResults();
-        }
-
-        listener.contentAdded(message);
     }
 
     private void handleStatefulReplace(ChatMessage newMessage) {
@@ -268,6 +280,9 @@ public class ContextManager {
     }
 
     public void notifyHistoryChange() {
+        if (wasModifiedInCurrentOperation.get() != null) {
+            wasModifiedInCurrentOperation.set(true);
+        }
         listener.contextModified();
     }
 
@@ -350,7 +365,7 @@ public class ContextManager {
         return !toolName.isEmpty() && functionManager.getContextBehavior(toolName) == ContextBehavior.EPHEMERAL;
     }
     
-     public String getSummaryAsString() {
+    public String getSummaryAsString() {
         List<ChatMessage> historyCopy = getContext();
         StringBuilder statusBlock = new StringBuilder();
         statusBlock.append("\n#  Context entries: ").append(historyCopy.size()).append("\n");
@@ -370,7 +385,20 @@ public class ContextManager {
                 for (int j = 0; j < parts.size(); j++) {
                     Part p = parts.get(j);
                     statusBlock.append("\n\t[").append(i).append("/").append(j).append("] ");
-                    statusBlock.append(PartUtils.summarize(p));
+                    
+                    String summary;
+                    if (p.functionResponse().isPresent() && functionManager != null) {
+                        FunctionResponse fr = p.functionResponse().get();
+                        Optional<String> resourceIdOpt = FunctionUtils.getResourceIdIfStateful(fr, functionManager);
+                        if (resourceIdOpt.isPresent()) {
+                            summary = "[FunctionResponse]:STATEFUL:" + resourceIdOpt.get();
+                        } else {
+                            summary = PartUtils.summarize(p);
+                        }
+                    } else {
+                        summary = PartUtils.summarize(p);
+                    }
+                    statusBlock.append(summary);
                 }
             } else {
                 statusBlock.append("0 (No Parts)");

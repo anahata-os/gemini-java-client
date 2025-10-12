@@ -165,6 +165,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         chatScrollPane.setBorder(BorderFactory.createEmptyBorder());
         
         heatmapPanel = new ContextHeatmapPanel();
+        heatmapPanel.setFunctionManager(chat.getFunctionManager());
         
         tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Chat", chatScrollPane);

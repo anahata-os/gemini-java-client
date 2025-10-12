@@ -48,8 +48,8 @@ with your notes or use any other technic for your "persistent memory" about this
 On a given session, several tasks can be accomplished / researched / attempted even if they are not in the current context (conversation) as you may have
 already prunned them from the current Context, your only way to find out what was discussed on this session and later prunned is checking the history directory
 
-7. **Local Tools / Server Tools** Local tools (pruneContext, readFile, runningjvm, etc) are not compatible with server side tools at the moment (google search, python code execution) as the api does not a allow for a generate content request.
-The user has a button on the UI to enable/disable functions. If you cant see google search or python code execution tools, ask the user to "disable" functions. Likewise, if you cant see local tools such as ContextWindow.pruneContext, LocalFiles, RunningJVM, etc, ask the user to enable functions.
+7. **Local Tools / Server Tools** Local tools (pruneContext, readFile, RunningJvm, etc) are not compatible with server side tools at the moment (google search, python code execution) as the api does not a allow for a generate content request.
+The user has a button on the UI to enable/disable functions. If you cant see google search or python code execution tools, ask the user to "disable" functions. Likewise, if you cant see local tools such as ContextWindow, LocalFiles, RunningJVM, etc, ask the user to enable functions.
 
 ## Main directories within your "work dir" (not on the directory set by the user.home system property).
 ----------------------------------------------
