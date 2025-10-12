@@ -78,6 +78,10 @@ public class GeminiPanel extends JPanel implements ContextListener {
         this.chat = new GeminiChat(config, prompter, this);
     }
 
+    public GeminiChat getChat() {
+        return chat;
+    }
+
     private ImageIcon getIcon(String icon) {
         ImageIcon originalIcon = new ImageIcon(getClass().getResource("/icons/" + icon));
         Image scaledImage = originalIcon.getImage().getScaledInstance(24, 24, Image.SCALE_SMOOTH);
@@ -153,8 +157,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         JPanel modelIdPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         modelIdPanel.add(new JLabel("Model:"));
-        modelIdPanel.add(modelIdComboBox);
-        topPanel.add(modelIdPanel, BorderLayout.EAST);
+        modelIdPanel.add(modelIdPanel, BorderLayout.EAST);
 
         add(topPanel, BorderLayout.NORTH);
 

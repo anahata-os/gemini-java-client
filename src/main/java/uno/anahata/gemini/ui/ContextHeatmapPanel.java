@@ -64,7 +64,11 @@ public class ContextHeatmapPanel extends JPanel {
         if (part.inlineData().isPresent()) {
             return part.inlineData().get().data().get().length;
         }
-        // For complex types, serialize to JSON to get a consistent size
+        if (part.functionResponse().isPresent()) {
+            // The actual payload is the 'response' struct. Serialize that for an accurate size.
+            return GSON.toJson(part.functionResponse().get().response()).getBytes(StandardCharsets.UTF_8).length;
+        }
+        // For other complex types (like FunctionCall), serialize the whole part.
         return GSON.toJson(part).getBytes(StandardCharsets.UTF_8).length;
     }
 
