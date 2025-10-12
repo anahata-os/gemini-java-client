@@ -8,6 +8,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -25,13 +26,23 @@ public class ContextManager {
     
     private List<ChatMessage> context = new ArrayList<>();
     private final GeminiConfig config;
-    private final ContextListener listener;
+    private final List<ContextListener> listeners = new CopyOnWriteArrayList<>();
     private FunctionManager functionManager;
     private int totalTokenCount = 0;
 
-    public ContextManager(GeminiConfig config, ContextListener listener) {
+    public ContextManager(GeminiConfig config, ContextListener initialListener) {
         this.config = config;
-        this.listener = listener;
+        if (initialListener != null) {
+            this.listeners.add(initialListener);
+        }
+    }
+    
+    public void addListener(ContextListener listener) {
+        listeners.add(listener);
+    }
+    
+    public void removeListener(ContextListener listener) {
+        listeners.remove(listener);
     }
 
     public void setFunctionManager(FunctionManager functionManager) {
@@ -61,7 +72,7 @@ public class ContextManager {
             // If a modification did happen, contextModified will have been fired, which triggers a full UI refresh,
             // making the incremental add redundant and causing the duplicate rendering.
             if (!wasModifiedInCurrentOperation.get()) {
-                listener.contentAdded(message);
+                listeners.forEach(l -> l.contentAdded(message));
             }
         } finally {
             wasModifiedInCurrentOperation.remove(); // Clean up the thread local
@@ -152,7 +163,7 @@ public class ContextManager {
     public synchronized void clear() {
         context.clear();
         totalTokenCount = 0;
-        listener.contextCleared();
+        listeners.forEach(ContextListener::contextCleared);
         logger.info("Chat history cleared.");
     }
 
@@ -283,7 +294,7 @@ public class ContextManager {
         if (wasModifiedInCurrentOperation.get() != null) {
             wasModifiedInCurrentOperation.set(true);
         }
-        listener.contextModified();
+        listeners.forEach(ContextListener::contextModified);
     }
 
     public String getContextId() {
