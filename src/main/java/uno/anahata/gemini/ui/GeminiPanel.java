@@ -157,7 +157,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         JPanel modelIdPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         modelIdPanel.add(new JLabel("Model:"));
-        modelIdPanel.add(modelIdPanel, BorderLayout.EAST);
+        modelIdPanel.add(modelIdComboBox, BorderLayout.EAST);
 
         add(topPanel, BorderLayout.NORTH);
 
