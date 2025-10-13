@@ -19,10 +19,10 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
-import uno.anahata.gemini.functions.AITool;
+import uno.anahata.gemini.functions.AIToolMethod;
+import uno.anahata.gemini.internal.GsonUtils;
 
 public class GeminiSchemaGenerator {
-
     
     private static final Map<Class<?>, Known> primitiveMap = new HashMap<>();
     static {
@@ -44,6 +44,19 @@ public class GeminiSchemaGenerator {
      */
     public static Schema generateSchema(Class<?> clazz, String description) {
         return generateSchemaInternal(clazz, new HashSet<>(), description);
+    }
+    
+    /**
+     * Public entrypoint to generate a JSON schema as a formatted string.
+     * @param clazz The class to generate the schema for.
+     * @return A JSON string representing the schema, or null if the class is void.
+     */
+    public static String generateSchemaAsString(Class<?> clazz) {
+        if (clazz == null || clazz == void.class || clazz == Void.class) {
+            return null;
+        }
+        Schema schema = generateSchema(clazz, "Schema for " + clazz.getSimpleName());
+        return GsonUtils.prettyPrint(schema);
     }
 
     private static Schema generateSchemaInternal(Type type, Set<Type> seen, String description) {
@@ -151,8 +164,8 @@ public class GeminiSchemaGenerator {
             }
             
             String fieldDescription = f.getName();
-            if (f.isAnnotationPresent(AITool.class)) {
-                fieldDescription = f.getAnnotation(AITool.class).value();
+            if (f.isAnnotationPresent(AIToolMethod.class)) {
+                fieldDescription = f.getAnnotation(AIToolMethod.class).value();
             }
 
             Schema fieldSchema = generateSchemaInternal(f.getGenericType(), seen, fieldDescription);

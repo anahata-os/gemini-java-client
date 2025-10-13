@@ -69,6 +69,12 @@ public class FunctionManager {
 
         this.toolConfig = makeToolConfigForFunctionCalling();
     }
+    
+    private static ToolConfig makeToolConfigForFunctionCalling() {
+        return ToolConfig.builder()
+                .functionCallingConfig(FunctionCallingConfig.builder().mode(FunctionCallingConfigMode.Known.AUTO).build())
+                .build();
+    }
 
     private Tool makeFunctionsTool(Class<?>... classes) {
         List<FunctionDeclaration> fds = new ArrayList<>();
@@ -229,7 +235,13 @@ public class FunctionManager {
             throw new IllegalArgumentException("Only static methods are supported. Not static: " + method);
         }
         AIToolMethod methodAnnotation = method.getAnnotation(AIToolMethod.class);
-        String functionDescription = methodAnnotation.value();
+        
+        StringBuilder descriptionBuilder = new StringBuilder(methodAnnotation.value());
+        String returnTypeSchema = GeminiSchemaGenerator.generateSchemaAsString(method.getReturnType());
+        
+        if (returnTypeSchema != null) {
+            descriptionBuilder.append("\n\nReturns an object with the following JSON schema:\n").append(returnTypeSchema);
+        }
 
         Map<String, Schema> properties = new HashMap<>();
         List<String> required = new ArrayList<>();
@@ -258,16 +270,12 @@ public class FunctionManager {
 
         return FunctionDeclaration.builder()
                 .name(finalToolName)
-                .description(functionDescription)
+                .description(descriptionBuilder.toString())
                 .parameters(paramsSchema)
                 .build();
     }
 
-    private static ToolConfig makeToolConfigForFunctionCalling() {
-        return ToolConfig.builder()
-                .functionCallingConfig(FunctionCallingConfig.builder().mode(FunctionCallingConfigMode.Known.AUTO).build())
-                .build();
-    }
+    
 
     public Tool getFunctionTool() {
         return coreTools;
