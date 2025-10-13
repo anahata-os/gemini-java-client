@@ -40,7 +40,6 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
     private GeminiChat chat;
     private GeminiConfig config;
-    private volatile boolean contextDirty = false;
 
     private JLabel usageLabel;
     private JToolBar toolbar;
@@ -157,7 +156,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         JPanel modelIdPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         modelIdPanel.add(new JLabel("Model:"));
-        modelIdPanel.add(modelIdComboBox, BorderLayout.EAST);
+        modelIdPanel.add(modelIdComboBox);
+        topPanel.add(modelIdPanel, BorderLayout.EAST);
 
         add(topPanel, BorderLayout.NORTH);
 
@@ -263,38 +263,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
     }
 
     @Override
-    public void contentAdded(ChatMessage message) {
+    public void contextCleared(GeminiChat source) {
         SwingUtilities.invokeLater(() -> {
-            updateUsageLabel(message.getUsageMetadata());
-            heatmapPanel.updateContext(chat.getContextManager().getContext());
-
-            if (contextDirty) {
-                return;
-            }
-
-            if (message.getContent() != null) {
-                ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
-                int contentIdx = chat.getContextManager().getContext().size() - 1;
-                JComponent messageComponent = renderer.render(message, contentIdx, chat.getContextManager());
-                
-                ChatMessageJPanel messageContainer = new ChatMessageJPanel(message);
-                messageContainer.setLayout(new BorderLayout());
-                messageContainer.add(messageComponent, BorderLayout.CENTER);
-                
-                chatContentPanel.add(messageContainer);
-                chatContentPanel.revalidate();
-                chatContentPanel.repaint();
-            }
-
-            JScrollBar vertical = chatScrollPane.getVerticalScrollBar();
-            SwingUtilities.invokeLater(() -> vertical.setValue(vertical.getMaximum()));
-        });
-    }
-
-    @Override
-    public void contextCleared() {
-        SwingUtilities.invokeLater(() -> {
-            contextDirty = false;
             chatContentPanel.removeAll();
             chatContentPanel.repaint();
             updateUsageLabel(null);
@@ -305,36 +275,39 @@ public class GeminiPanel extends JPanel implements ContextListener {
     }
 
     @Override
-    public void contextModified() {
-        contextDirty = true;
-        SwingUtilities.invokeLater(() -> renderDirtyContext());
-        logger.info("Context marked as dirty. A full redraw will occur.");
-    }
+    public void contextChanged(GeminiChat source) {
+        SwingUtilities.invokeLater(() -> {
+            logger.info("Context changed. Performing full UI redraw.");
+            chatContentPanel.removeAll();
+            List<ChatMessage> currentContext = chat.getContext();
 
-    private void renderDirtyContext() {
-        if (!contextDirty) return;
-        contextDirty = false;
-        logger.info("Performing full UI redraw due to dirty context.");
-        chatContentPanel.removeAll();
-        List<ChatMessage> currentContext = chat.getContext();
-
-        for (ChatMessage chatMessage : currentContext) {
-            if (chatMessage.getContent() != null) {
-                ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
-                int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
-                JComponent messageComponent = renderer.render(chatMessage, contentIdx, chat.getContextManager());
-                
-                ChatMessageJPanel messageContainer = new ChatMessageJPanel(chatMessage);
-                messageContainer.setLayout(new BorderLayout());
-                messageContainer.add(messageComponent, BorderLayout.CENTER);
-                
-                chatContentPanel.add(messageContainer);
+            // Update usage label with the latest message's metadata, if available
+            if (!currentContext.isEmpty()) {
+                updateUsageLabel(currentContext.get(currentContext.size() - 1).getUsageMetadata());
             }
-        }
-        
-        heatmapPanel.updateContext(currentContext);
-        chatContentPanel.revalidate();
-        chatContentPanel.repaint();
+
+            for (ChatMessage chatMessage : currentContext) {
+                if (chatMessage.getContent() != null) {
+                    ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
+                    int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
+                    JComponent messageComponent = renderer.render(chatMessage, contentIdx, chat.getContextManager());
+
+                    ChatMessageJPanel messageContainer = new ChatMessageJPanel(chatMessage);
+                    messageContainer.setLayout(new BorderLayout());
+                    messageContainer.add(messageComponent, BorderLayout.CENTER);
+
+                    chatContentPanel.add(messageContainer);
+                }
+            }
+
+            heatmapPanel.updateContext(currentContext);
+            chatContentPanel.revalidate();
+            chatContentPanel.repaint();
+
+            // Scroll to the bottom after redrawing
+            JScrollBar vertical = chatScrollPane.getVerticalScrollBar();
+            SwingUtilities.invokeLater(() -> vertical.setValue(vertical.getMaximum()));
+        });
     }
 
     public void restartChat() {

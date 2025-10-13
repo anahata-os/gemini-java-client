@@ -33,7 +33,7 @@ public class GeminiChat {
             FunctionPrompter prompter,
             ContextListener listener) {
         this.config = config;
-        this.contextManager = new ContextManager(config, listener);
+        this.contextManager = new ContextManager(this, config, listener);
         this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager.setFunctionManager(this.functionManager);
     }

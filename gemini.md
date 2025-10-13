@@ -60,7 +60,6 @@ This package contains helper classes and custom serializers.
 
 The core framework is robust and functional. The immediate focus is on refining the reliability of AI-driven code modification and UI rendering.
 
-- **Known Issue:** The JSON output in the `FunctionResponsePartRenderer` is not being correctly pretty-printed. This is the primary issue currently being debugged.
 - **Process Improvement:** The AI's file modification strategy has been updated from using the error-prone `replaceLines` to a safer "Read-Modify-Write" pattern using `writeFile` to prevent syntax errors.
 
 This document provides a snapshot of the project's current state and architecture.

@@ -2,8 +2,7 @@ package uno.anahata.gemini.functions.util;
 
 import com.google.genai.types.FunctionCall;
 import com.google.gson.Gson;
-import uno.anahata.gemini.functions.AITool;
-
+import uno.anahata.gemini.functions.AIToolMethod;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.RecordComponent;
@@ -18,19 +17,10 @@ import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
 import static com.google.genai.types.Type.Known.OBJECT;
-import com.google.gson.Gson;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.RecordComponent;
 import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import uno.anahata.gemini.functions.AITool;
+
 
 /**
  * Record to hold both parametersSchema and responseSchema for a
@@ -59,9 +49,9 @@ public class GeminiToolUtils {
      */
     public static FunctionDeclaration createFunctionDeclaration(Method method) {
         String toolName = makeToolName(method);
-        AITool methodAnnotation = method.getAnnotation(AITool.class);
+        AIToolMethod methodAnnotation = method.getAnnotation(AIToolMethod.class);
         if (methodAnnotation == null) {
-            throw new IllegalArgumentException("Method must be annotated with @AITool: " + method.getName());
+            throw new IllegalArgumentException("Method must be annotated with @AIToolMethod: " + method.getName());
         }
 
         // Build parameters schema
@@ -73,7 +63,7 @@ public class GeminiToolUtils {
         Map<String, Schema> paramSchemas = new HashMap<>();
 
         for (Parameter param : method.getParameters()) {
-            AITool paramAnnotation = param.getAnnotation(AITool.class);
+            AIToolMethod paramAnnotation = param.getAnnotation(AIToolMethod.class);
             String description = paramAnnotation != null ? paramAnnotation.value() : param.getName();
             Schema type = GeminiSchemaGenerator.generateSchema(param.getType(), description);
             paramSchemas.put(param.getName(), type);
@@ -132,14 +122,15 @@ public class GeminiToolUtils {
     }
 
     public static String makeToolDescription(Method method) {
-        if (method.isAnnotationPresent(AITool.class)) {
-            String val = method.getAnnotation(AITool.class).value();
+        if (method.isAnnotationPresent(AIToolMethod.class)) {
+            String val = method.getAnnotation(AIToolMethod.class).value();
             if (val == null || val.trim().isEmpty()) {
                 return "no description provided, ask the user";
             }
+            return val;
         }
 
-        throw new IllegalArgumentException(method.toString() + " lacks description in @AITool");
+        throw new IllegalArgumentException(method.toString() + " lacks description in @AIToolMethod");
     }
 
     

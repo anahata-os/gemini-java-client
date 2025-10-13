@@ -22,25 +22,39 @@ public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
 
-    private final ThreadLocal<Boolean> wasModifiedInCurrentOperation = new ThreadLocal<>();
-    
     private List<ChatMessage> context = new ArrayList<>();
+    private final GeminiChat chat;
     private final GeminiConfig config;
     private final List<ContextListener> listeners = new CopyOnWriteArrayList<>();
     private FunctionManager functionManager;
     private int totalTokenCount = 0;
 
-    public ContextManager(GeminiConfig config, ContextListener initialListener) {
+    public ContextManager(GeminiChat chat, GeminiConfig config, ContextListener initialListener) {
+        this.chat = chat;
         this.config = config;
         if (initialListener != null) {
             this.listeners.add(initialListener);
         }
     }
-    
+
+    /**
+     * Gets the ContextManager for the currently executing tool.
+     *
+     * @return The active ContextManager.
+     * @throws IllegalStateException if not called from a tool execution thread.
+     */
+    public static ContextManager get() {
+        GeminiChat chat = GeminiChat.get();
+        if (chat == null) {
+            throw new IllegalStateException("ContextManager.get() can only be called from a thread where a tool is being executed by the model.");
+        }
+        return chat.getContextManager();
+    }
+
     public void addListener(ContextListener listener) {
         listeners.add(listener);
     }
-    
+
     public void removeListener(ContextListener listener) {
         listeners.remove(listener);
     }
@@ -49,47 +63,37 @@ public class ContextManager {
         this.functionManager = functionManager;
     }
 
-    public static ContextManager get() {
-        return GeminiChat.get().getContextManager();
-    }
-
     public synchronized void add(ChatMessage message) {
-        wasModifiedInCurrentOperation.set(false); // Reset for this operation
-        try {
-            handleStatefulReplace(message);
-            context.add(message);
-            logEntryToFile(message);
+        handleStatefulReplace(message);
+        context.add(message);
+        logEntryToFile(message);
 
-            if (message.getUsageMetadata() != null) {
-                this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
-            }
-
-            if (isUserMessage(message)) {
-                pruneOldEphemeralResults();
-            }
-
-            // Only fire contentAdded if no prune/modification happened during this add operation.
-            // If a modification did happen, contextModified will have been fired, which triggers a full UI refresh,
-            // making the incremental add redundant and causing the duplicate rendering.
-            if (!wasModifiedInCurrentOperation.get()) {
-                listeners.forEach(l -> l.contentAdded(message));
-            }
-        } finally {
-            wasModifiedInCurrentOperation.remove(); // Clean up the thread local
+        if (message.getUsageMetadata() != null) {
+            this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
         }
+
+        if (isUserMessage(message)) {
+            pruneOldEphemeralResults();
+        }
+        
+        notifyHistoryChange();
     }
 
     private void handleStatefulReplace(ChatMessage newMessage) {
-        if (functionManager == null) return;
+        if (functionManager == null) {
+            return;
+        }
 
         List<String> newResourceIds = newMessage.getContent().parts().orElse(Collections.emptyList()).stream()
-            .filter(part -> part.functionResponse().isPresent())
-            .map(part -> FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager))
-            .flatMap(Optional::stream)
-            .distinct()
-            .collect(Collectors.toList());
+                .filter(part -> part.functionResponse().isPresent())
+                .map(part -> FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager))
+                .flatMap(Optional::stream)
+                .distinct()
+                .collect(Collectors.toList());
 
-        if (newResourceIds.isEmpty()) return;
+        if (newResourceIds.isEmpty()) {
+            return;
+        }
 
         logger.log(Level.INFO, "New stateful resource(s) detected: {0}. Scanning for stale parts.", newResourceIds);
 
@@ -121,11 +125,13 @@ public class ContextManager {
     public synchronized int getTotalTokenCount() {
         return totalTokenCount;
     }
-    
+
     private void logEntryToFile(ChatMessage message) {
         try {
             Content content = message.getContent();
-            if (content == null) return;
+            if (content == null) {
+                return;
+            }
 
             Path historyDir = config.getWorkingFolder("history").toPath();
             Files.createDirectories(historyDir);
@@ -163,7 +169,7 @@ public class ContextManager {
     public synchronized void clear() {
         context.clear();
         totalTokenCount = 0;
-        listeners.forEach(ContextListener::contextCleared);
+        listeners.forEach(l -> l.contextCleared(chat));
         logger.info("Chat history cleared.");
     }
 
@@ -174,16 +180,16 @@ public class ContextManager {
     public synchronized void setContext(List<ChatMessage> newContext) {
         this.context = new ArrayList<>(newContext);
         this.totalTokenCount = this.context.stream()
-            .mapToInt(cm -> {
-                if (cm.getUsageMetadata() != null) {
-                    return cm.getUsageMetadata().totalTokenCount().orElse(0);
-                }
-                if (cm.getContent() != null) {
-                    return cm.getContent().toString().length() / 4; // Rough estimate
-                }
-                return 0;
-            })
-            .sum();
+                .mapToInt(cm -> {
+                    if (cm.getUsageMetadata() != null) {
+                        return cm.getUsageMetadata().totalTokenCount().orElse(0);
+                    }
+                    if (cm.getContent() != null) {
+                        return cm.getContent().toString().length() / 4; // Rough estimate
+                    }
+                    return 0;
+                })
+                .sum();
         logger.info("Context set. New token count: " + this.totalTokenCount);
         notifyHistoryChange();
     }
@@ -195,7 +201,7 @@ public class ContextManager {
             notifyHistoryChange();
         }
     }
-    
+
     public synchronized void pruneParts(String messageUID, List<Number> partIndices, String reason) {
         for (int i = 0; i < context.size(); i++) {
             ChatMessage message = context.get(i);
@@ -208,10 +214,10 @@ public class ContextManager {
 
                 List<Part> originalParts = originalContent.parts().get();
                 List<Part> partsToKeep = new ArrayList<>();
-                
+
                 final Set<Long> indicesToPrune = partIndices.stream()
-                                                            .map(Number::longValue)
-                                                            .collect(Collectors.toSet());
+                        .map(Number::longValue)
+                        .collect(Collectors.toSet());
 
                 for (int j = 0; j < originalParts.size(); j++) {
                     if (!indicesToPrune.contains((long) j)) {
@@ -220,8 +226,8 @@ public class ContextManager {
                 }
 
                 if (partsToKeep.size() == originalParts.size()) {
-                     logger.log(Level.WARNING, "None of the specified part indices {0} found in message {1}", new Object[]{partIndices, messageUID});
-                     return;
+                    logger.log(Level.WARNING, "None of the specified part indices {0} found in message {1}", new Object[]{partIndices, messageUID});
+                    return;
                 }
 
                 logger.log(Level.INFO, "Pruning {0} part(s) from message {1}. Reason: {2}", new Object[]{originalParts.size() - partsToKeep.size(), messageUID, reason});
@@ -232,26 +238,28 @@ public class ContextManager {
                     notifyHistoryChange();
                 } else {
                     Content newContent = Content.builder()
-                        .role(originalContent.role().orElse(null))
-                        .parts(partsToKeep)
-                        .build();
-                    
+                            .role(originalContent.role().orElse(null))
+                            .parts(partsToKeep)
+                            .build();
+
                     ChatMessage replacement = new ChatMessage(
-                        message.getId(), message.getModelId(), newContent, message.getParentId(),
-                        message.getUsageMetadata(), message.getGroundingMetadata(), message.getPartLinks()
+                            message.getId(), message.getModelId(), newContent, message.getParentId(),
+                            message.getUsageMetadata(), message.getGroundingMetadata(), message.getPartLinks()
                     );
                     replacement.setFunctionResponses(message.getFunctionResponses());
                     context.set(i, replacement);
                     notifyHistoryChange();
                 }
-                return; 
+                return;
             }
         }
         logger.log(Level.WARNING, "Could not find message with ID {0} to prune parts.", messageUID);
     }
 
     public synchronized void prunePartsByReference(List<Part> partsToPrune, String reason) {
-        if (partsToPrune == null || partsToPrune.isEmpty()) return;
+        if (partsToPrune == null || partsToPrune.isEmpty()) {
+            return;
+        }
 
         Set<Part> partsToPruneSet = new HashSet<>(partsToPrune);
         boolean contextWasModified = false;
@@ -260,14 +268,18 @@ public class ContextManager {
         while (iterator.hasNext()) {
             ChatMessage currentMessage = iterator.next();
             Content originalContent = currentMessage.getContent();
-            if (originalContent == null || !originalContent.parts().isPresent()) continue;
+            if (originalContent == null || !originalContent.parts().isPresent()) {
+                continue;
+            }
 
             List<Part> originalParts = originalContent.parts().get();
-            if (Collections.disjoint(originalParts, partsToPruneSet)) continue;
+            if (Collections.disjoint(originalParts, partsToPruneSet)) {
+                continue;
+            }
 
             List<Part> partsToKeep = originalParts.stream()
-                .filter(p -> !partsToPruneSet.contains(p))
-                .collect(Collectors.toList());
+                    .filter(p -> !partsToPruneSet.contains(p))
+                    .collect(Collectors.toList());
 
             contextWasModified = true;
             if (partsToKeep.isEmpty()) {
@@ -276,8 +288,8 @@ public class ContextManager {
             } else {
                 Content newContent = ContentUtils.cloneAndRemoveParts(originalContent, partsToPrune);
                 ChatMessage replacement = new ChatMessage(
-                    currentMessage.getId(), currentMessage.getModelId(), newContent, currentMessage.getParentId(),
-                    currentMessage.getUsageMetadata(), currentMessage.getGroundingMetadata(), currentMessage.getPartLinks()
+                        currentMessage.getId(), currentMessage.getModelId(), newContent, currentMessage.getParentId(),
+                        currentMessage.getUsageMetadata(), currentMessage.getGroundingMetadata(), currentMessage.getPartLinks()
                 );
                 replacement.setFunctionResponses(currentMessage.getFunctionResponses());
                 iterator.set(replacement);
@@ -291,10 +303,7 @@ public class ContextManager {
     }
 
     public void notifyHistoryChange() {
-        if (wasModifiedInCurrentOperation.get() != null) {
-            wasModifiedInCurrentOperation.set(true);
-        }
-        listeners.forEach(ContextListener::contextModified);
+        listeners.forEach(l -> l.contextChanged(chat));
     }
 
     public String getContextId() {
@@ -318,7 +327,9 @@ public class ContextManager {
     }
 
     private void pruneOldEphemeralResults() {
-        if (functionManager == null) return;
+        if (functionManager == null) {
+            return;
+        }
         final int turnsToKeep = 2;
         List<Integer> userMessageIndices = new ArrayList<>();
         for (int i = context.size() - 1; i >= 0; i--) {
@@ -327,11 +338,13 @@ public class ContextManager {
             }
         }
 
-        if (userMessageIndices.size() <= turnsToKeep) return;
+        if (userMessageIndices.size() <= turnsToKeep) {
+            return;
+        }
 
         int pruneCutoffIndex = userMessageIndices.get(turnsToKeep);
         Set<Part> partsToPrune = new HashSet<>();
-        
+
         Map<Part, Part> callToResponseLink = new HashMap<>();
         for (ChatMessage msg : context) {
             if (msg.getPartLinks() != null) {
@@ -343,17 +356,23 @@ public class ContextManager {
 
         for (int i = 0; i < pruneCutoffIndex; i++) {
             ChatMessage message = context.get(i);
-            if (message.getContent() == null || !message.getContent().parts().isPresent()) continue;
+            if (message.getContent() == null || !message.getContent().parts().isPresent()) {
+                continue;
+            }
 
             for (Part part : message.getContent().parts().get()) {
                 if (isPartEphemeral(part)) {
                     partsToPrune.add(part);
                     if (part.functionCall().isPresent()) {
                         Part responsePart = callToResponseLink.get(part);
-                        if (responsePart != null) partsToPrune.add(responsePart);
+                        if (responsePart != null) {
+                            partsToPrune.add(responsePart);
+                        }
                     } else if (part.functionResponse().isPresent()) {
                         Part callPart = message.getFunctionCallForResponse(part);
-                        if (callPart != null) partsToPrune.add(callPart);
+                        if (callPart != null) {
+                            partsToPrune.add(callPart);
+                        }
                     }
                 }
             }
@@ -366,7 +385,9 @@ public class ContextManager {
     }
 
     private boolean isPartEphemeral(Part part) {
-        if (functionManager == null) return false;
+        if (functionManager == null) {
+            return false;
+        }
         String toolName = "";
         if (part.functionCall().isPresent()) {
             toolName = part.functionCall().get().name().orElse("");
@@ -375,7 +396,7 @@ public class ContextManager {
         }
         return !toolName.isEmpty() && functionManager.getContextBehavior(toolName) == ContextBehavior.EPHEMERAL;
     }
-    
+
     public String getSummaryAsString() {
         List<ChatMessage> historyCopy = getContext();
         StringBuilder statusBlock = new StringBuilder();
@@ -396,7 +417,7 @@ public class ContextManager {
                 for (int j = 0; j < parts.size(); j++) {
                     Part p = parts.get(j);
                     statusBlock.append("\n\t[").append(i).append("/").append(j).append("] ");
-                    
+
                     String summary;
                     if (p.functionResponse().isPresent() && functionManager != null) {
                         FunctionResponse fr = p.functionResponse().get();

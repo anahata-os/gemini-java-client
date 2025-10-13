@@ -1,10 +1,23 @@
 package uno.anahata.gemini;
 
+/**
+ * A listener for changes in the chat context.
+ *
+ * @author pablo
+ */
 public interface ContextListener {
 
-    void contentAdded(ChatMessage message);
+    /**
+     * Fired whenever the context has changed in any way (messages added, removed, or modified).
+     * The listener is responsible for completely redrawing its view from the new context state.
+     * @param source The GeminiChat instance where the change occurred.
+     */
+    void contextChanged(GeminiChat source);
 
-    void contextCleared();
+    /**
+     * Fired when the entire context is cleared, usually on a chat restart.
+     * @param source The GeminiChat instance that was cleared.
+     */
+    void contextCleared(GeminiChat source);
 
-    void contextModified();
 }
