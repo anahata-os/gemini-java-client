@@ -3,31 +3,25 @@ package uno.anahata.gemini.ui.render;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
 import java.awt.FlowLayout;
-import java.util.Set;
 import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
+import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.ui.SwingGeminiConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class InteractiveFunctionCallRenderer implements PartRenderer {
 
-    public enum ConfirmationState { YES, NO, ALWAYS, NEVER }
-
     private final FunctionCall functionCall;
     private final SwingGeminiConfig.UITheme theme;
-    private ConfirmationState selectedState;
+    private FunctionConfirmation selectedState;
     private final JToggleButton yesButton, noButton, alwaysButton, neverButton;
 
-    public InteractiveFunctionCallRenderer(FunctionCall functionCall, PartRenderer defaultRenderer, Set<String> alwaysApprove, Set<String> neverApprove, SwingGeminiConfig.UITheme theme) {
+    public InteractiveFunctionCallRenderer(FunctionCall functionCall, FunctionConfirmation preference, SwingGeminiConfig.UITheme theme) {
         this.functionCall = functionCall;
         this.theme = theme;
-        this.selectedState = ConfirmationState.YES;
-        String functionName = functionCall.name().get();
-
-        if (neverApprove.contains(functionName)) selectedState = ConfirmationState.NEVER;
-        else if (alwaysApprove.contains(functionName)) selectedState = ConfirmationState.ALWAYS;
+        this.selectedState = (preference != null) ? preference : FunctionConfirmation.YES;
 
         this.yesButton = new JToggleButton("Yes");
         this.noButton = new JToggleButton("No");
@@ -40,21 +34,25 @@ public class InteractiveFunctionCallRenderer implements PartRenderer {
         buttonGroup.add(alwaysButton);
         buttonGroup.add(neverButton);
 
-        // Reverted to Java 8 compatible if-else block
-        if (selectedState == ConfirmationState.YES) {
-            yesButton.setSelected(true);
-        } else if (selectedState == ConfirmationState.NO) {
-            noButton.setSelected(true);
-        } else if (selectedState == ConfirmationState.ALWAYS) {
-            alwaysButton.setSelected(true);
-        } else {
-            neverButton.setSelected(true);
+        switch (selectedState) {
+            case YES:
+                yesButton.setSelected(true);
+                break;
+            case NO:
+                noButton.setSelected(true);
+                break;
+            case ALWAYS:
+                alwaysButton.setSelected(true);
+                break;
+            case NEVER:
+                neverButton.setSelected(true);
+                break;
         }
 
-        yesButton.addActionListener(e -> selectedState = ConfirmationState.YES);
-        noButton.addActionListener(e -> selectedState = ConfirmationState.NO);
-        alwaysButton.addActionListener(e -> selectedState = ConfirmationState.ALWAYS);
-        neverButton.addActionListener(e -> selectedState = ConfirmationState.NEVER);
+        yesButton.addActionListener(e -> selectedState = FunctionConfirmation.YES);
+        noButton.addActionListener(e -> selectedState = FunctionConfirmation.NO);
+        alwaysButton.addActionListener(e -> selectedState = FunctionConfirmation.ALWAYS);
+        neverButton.addActionListener(e -> selectedState = FunctionConfirmation.NEVER);
     }
 
     @Override
@@ -80,7 +78,7 @@ public class InteractiveFunctionCallRenderer implements PartRenderer {
         return functionCall;
     }
 
-    public ConfirmationState getSelectedState() {
+    public FunctionConfirmation getSelectedState() {
         return selectedState;
     }
 }
