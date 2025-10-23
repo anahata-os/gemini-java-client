@@ -281,11 +281,11 @@ public class GeminiPanel extends JPanel implements ContextListener {
             chatContentPanel.removeAll();
             List<ChatMessage> currentContext = chat.getContext();
 
-            // Update usage label with the latest message's metadata, if available
             if (!currentContext.isEmpty()) {
                 updateUsageLabel(currentContext.get(currentContext.size() - 1).getUsageMetadata());
             }
 
+            ChatMessageJPanel lastMessageContainer = null;
             for (ChatMessage chatMessage : currentContext) {
                 if (chatMessage.getContent() != null) {
                     ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
@@ -297,6 +297,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                     messageContainer.add(messageComponent, BorderLayout.CENTER);
 
                     chatContentPanel.add(messageContainer);
+                    lastMessageContainer = messageContainer;
                 }
             }
 
@@ -304,9 +305,13 @@ public class GeminiPanel extends JPanel implements ContextListener {
             chatContentPanel.revalidate();
             chatContentPanel.repaint();
 
-            // Scroll to the bottom after redrawing
-            JScrollBar vertical = chatScrollPane.getVerticalScrollBar();
-            SwingUtilities.invokeLater(() -> vertical.setValue(vertical.getMaximum()));
+            if (lastMessageContainer != null) {
+                final ChatMessageJPanel finalLastComponent = lastMessageContainer;
+                SwingUtilities.invokeLater(() -> {
+                    Rectangle bounds = finalLastComponent.getBounds();
+                    chatContentPanel.scrollRectToVisible(bounds);
+                });
+            }
         });
     }
 

@@ -5,13 +5,16 @@
 package uno.anahata.gemini.functions;
 
 /**
- *
+ * Represents the user's confirmation status for a function call.
  * @author pablo
  */
 public enum FunctionConfirmation {
+    /** The user approved this specific execution. */
     YES,
-    ALWAYS_YES_THIS_FUNCTION,//always run this function
-    ALWAYS_YES_THESE_ARGS,//always run this function if it has the same parameters
-    NO,//do not execute the function but let the model know we did not want to execute it
-    CANCEL;//do not execute the function but dont tell the model we didn't´t
+    /** The user denied this specific execution. */
+    NO,
+    /** The user wants to always approve this function in the future. */
+    ALWAYS,
+    /** The user wants to never approve this function in the future. */
+    NEVER;
 }

@@ -104,7 +104,23 @@ public class FunctionManager {
             return new FunctionProcessingResult(Collections.emptyList(), Collections.emptyList(), "", Collections.emptyMap());
         }
         
-        PromptResult promptResult = prompter.prompt(modelResponseMessage, this.chat);
+        GeminiConfig config = chat.getContextManager().getConfig();
+        boolean allAlwaysApproved = true;
+        for (FunctionCall fc : allProposedCalls) {
+            if (config.getFunctionConfirmation(fc) != FunctionConfirmation.ALWAYS) {
+                allAlwaysApproved = false;
+                break;
+            }
+        }
+
+        PromptResult promptResult;
+        if (allAlwaysApproved) {
+            logger.info("Autopilot: All function calls are pre-approved. Skipping confirmation dialog.");
+            promptResult = new PromptResult(allProposedCalls, Collections.emptyList(), "Autopilot");
+        } else {
+            promptResult = prompter.prompt(modelResponseMessage, this.chat);
+        }
+        
         List<FunctionCall> allApprovedCalls = promptResult.approvedFunctions;
 
         if (allApprovedCalls.isEmpty()) {

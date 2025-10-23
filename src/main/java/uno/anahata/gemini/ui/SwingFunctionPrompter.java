@@ -1,7 +1,6 @@
 package uno.anahata.gemini.ui;
 
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
-import uno.anahata.gemini.ui.render.PartRenderer;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer;
 import com.google.genai.types.Content;
@@ -17,7 +16,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -33,9 +31,8 @@ import javax.swing.border.TitledBorder;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.functions.FunctionPrompter;
-import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer.ConfirmationState;
-import uno.anahata.gemini.ui.render.PartType;
 
 /**
  * A combined JDialog and FunctionPrompter implementation for Swing.
@@ -88,13 +85,9 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     private void initComponents(ChatMessage modelMessage, GeminiChat chat) {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
         GeminiConfig config = chat.getContextManager().getConfig();
-        ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
-        PartRenderer defaultFcRenderer = renderer.getDefaultRendererForType(PartType.FUNCTION_CALL);
+        ContentRenderer contentRenderer = new ContentRenderer(editorKitProvider, config);
 
         final List<? extends Part> parts = modelMessage.getContent().parts().get();
-        
-        Set<String> alwaysApprove = chat.getFunctionManager().getAlwaysApproveFunctions();
-        Set<String> neverApprove = chat.getFunctionManager().getNeverApproveFunctions();
         
         SwingGeminiConfig.UITheme theme = (config instanceof SwingGeminiConfig)
             ? ((SwingGeminiConfig) config).getTheme()
@@ -103,14 +96,15 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {
                 FunctionCall fc = part.functionCall().get();
-                InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, defaultFcRenderer, alwaysApprove, neverApprove, theme);
+                FunctionConfirmation preference = config.getFunctionConfirmation(fc);
+                InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, preference, theme);
                 interactiveRenderers.add(interactiveRenderer);
-                renderer.registerRenderer(part, interactiveRenderer);
+                contentRenderer.registerRenderer(part, interactiveRenderer);
             }
         }
 
         int contentIdx = chat.getContextManager().getContext().indexOf(modelMessage);
-        JComponent renderedContent = renderer.render(modelMessage, contentIdx, chat.getContextManager());
+        JComponent renderedContent = contentRenderer.render(modelMessage, contentIdx, chat.getContextManager());
         
         JPanel contentWrapper = new ScrollablePanel();
         contentWrapper.setLayout(new BorderLayout());
@@ -131,7 +125,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         JButton cancelButton = new JButton("Cancel");
 
         approveButton.addActionListener(e -> {
-            collectResultsFromInteractiveRenderers(alwaysApprove, neverApprove);
+            collectResultsFromInteractiveRenderers(config);
             this.userComment = commentTextArea.getText();
             setVisible(false);
             dispose();
@@ -158,27 +152,22 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
-    private void collectResultsFromInteractiveRenderers(Set<String> always, Set<String> never) {
+    private void collectResultsFromInteractiveRenderers(GeminiConfig config) {
         for (InteractiveFunctionCallRenderer renderer : interactiveRenderers) {
             FunctionCall functionCall = renderer.getFunctionCall();
-            String functionName = functionCall.name().get();
-            ConfirmationState state = renderer.getSelectedState();
-            if (state == ConfirmationState.YES) {
-                approvedFunctions.add(functionCall);
-                never.remove(functionName);
-                always.remove(functionName);
-            } else if (state == ConfirmationState.NO) {
-                deniedFunctions.add(functionCall);
-                never.remove(functionName);
-                always.remove(functionName);
-            } else if (state == ConfirmationState.ALWAYS) {
-                approvedFunctions.add(functionCall);
-                never.remove(functionName);
-                always.add(functionName);
-            } else if (state == ConfirmationState.NEVER) {
-                deniedFunctions.add(functionCall);
-                never.add(functionName);
-                always.remove(functionName);
+            FunctionConfirmation state = renderer.getSelectedState();
+            
+            config.setFunctionConfirmation(functionCall, state);
+
+            switch (state) {
+                case YES:
+                case ALWAYS:
+                    approvedFunctions.add(functionCall);
+                    break;
+                case NO:
+                case NEVER:
+                    deniedFunctions.add(functionCall);
+                    break;
             }
         }
     }
