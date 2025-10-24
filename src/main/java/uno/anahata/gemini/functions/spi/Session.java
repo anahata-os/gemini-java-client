@@ -2,7 +2,7 @@ package uno.anahata.gemini.functions.spi;
 
 import java.io.IOException;
 import java.util.List;
-import uno.anahata.gemini.ContextManager;
+import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.functions.AIToolMethod;
 
 /**

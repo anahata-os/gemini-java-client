@@ -1,4 +1,4 @@
-package uno.anahata.gemini.spi.providers;
+package uno.anahata.gemini.systeminstructions.spi;
 
 import com.google.genai.types.Part;
 import java.io.BufferedReader;
@@ -8,11 +8,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
-import uno.anahata.gemini.spi.SystemInstructionProvider;
+import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 
-public class CoreSystemInstructionsMdFileProvider implements SystemInstructionProvider {
-    private boolean enabled = true;
+public class CoreSystemInstructionsMdFileProvider extends SystemInstructionProvider {
     private static final String SYSTEM_INSTRUCTIONS;
 
     static {
@@ -30,17 +30,7 @@ public class CoreSystemInstructionsMdFileProvider implements SystemInstructionPr
     }
 
     @Override
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    @Override
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    @Override
-    public List<Part> getInstructionParts() {
+    public List<Part> getInstructionParts(GeminiChat chat) {
         if (!isEnabled()) {
             return Collections.emptyList();
         }

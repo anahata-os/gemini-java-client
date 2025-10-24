@@ -9,7 +9,7 @@ import javax.swing.*;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
-import uno.anahata.gemini.spi.SystemInstructionProvider;
+import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
@@ -54,7 +54,9 @@ public class SystemInstructionsPanel extends JPanel {
         
         contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        add(new JScrollPane(contentPanel), BorderLayout.CENTER);
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(24); // Increase scroll speed
+        add(scrollPane, BorderLayout.CENTER);
         
         refresh();
     }
@@ -66,12 +68,11 @@ public class SystemInstructionsPanel extends JPanel {
         for (SystemInstructionProvider provider : chat.getSystemInstructionProviders()) {
             if (provider.isEnabled()) {
                 try {
-                    List<Part> parts = provider.getInstructionParts();
+                    List<Part> parts = provider.getInstructionParts(chat);
                     if (parts.isEmpty()) {
                         continue;
                     }
                     
-                    // Create a header for the provider
                     JLabel header = new JLabel(" " + provider.getDisplayName() + " ");
                     header.setOpaque(true);
                     header.setBackground(config.getTheme().getModelHeaderBg());
@@ -82,7 +83,6 @@ public class SystemInstructionsPanel extends JPanel {
                     providerPanel.setBorder(BorderFactory.createLineBorder(config.getTheme().getModelBorder()));
                     providerPanel.add(header, BorderLayout.NORTH);
 
-                    // Create a fake Content and ChatMessage to pass to the renderer
                     Content content = Content.builder().role("system").parts(parts).build();
                     ChatMessage fakeMessage = new ChatMessage(config.getApi().getModelId(), content, null, null, null);
                     
@@ -93,7 +93,6 @@ public class SystemInstructionsPanel extends JPanel {
                     contentPanel.add(Box.createVerticalStrut(8));
 
                 } catch (Exception e) {
-                    // Handle error gracefully
                     JLabel errorLabel = new JLabel("Error loading instructions from " + provider.getDisplayName() + ": " + e.getMessage());
                     contentPanel.add(errorLabel);
                 }

@@ -3,7 +3,7 @@ package uno.anahata.gemini.functions.pojos;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import uno.anahata.gemini.StatefulResource;
+import uno.anahata.gemini.context.StatefulResource;
 
 /**
  * Represents the result of a proposeChange operation, indicating whether the user
@@ -44,6 +44,16 @@ public class ProposeChangeResult implements StatefulResource {
     @Override
     public String getResourceId() {
         return (fileInfo != null) ? fileInfo.getResourceId() : null;
+    }
+    
+    @Override
+    public long getLastModified() {
+        return (fileInfo != null) ? fileInfo.getLastModified() : 0;
+    }
+
+    @Override
+    public long getSize() {
+        return (fileInfo != null) ? fileInfo.getSize() : 0;
     }
 
     @Override

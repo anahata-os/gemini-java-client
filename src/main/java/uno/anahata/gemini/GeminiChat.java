@@ -1,5 +1,8 @@
 package uno.anahata.gemini;
 
+import uno.anahata.gemini.functions.JobInfo;
+import uno.anahata.gemini.context.ContextManager;
+import uno.anahata.gemini.context.ContextListener;
 import com.google.genai.Client;
 import com.google.genai.types.*;
 import com.google.gson.Gson;
@@ -12,7 +15,7 @@ import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.internal.GsonUtils;
-import uno.anahata.gemini.spi.SystemInstructionProvider;
+import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 
 public class GeminiChat {
 
@@ -28,6 +31,7 @@ public class GeminiChat {
     private String lastApiError = null;
     private volatile boolean isProcessing = false;
     private Date startTime;
+    private List<SystemInstructionProvider> systemInstructionProviders;
 
     public GeminiChat(
             GeminiConfig config,
@@ -37,6 +41,8 @@ public class GeminiChat {
         this.contextManager = new ContextManager(this, config, listener);
         this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager.setFunctionManager(this.functionManager);
+        // Initialize providers here to take a copy from config
+        this.systemInstructionProviders = new ArrayList<>(config.getSystemInstructionProviders());
     }
 
     public long getLatency() {
@@ -57,47 +63,23 @@ public class GeminiChat {
     }
     
     public List<SystemInstructionProvider> getSystemInstructionProviders() {
-        return config.getSystemInstructionProviders();
+        // Return the list initialized in the constructor
+        return systemInstructionProviders;
     }
 
     private Content buildSystemInstructions() {
         List<Part> parts = new ArrayList<>();
         
-        for (SystemInstructionProvider provider : config.getSystemInstructionProviders()) {
+        for (SystemInstructionProvider provider : getSystemInstructionProviders()) {
             if (provider.isEnabled()) {
                 try {
-                    parts.addAll(provider.getInstructionParts());
+                    parts.addAll(provider.getInstructionParts(this));
                 } catch (Exception e) {
                     logger.log(Level.WARNING, "SystemInstructionProvider " + provider.getId() + " threw an exception", e);
-                    // Optionally add an error part to the instructions
                     parts.add(Part.fromText("Error in " + provider.getDisplayName() + ": " + e.getMessage()));
                 }
             }
         }
-
-        String chatStatusBlock = "- Chat: " + this + "\n";
-        chatStatusBlock += "- Model Id: " + config.getApi().getModelId() + "\n";
-        chatStatusBlock += "- ContextManager: " + contextManager + "\n";
-        chatStatusBlock += "- FunctionManager: " + functionManager + "\n";
-        chatStatusBlock += "- Session Start time: " + startTime + "\n";
-        chatStatusBlock += "- Functions Enabled: " + functionsEnabled + "\n";
-        if (latency > 0) {
-            chatStatusBlock += "- Latency (last successfull user/model round trip): " + latency + " ms.\n";
-        }
-        if (lastApiError != null) {
-            chatStatusBlock += "- Last API Error: \n" + lastApiError + "\n";
-        }
-        parts.add(Part.fromText(chatStatusBlock));
-
-        String contextStatusBlock = "\nContext id:" + contextManager.getContextId();
-        contextStatusBlock += String.format("\nTotal Token Count: %d\nToken Threshold: %d\n",
-                contextManager.getTotalTokenCount(),
-                uno.anahata.gemini.functions.spi.ContextWindow.getTokenThreshold()
-        );
-        contextStatusBlock += "\n";
-        contextStatusBlock += contextManager.getSummaryAsString();
-        contextStatusBlock += "\n-------------------------------------------------------------------";
-        parts.add(Part.fromText(contextStatusBlock));
 
         return Content.builder().parts(parts).build();
     }
@@ -215,7 +197,6 @@ public class GeminiChat {
 
         modelMessageWithCalls.setFunctionResponses(functionResponses);
 
-        // NEW: Build the Part-to-Part link map for the new ChatMessage.
         Map<Part, Part> partLinks = new HashMap<>();
         List<Part> responseParts = new ArrayList<>();
 
@@ -224,7 +205,6 @@ public class GeminiChat {
             Part responsePart = Part.fromFunctionResponse(fr.name().get(), responseMap);
             responseParts.add(responsePart);
             
-            // Use the map from the processing result to find the source call Part.
             Part sourceCallPart = processingResult.getResponseToCallLinks().get(fr);
             if (sourceCallPart != null) {
                 partLinks.put(responsePart, sourceCallPart);
@@ -236,7 +216,6 @@ public class GeminiChat {
             .parts(responseParts)
             .build();
             
-        // FIXED: Call the correct constructor with a new UUID.
         ChatMessage functionResponseMessage = new ChatMessage(
             UUID.randomUUID().toString(),
             config.getApi().getModelId(),
@@ -244,7 +223,7 @@ public class GeminiChat {
             modelMessageWithCalls.getId(),
             null,
             null,
-            partLinks // Pass the links
+            partLinks
         );
         contextManager.add(functionResponseMessage);
         

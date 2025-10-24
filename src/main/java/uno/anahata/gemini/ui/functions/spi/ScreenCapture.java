@@ -1,4 +1,4 @@
-package uno.anahata.gemini.ui.functions;
+package uno.anahata.gemini.ui.functions.spi;
 
 import java.io.File;
 import java.io.IOException;

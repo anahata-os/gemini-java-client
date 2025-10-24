@@ -1,9 +1,12 @@
-package uno.anahata.gemini;
+package uno.anahata.gemini.context;
 
 import com.google.genai.types.*;
+import com.google.gson.Gson;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -12,15 +15,20 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.ContextBehavior;
 import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.internal.ContentUtils;
 import uno.anahata.gemini.internal.FunctionUtils;
+import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
 
 public class ContextManager {
 
     private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
+    private static final Gson GSON = GsonUtils.getGson();
 
     private List<ChatMessage> context = new ArrayList<>();
     private final GeminiChat chat;
@@ -439,5 +447,92 @@ public class ContextManager {
         statusBlock.append("\n");
 
         return statusBlock.toString();
+    }
+    
+    // --- Stateful Resource Management API ---
+
+    public List<StatefulResourceStatus> getStatefulResourcesOverview(FunctionManager fm) {
+        List<StatefulResourceStatus> statuses = new ArrayList<>();
+
+        for (ChatMessage message : context) {
+            if (message.getContent() == null || !message.getContent().parts().isPresent()) {
+                continue;
+            }
+
+            for (Part part : message.getContent().parts().get()) {
+                if (part.functionResponse().isPresent()) {
+                    FunctionResponse fr = part.functionResponse().get();
+                    getResourceStatus(fr, fm).ifPresent(statuses::add);
+                }
+            }
+        }
+
+        // Simple deduplication based on resourceId, keeping the last one (most recent in context)
+        Map<String, StatefulResourceStatus> uniqueStatuses = new java.util.LinkedHashMap<>();
+        for (StatefulResourceStatus status : statuses) {
+            uniqueStatuses.put(status.resource.getResourceId(), status);
+        }
+
+        return new ArrayList<>(uniqueStatuses.values());
+    }
+
+    private Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr, FunctionManager fm) {
+        String toolName = fr.name().orElse("");
+        Method toolMethod = fm.getToolMethod(toolName);
+
+        if (toolMethod == null || !StatefulResource.class.isAssignableFrom(toolMethod.getReturnType())) {
+            return Optional.empty();
+        }
+
+        try {
+            // Deserialize the response payload into the expected POJO which is a StatefulResource
+            StatefulResource resource = (StatefulResource) GSON.fromJson(GSON.toJsonTree(fr.response().get()), toolMethod.getReturnType());
+
+            String resourceId = resource.getResourceId();
+            if (resourceId == null) {
+                return Optional.empty();
+            }
+            
+            return Optional.of(checkDiskStatus(resource));
+
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to deserialize stateful resource from tool response: " + toolName, e);
+            return Optional.empty();
+        }
+    }
+
+    private StatefulResourceStatus checkDiskStatus(StatefulResource resource) {
+        String resourceId = resource.getResourceId();
+        long contextLastModified = resource.getLastModified();
+        long contextSize = resource.getSize();
+        
+        Path path = Paths.get(resourceId);
+        long diskLastModified = 0;
+        long diskSize = 0;
+        ResourceStatus status;
+
+        try {
+            if (!Files.exists(path)) {
+                status = ResourceStatus.DELETED;
+            } else {
+                diskLastModified = Files.getLastModifiedTime(path).toMillis();
+                diskSize = Files.size(path);
+
+                if (diskLastModified > contextLastModified) {
+                    status = ResourceStatus.STALE;
+                } else if (diskLastModified < contextLastModified) {
+                    status = ResourceStatus.OLDER;
+                } else if (diskSize != contextSize) {
+                    status = ResourceStatus.STALE;
+                } else {
+                    status = ResourceStatus.VALID;
+                }
+            }
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Error checking disk status for resource: " + resourceId, e);
+            status = ResourceStatus.ERROR;
+        }
+
+        return new StatefulResourceStatus(resourceId, contextLastModified, contextSize, diskLastModified, diskSize, status, resource);
     }
 }

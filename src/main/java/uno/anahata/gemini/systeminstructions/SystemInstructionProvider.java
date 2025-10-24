@@ -1,25 +1,27 @@
-package uno.anahata.gemini.spi;
+package uno.anahata.gemini.systeminstructions;
 
 import com.google.genai.types.Part;
 import java.util.List;
+import uno.anahata.gemini.GeminiChat;
 
 /**
- * A Service Provider Interface (SPI) for modules that need to contribute
- * specific instructions or context to the AI model's system prompt.
+ * An abstract base class for modules that contribute specific instructions or
+ * context to the AI model's system prompt.
  * <p>
- * Implementations of this interface can be discovered at runtime using
- * {@link java.util.ServiceLoader}, allowing for a modular and extensible
- * way to build the system instructions.
+ * This class manages the enabled/disabled state, and concrete implementations
+ * only need to provide their identity and the logic for generating instruction parts.
  */
-public interface SystemInstructionProvider {
+public abstract class SystemInstructionProvider {
+
+    private boolean enabled = true;
 
     /**
-     * Gets the unique identifier for this provider. This ID is used
-     * for enabling/disabling the provider and for display purposes in the UI.
+     * Gets the unique identifier for this provider. This ID is used for
+     * internal tracking and potentially for persistence.
      *
      * @return A non-null, unique string ID (e.g., "netbeans-project-overview").
      */
-    String getId();
+    public abstract String getId();
 
     /**
      * Gets the display name for this provider. This is a human-readable
@@ -27,7 +29,7 @@ public interface SystemInstructionProvider {
      *
      * @return A non-null, human-readable name.
      */
-    String getDisplayName();
+    public abstract String getDisplayName();
 
     /**
      * Checks if this provider is currently active and should contribute its
@@ -35,7 +37,9 @@ public interface SystemInstructionProvider {
      *
      * @return {@code true} if enabled, {@code false} otherwise.
      */
-    boolean isEnabled();
+    public final boolean isEnabled() {
+        return enabled;
+    }
 
     /**
      * Sets the enabled state of this provider. This allows the user to
@@ -43,7 +47,9 @@ public interface SystemInstructionProvider {
      *
      * @param enabled The new state.
      */
-    void setEnabled(boolean enabled);
+    public final void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
     /**
      * Provides a list of {@link Part} objects to be included in the system
@@ -53,8 +59,10 @@ public interface SystemInstructionProvider {
      * provider is enabled. Implementations should be efficient and avoid
      * long-running operations.
      *
+     * @param chat The current GeminiChat instance, providing access to the
+     *             complete, real-time context of the application.
      * @return A list of Parts. The list can be empty if the provider has
      *         no instructions to add at the moment.
      */
-    List<Part> getInstructionParts();
+    public abstract List<Part> getInstructionParts(GeminiChat chat);
 }

@@ -1,6 +1,6 @@
 package uno.anahata.gemini.functions.pojos;
 
-import uno.anahata.gemini.StatefulResource;
+import uno.anahata.gemini.context.StatefulResource;
 
 /**
  * A POJO to hold file information, including content and metadata.
@@ -43,5 +43,15 @@ public class FileInfo implements StatefulResource {
     @Override
     public String getResourceId() {
         return path;
+    }
+
+    @Override
+    public long getLastModified() {
+        return lastModified;
+    }
+
+    @Override
+    public long getSize() {
+        return size;
     }
 }

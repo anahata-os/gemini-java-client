@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import uno.anahata.gemini.StatefulResource;
+import uno.anahata.gemini.context.StatefulResource;
 import uno.anahata.gemini.functions.ContextBehavior;
 import uno.anahata.gemini.functions.FunctionManager;
 

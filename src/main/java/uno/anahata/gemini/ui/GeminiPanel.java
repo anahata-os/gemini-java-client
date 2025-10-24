@@ -26,13 +26,13 @@ import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.ContextManager;
+import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.functions.spi.ContextWindow;
 import uno.anahata.gemini.ui.render.ContentRenderer;
-import uno.anahata.gemini.ContextListener;
+import uno.anahata.gemini.context.ContextListener;
 
 public class GeminiPanel extends JPanel implements ContextListener {
 
@@ -62,6 +62,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
     private JTabbedPane tabbedPane;
     
     private SystemInstructionsPanel systemInstructionsPanel;
+    private GeminiKeysPanel geminiKeysPanel;
+    private FunctionsPanel functionsPanel;
 
     public GeminiPanel() {
         this(new DefaultEditorKitProvider());
@@ -173,11 +175,15 @@ public class GeminiPanel extends JPanel implements ContextListener {
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
         
         systemInstructionsPanel = new SystemInstructionsPanel(chat, editorKitProvider, config);
+        geminiKeysPanel = new GeminiKeysPanel(config);
+        functionsPanel = new FunctionsPanel(chat, config);
         
         tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Chat", chatScrollPane);
         tabbedPane.addTab("Context Heatmap", heatmapPanel);
         tabbedPane.addTab("System Instructions", systemInstructionsPanel);
+        tabbedPane.addTab("Functions", functionsPanel);
+        tabbedPane.addTab("API Keys", geminiKeysPanel);
         
         add(tabbedPane, BorderLayout.CENTER);
 
@@ -209,7 +215,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         @Override
         public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
-            return 16;
+            return 24; // Increased for faster scrolling
         }
 
         @Override

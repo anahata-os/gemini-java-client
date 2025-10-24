@@ -8,8 +8,8 @@ import java.util.List;
 import lombok.Getter;
 import uno.anahata.gemini.GeminiAPI;
 import uno.anahata.gemini.GeminiConfig;
-import uno.anahata.gemini.spi.SystemInstructionProvider;
-import uno.anahata.gemini.ui.functions.ScreenCapture;
+import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
 
 /**
  * A simple, concrete GeminiConfig for standalone Swing applications.

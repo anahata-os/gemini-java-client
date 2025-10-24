@@ -1,4 +1,4 @@
-package uno.anahata.gemini;
+package uno.anahata.gemini.functions;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

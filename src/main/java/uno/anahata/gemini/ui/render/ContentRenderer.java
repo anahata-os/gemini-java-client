@@ -30,7 +30,7 @@ import javax.swing.Scrollable;
 import javax.swing.border.Border;
 import org.apache.commons.text.StringEscapeUtils;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.ContextManager;
+import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.ui.SwingGeminiConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;

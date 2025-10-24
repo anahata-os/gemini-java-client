@@ -15,9 +15,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import uno.anahata.gemini.functions.FunctionConfirmation;
-import uno.anahata.gemini.spi.SystemInstructionProvider;
-import uno.anahata.gemini.spi.providers.CoreDynamicEnvProvider;
-import uno.anahata.gemini.spi.providers.CoreSystemInstructionsMdFileProvider;
+import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.systeminstructions.spi.ChatStatusProvider;
+import uno.anahata.gemini.systeminstructions.spi.ContextSummaryProvider;
+import uno.anahata.gemini.systeminstructions.spi.CoreSystemInstructionsMdFileProvider;
+import uno.anahata.gemini.systeminstructions.spi.EnvironmentVariablesProvider;
+import uno.anahata.gemini.systeminstructions.spi.StatefulResourcesProvider;
+import uno.anahata.gemini.systeminstructions.spi.SystemPropertiesProvider;
 
 public abstract class GeminiConfig {
 
@@ -44,8 +48,15 @@ public abstract class GeminiConfig {
 
     public List<SystemInstructionProvider> getSystemInstructionProviders() {
         List<SystemInstructionProvider> providers = new ArrayList<>();
+        // Core Providers
         providers.add(new CoreSystemInstructionsMdFileProvider());
-        providers.add(new CoreDynamicEnvProvider());
+        providers.add(new ChatStatusProvider());
+        providers.add(new ContextSummaryProvider());
+        providers.add(new SystemPropertiesProvider());
+        providers.add(new EnvironmentVariablesProvider());
+        providers.add(new StatefulResourcesProvider());
+        
+        // Application Specific Providers
         providers.addAll(getApplicationSpecificInstructionProviders());
         return providers;
     }

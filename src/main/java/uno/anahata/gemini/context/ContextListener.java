@@ -1,4 +1,6 @@
-package uno.anahata.gemini;
+package uno.anahata.gemini.context;
+
+import uno.anahata.gemini.GeminiChat;
 
 /**
  * A listener for changes in the chat context.

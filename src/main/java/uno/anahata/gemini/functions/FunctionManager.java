@@ -19,8 +19,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Executors;
-import uno.anahata.gemini.JobInfo;
-import uno.anahata.gemini.JobInfo.JobStatus;
+import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.util.GeminiSchemaGenerator;
 

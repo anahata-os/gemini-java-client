@@ -46,6 +46,7 @@ public class ContextHeatmapPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(containerPanel);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(24); // Increase scroll speed
         add(scrollPane, BorderLayout.CENTER);
     }
 
@@ -65,9 +66,7 @@ public class ContextHeatmapPanel extends JPanel {
             return part.inlineData().get().data().get().length;
         }
         if (part.functionResponse().isPresent()) {
-            // The actual payload is the 'response' struct. Serialize that for an accurate size.
             Object response = part.functionResponse().get().response();
-            //return GSON.toJson().getBytes(StandardCharsets.UTF_8).length;
             if (response != null) {
                 return response.toString().length();
             } else {
@@ -75,7 +74,6 @@ public class ContextHeatmapPanel extends JPanel {
             }
             
         }
-        // For other complex types (like FunctionCall), serialize the whole part.
         return GSON.toJson(part).getBytes(StandardCharsets.UTF_8).length;
     }
 
@@ -106,7 +104,6 @@ public class ContextHeatmapPanel extends JPanel {
             return;
         }
 
-        // Sort parts by size, descending
         allParts.sort(Comparator.comparingLong(PartInfo::getSizeInBytes).reversed());
 
         for (PartInfo partInfo : allParts) {
@@ -155,7 +152,7 @@ public class ContextHeatmapPanel extends JPanel {
                         if (lastSeparator != -1 && lastSeparator < fullPath.length() - 1) {
                             return fullPath.substring(lastSeparator + 1);
                         }
-                        return fullPath; // Fallback to full path
+                        return fullPath;
                     })
                     .orElse(null);
             }

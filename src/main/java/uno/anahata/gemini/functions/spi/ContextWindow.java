@@ -8,7 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.ContextManager;
+import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.AIToolMethod;
 import uno.anahata.gemini.functions.AIToolParam;
