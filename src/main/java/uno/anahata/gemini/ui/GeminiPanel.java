@@ -39,7 +39,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
     private static final Logger logger = Logger.getLogger(GeminiPanel.class.getName());
 
     private GeminiChat chat;
-    private GeminiConfig config;
+    private SwingGeminiConfig config;
 
     private JLabel usageLabel;
     private JToolBar toolbar;
@@ -60,6 +60,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
     private JPanel chatContentPanel;
     private ContextHeatmapPanel heatmapPanel;
     private JTabbedPane tabbedPane;
+    
+    private SystemInstructionsPanel systemInstructionsPanel;
 
     public GeminiPanel() {
         this(new DefaultEditorKitProvider());
@@ -70,7 +72,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         this.editorKitProvider = editorKitProvider;
     }
 
-    public void init(GeminiConfig config) {
+    public void init(SwingGeminiConfig config) {
         this.config = config;
         JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider);
@@ -170,9 +172,12 @@ public class GeminiPanel extends JPanel implements ContextListener {
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
         
+        systemInstructionsPanel = new SystemInstructionsPanel(chat, editorKitProvider, config);
+        
         tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Chat", chatScrollPane);
         tabbedPane.addTab("Context Heatmap", heatmapPanel);
+        tabbedPane.addTab("System Instructions", systemInstructionsPanel);
         
         add(tabbedPane, BorderLayout.CENTER);
 
@@ -270,6 +275,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             updateUsageLabel(null);
             heatmapPanel.updateContext(Collections.emptyList());
             attachmentsPanel.clearStagedParts();
+            systemInstructionsPanel.refresh();
             initChatInSwingWorker();
         });
     }
@@ -302,6 +308,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             }
 
             heatmapPanel.updateContext(currentContext);
+            systemInstructionsPanel.refresh();
             chatContentPanel.revalidate();
             chatContentPanel.repaint();
 

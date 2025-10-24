@@ -12,6 +12,7 @@ import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.internal.GsonUtils;
+import uno.anahata.gemini.spi.SystemInstructionProvider;
 
 public class GeminiChat {
 
@@ -54,11 +55,25 @@ public class GeminiChat {
     public static GeminiChat get() {
         return currentChat.get();
     }
+    
+    public List<SystemInstructionProvider> getSystemInstructionProviders() {
+        return config.getSystemInstructionProviders();
+    }
 
     private Content buildSystemInstructions() {
         List<Part> parts = new ArrayList<>();
-        parts.add(config.getCoreSystemInstructionPart());
-        parts.addAll(config.getHostSpecificSystemInstructionParts());
+        
+        for (SystemInstructionProvider provider : config.getSystemInstructionProviders()) {
+            if (provider.isEnabled()) {
+                try {
+                    parts.addAll(provider.getInstructionParts());
+                } catch (Exception e) {
+                    logger.log(Level.WARNING, "SystemInstructionProvider " + provider.getId() + " threw an exception", e);
+                    // Optionally add an error part to the instructions
+                    parts.add(Part.fromText("Error in " + provider.getDisplayName() + ": " + e.getMessage()));
+                }
+            }
+        }
 
         String chatStatusBlock = "- Chat: " + this + "\n";
         chatStatusBlock += "- Model Id: " + config.getApi().getModelId() + "\n";
@@ -83,8 +98,6 @@ public class GeminiChat {
         contextStatusBlock += contextManager.getSummaryAsString();
         contextStatusBlock += "\n-------------------------------------------------------------------";
         parts.add(Part.fromText(contextStatusBlock));
-
-        parts.add(config.getSystemInstructionsAppendix());
 
         return Content.builder().parts(parts).build();
     }
@@ -289,8 +302,24 @@ public class GeminiChat {
                 .collect(Collectors.toList());
     }
 
+    public GeminiConfig getConfig() {
+        return config;
+    }
+
+    public String getLastApiError() {
+        return lastApiError;
+    }
+
+    public boolean isIsProcessing() {
+        return isProcessing;
+    }
+
+    public Date getStartTime() {
+        return startTime;
+    }
+
     public Client getGoogleGenAIClient() {
-        return config.getClient();
+        return config.getApi().getClient();
     }
 
     public List<ChatMessage> getContext() {

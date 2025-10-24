@@ -4,12 +4,9 @@ import com.google.genai.Client;
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -17,14 +14,17 @@ import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.Preferences;
-import java.util.stream.Collectors;
 import uno.anahata.gemini.functions.FunctionConfirmation;
+import uno.anahata.gemini.spi.SystemInstructionProvider;
+import uno.anahata.gemini.spi.providers.CoreDynamicEnvProvider;
+import uno.anahata.gemini.spi.providers.CoreSystemInstructionsMdFileProvider;
 
 public abstract class GeminiConfig {
 
+    private final GeminiAPI api = new GeminiAPI(this);
+
     public static final Logger logger = Logger.getLogger(GeminiConfig.class.getName());
-    private static final String SYSTEM_INSTRUCTIONS;
-    
+
     private final transient Preferences prefs = Preferences.userNodeForPackage(GeminiConfig.class);
 
     static {
@@ -34,29 +34,26 @@ public abstract class GeminiConfig {
         } else if (!workDir.isDirectory()) {
             throw new RuntimeException("work.dir is not a directory: " + workDir);
         }
-        SYSTEM_INSTRUCTIONS = loadManual("system-instructions.md");
     }
 
-    public abstract GeminiAPI getApi();
+    public GeminiAPI getApi() {
+        return api;
+    }
 
     public abstract String getApplicationInstanceId();
 
-    public Client getClient() {
-        return getApi().getClient();
+    public List<SystemInstructionProvider> getSystemInstructionProviders() {
+        List<SystemInstructionProvider> providers = new ArrayList<>();
+        providers.add(new CoreSystemInstructionsMdFileProvider());
+        providers.add(new CoreDynamicEnvProvider());
+        providers.addAll(getApplicationSpecificInstructionProviders());
+        return providers;
     }
 
-    public Part getCoreSystemInstructionPart() {
-        String processedManual = SYSTEM_INSTRUCTIONS
-                .replace("${work.dir}", getWorkingFolder().getAbsolutePath());
-        return Part.fromText(processedManual);
+    public List<SystemInstructionProvider> getApplicationSpecificInstructionProviders() {
+        return Collections.emptyList();
     }
-
-    public abstract List<Part> getHostSpecificSystemInstructionParts();
-
-    public Part getSystemInstructionsAppendix() {
-        return Part.fromText(computeDynamicEnvSummary());
-    }
-
+    
     public Content getStartupContent() {
         List<Part> parts = getStartupParts();
         return Content.fromParts(parts.toArray(new Part[parts.size()]));
@@ -76,8 +73,9 @@ public abstract class GeminiConfig {
             logger.info("File  " + startupDotMd + " does not exist, no startup message will be sent to the model");
             return Collections.EMPTY_LIST;
         }
-
     }
+
+    
 
     public List<Class<?>> getAutomaticFunctionClasses() {
         return Collections.emptyList();
@@ -97,29 +95,6 @@ public abstract class GeminiConfig {
             f.mkdirs();
         }
         return f;
-    }
-
-    private static String loadManual(String resourceName) {
-        try (InputStream is = GeminiConfig.class.getResourceAsStream(resourceName)) {
-            if (is == null) {
-                return "Error: Could not find resource " + resourceName;
-            }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                return reader.lines().collect(Collectors.joining("\n"));
-            }
-        } catch (Exception e) {
-            return "Error loading " + resourceName + ": " + e.getMessage();
-        }
-    }
-
-    private String computeDynamicEnvSummary() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("\n# Dynamic Environment Details");
-        sb.append("\n# ---------------------------\n");
-        sb.append("- **GeminiConfig: **: ").append(this).append("\n");
-        sb.append("- **System Properties**: ").append(System.getProperties().toString()).append("\n");
-        sb.append("- **Environment variables**: ").append(System.getenv().toString()).append("\n");
-        return sb.toString();
     }
 
     // --- Preference Management ---
@@ -161,7 +136,7 @@ public abstract class GeminiConfig {
                 return;
         }
     }
-    
+
     public void clearFunctionConfirmation(FunctionCall fc) {
         prefs.remove(getPreferenceKey(fc, true));
         prefs.remove(getPreferenceKey(fc, false));
