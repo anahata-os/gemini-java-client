@@ -6,6 +6,10 @@ import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -16,6 +20,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.functions.FunctionConfirmation;
+import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.internal.GsonUtils;
 
 public class FunctionsPanel extends JScrollPane {
     private final GeminiChat chat;
@@ -31,8 +37,8 @@ public class FunctionsPanel extends JScrollPane {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         
-        for (FunctionDeclaration fd : chat.getFunctionManager().getFunctionTool().functionDeclarations().get()) {
-            mainPanel.add(createFunctionControlPanel(fd));
+        for (FunctionManager.FunctionInfo fi : chat.getFunctionManager().getFunctionInfos()) {
+            mainPanel.add(createFunctionControlPanel(fi));
             mainPanel.add(Box.createVerticalStrut(8));
         }
         
@@ -40,24 +46,47 @@ public class FunctionsPanel extends JScrollPane {
         getVerticalScrollBar().setUnitIncrement(16);
     }
 
-    private JPanel createFunctionControlPanel(FunctionDeclaration fd) {
+    private JPanel createFunctionControlPanel(FunctionManager.FunctionInfo fi) {
+        FunctionDeclaration fd = fi.getDeclaration();
+        Method method = fi.getMethod();
+        
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(fd.name().get()));
+        panel.setBorder(BorderFactory.createTitledBorder("<html><b>" + fd.name().get() + "</b></html>"));
         
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(2, 4, 2, 4);
+        gbc.insets = new Insets(4, 8, 4, 8);
 
-        JLabel description = new JLabel("<html>" + fd.description().get().replace("\n", "<br>") + "</html>");
+        // Java Method Signature
+        String methodSignature = "<html><b>" + method.getReturnType().getSimpleName() + "</b> " + method.getName() + "(" + 
+                                 Stream.of(method.getParameters())
+                                       .map(p -> p.getType().getSimpleName() + " " + p.getName())
+                                       .collect(Collectors.joining(", ")) + 
+                                 ")</html>";
+        JLabel methodLabel = new JLabel(methodSignature);
+        panel.add(methodLabel, gbc);
+        
+        gbc.gridy++;
+        
+        // Description
+        String descriptionText = "<html>" + fd.description().get().replace("\n", "<br>") + "</html>";
+        JLabel description = new JLabel(descriptionText);
         panel.add(description, gbc);
 
         gbc.gridy++;
+
+        // Full FunctionDeclaration JSON
+        String jsonSchema = "<html><pre>" + GsonUtils.prettyPrint(fd).replace("\n", "<br>").replace(" ", "&nbsp;") + "</pre></html>";
+        JLabel schemaLabel = new JLabel(jsonSchema);
+        panel.add(schemaLabel, gbc);
+        
+        gbc.gridy++;
         gbc.weightx = 0;
         gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
+        gbc.anchor = GridBagConstraints.WEST;
         
         panel.add(createButtonGroup(fd), gbc);
         

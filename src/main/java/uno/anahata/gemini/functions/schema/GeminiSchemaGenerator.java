@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package uno.anahata.gemini.functions.util;
+package uno.anahata.gemini.functions.schema;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -55,6 +55,15 @@ public class GeminiSchemaGenerator {
         if (clazz == null || clazz == void.class || clazz == Void.class) {
             return null;
         }
+        
+        if (primitiveMap.containsKey(clazz)) {
+            return "Returns a " + clazz.getSimpleName();
+        }
+        
+        if (clazz == Class.class) {
+            return "Returns an object of type java.lang.Class";
+        }
+        
         Schema schema = generateSchema(clazz, "Schema for " + clazz.getSimpleName());
         return GsonUtils.prettyPrint(schema);
     }

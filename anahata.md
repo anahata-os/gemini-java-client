@@ -58,8 +58,17 @@ This package contains helper classes and custom serializers.
 
 ## 4. Current Status & Known Issues
 
-The core framework is robust and functional. The immediate focus is on refining the reliability of AI-driven code modification and UI rendering.
+Pruning FunctionCall(s) and leaving the FunctionResponse(s)only can cause this error: 
 
-- **Process Improvement:** The AI's file modification strategy has been updated from using the error-prone `replaceLines` to a safer "Read-Modify-Write" pattern using `writeFile` to prevent syntax errors.
+com.google.genai.errors.ClientException: 400 . Please ensure that function response turn comes immediately after a function call turn.
+	at com.google.genai.errors.ApiException.throwFromResponse(ApiException.java:94)
+	at com.google.genai.HttpApiResponse.getBody(HttpApiResponse.java:37)
+	at com.google.genai.Models.processResponseForPrivateGenerateContent(Models.java:6545)
+	at com.google.genai.Models.privateGenerateContent(Models.java:6596)
+	at com.google.genai.Models.generateContent(Models.java:7869)
+[catch] at uno.anahata.gemini.GeminiChat.sendToModelWithRetry(GeminiChat.java:247)
 
-This document provides a snapshot of the project's current state and architecture.
+
+Node Decoration still not working
+
+Kryo serialization of chat not implemented

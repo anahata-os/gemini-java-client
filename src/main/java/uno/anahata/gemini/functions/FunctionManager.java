@@ -21,7 +21,7 @@ import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
-import uno.anahata.gemini.functions.util.GeminiSchemaGenerator;
+import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
 
 public class FunctionManager {
 
@@ -34,9 +34,17 @@ public class FunctionManager {
     private final Tool coreTools;
     private final ToolConfig toolConfig;
     private final FailureTracker failureTracker;
+    private final List<FunctionInfo> functionInfos = new ArrayList<>();
 
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
+    
+    @Getter
+    @AllArgsConstructor
+    public static class FunctionInfo {
+        private final FunctionDeclaration declaration;
+        private final Method method;
+    }
     
     @Getter
     @AllArgsConstructor
@@ -83,6 +91,7 @@ public class FunctionManager {
                     FunctionDeclaration fd = fromMethod(m);
                     functionCallMethods.put(fd.name().get(), m);
                     fds.add(fd);
+                    functionInfos.add(new FunctionInfo(fd, m));
                 }
             }
         }
@@ -294,6 +303,10 @@ public class FunctionManager {
 
     public Tool getFunctionTool() {
         return coreTools;
+    }
+    
+    public List<FunctionInfo> getFunctionInfos() {
+        return Collections.unmodifiableList(functionInfos);
     }
 
     public ToolConfig getToolConfig() {

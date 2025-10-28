@@ -1,4 +1,4 @@
-package uno.anahata.gemini.functions.util;
+package uno.anahata.gemini.functions.schema;
 
 import com.google.genai.types.FunctionCall;
 import com.google.gson.Gson;
