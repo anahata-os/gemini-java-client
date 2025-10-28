@@ -211,57 +211,79 @@ public class ContextManager {
     }
 
     public synchronized void pruneParts(String messageUID, List<Number> partIndices, String reason) {
-        for (int i = 0; i < context.size(); i++) {
-            ChatMessage message = context.get(i);
-            if (message.getId().equals(messageUID)) {
-                Content originalContent = message.getContent();
-                if (originalContent == null || !originalContent.parts().isPresent()) {
-                    log.warn("Message {} has no parts to prune.", messageUID);
-                    return;
-                }
+        Optional<ChatMessage> targetMessageOpt = context.stream()
+                .filter(m -> m.getId().equals(messageUID))
+                .findFirst();
 
-                List<Part> originalParts = originalContent.parts().get();
-                List<Part> partsToKeep = new ArrayList<>();
+        if (targetMessageOpt.isEmpty()) {
+            log.warn("Could not find message with ID {} to prune parts.", messageUID);
+            return;
+        }
 
-                final Set<Long> indicesToPrune = partIndices.stream()
-                        .map(Number::longValue)
-                        .collect(Collectors.toSet());
+        ChatMessage targetMessage = targetMessageOpt.get();
+        Content originalContent = targetMessage.getContent();
+        if (originalContent == null || !originalContent.parts().isPresent()) {
+            log.warn("Message {} has no parts to prune.", messageUID);
+            return;
+        }
 
-                for (int j = 0; j < originalParts.size(); j++) {
-                    if (!indicesToPrune.contains((long) j)) {
-                        partsToKeep.add(originalParts.get(j));
-                    }
-                }
+        List<Part> originalParts = originalContent.parts().get();
+        Set<Part> partsToPrune = new HashSet<>();
+        Set<Long> indicesToPrune = partIndices.stream()
+                .map(Number::longValue)
+                .collect(Collectors.toSet());
 
-                if (partsToKeep.size() == originalParts.size()) {
-                    log.warn("None of the specified part indices {} found in message {}", partIndices, messageUID);
-                    return;
-                }
-
-                log.info("Pruning {} part(s) from message {}. Reason: {}", originalParts.size() - partsToKeep.size(), messageUID, reason);
-
-                if (partsToKeep.isEmpty()) {
-                    context.remove(i);
-                    log.info("Message {} became empty and was removed after pruning parts.", messageUID);
-                    notifyHistoryChange();
-                } else {
-                    Content newContent = Content.builder()
-                            .role(originalContent.role().orElse(null))
-                            .parts(partsToKeep)
-                            .build();
-
-                    ChatMessage replacement = new ChatMessage(
-                            message.getId(), message.getModelId(), newContent, message.getParentId(),
-                            message.getUsageMetadata(), message.getGroundingMetadata(), message.getPartLinks()
-                    );
-                    replacement.setFunctionResponses(message.getFunctionResponses());
-                    context.set(i, replacement);
-                    notifyHistoryChange();
-                }
-                return;
+        for (int i = 0; i < originalParts.size(); i++) {
+            if (indicesToPrune.contains((long) i)) {
+                partsToPrune.add(originalParts.get(i));
             }
         }
-        log.warn("Could not find message with ID {} to prune parts.", messageUID);
+
+        if (partsToPrune.isEmpty()) {
+            log.warn("None of the specified part indices {} were valid for message {}", partIndices, messageUID);
+            return;
+        }
+
+        // --- Dependency Resolution ---
+        // Create a comprehensive map of all call/response links in the entire context
+        Map<Part, Part> callToResponse = new HashMap<>();
+        Map<Part, Part> responseToCall = new HashMap<>();
+        for (ChatMessage msg : context) {
+            if (msg.getPartLinks() != null) {
+                for (Map.Entry<Part, Part> entry : msg.getPartLinks().entrySet()) {
+                    // entry.getKey() is response, entry.getValue() is call
+                    responseToCall.put(entry.getKey(), entry.getValue());
+                    callToResponse.put(entry.getValue(), entry.getKey());
+                }
+            }
+        }
+
+        Set<Part> fullPruneSet = new HashSet<>(partsToPrune);
+        // Use a list to avoid ConcurrentModificationException while iterating and adding
+        List<Part> partsToCheck = new ArrayList<>(partsToPrune); 
+        
+        while (!partsToCheck.isEmpty()) {
+            Part part = partsToCheck.remove(0);
+            
+            // If it's a FunctionCall, find and add its FunctionResponse
+            if (part.functionCall().isPresent()) {
+                Part response = callToResponse.get(part);
+                if (response != null && fullPruneSet.add(response)) {
+                    partsToCheck.add(response);
+                }
+            }
+            
+            // If it's a FunctionResponse, find and add its FunctionCall
+            if (part.functionResponse().isPresent()) {
+                Part call = responseToCall.get(part);
+                if (call != null && fullPruneSet.add(call)) {
+                    partsToCheck.add(call);
+                }
+            }
+        }
+        
+        log.info("Pruning {} part(s) including dependencies. Reason: {}", fullPruneSet.size(), reason);
+        prunePartsByReference(new ArrayList<>(fullPruneSet), reason);
     }
 
     public synchronized void prunePartsByReference(List<Part> partsToPrune, String reason) {

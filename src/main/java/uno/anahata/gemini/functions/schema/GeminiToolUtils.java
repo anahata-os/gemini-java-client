@@ -65,7 +65,7 @@ public class GeminiToolUtils {
         for (Parameter param : method.getParameters()) {
             AIToolMethod paramAnnotation = param.getAnnotation(AIToolMethod.class);
             String description = paramAnnotation != null ? paramAnnotation.value() : param.getName();
-            Schema type = GeminiSchemaGenerator.generateSchema(param.getType(), description);
+            Schema type = GeminiSchemaGenerator2.generateSchema(param.getType(), description);
             paramSchemas.put(param.getName(), type);
         }
 
@@ -76,7 +76,7 @@ public class GeminiToolUtils {
         // Combine method description with response schema
         String toolDescription = makeToolDescription(method);
 
-        Schema responseSchema = GeminiSchemaGenerator.generateSchema(method.getReturnType(), toolDescription);
+        Schema responseSchema = GeminiSchemaGenerator2.generateSchema(method.getReturnType(), toolDescription);
 
         FunctionDeclaration declaration = FunctionDeclaration.builder()
                 .name(toolName)

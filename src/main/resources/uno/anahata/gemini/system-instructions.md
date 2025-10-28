@@ -83,7 +83,7 @@ b) minimize round trips.
 c) minimize latency.
 d) minimize total context size (smaller contexts "can" lead to lower latency in some cases)
 
-## Context Prunning 
+## Context Pruning 
 --------------------
 A "session" or "conversation" starts when the chat starts (first message from the user). Every time a message (Content) gets sent to / received from the model
 (including tool calls and responses), those messages (Content) and its corresponding parts (Part) is what makes the chat's context.
@@ -100,6 +100,9 @@ Your job is to manage the context entries in the most token-count efficient way 
 are no longer relevant for the tasks in progress but keeping relevant ones. If you anticipate that the context window (max tokens) is not going to be big enough
 or that the latency is increasing a lot due to the context size (what makes the prompt of the next request) or you can see api errors regaring the model being overloaded,
 feel free to work with the user to take notes and break the task into smaller tasks.
+
+### Critical Pruning Rule: Do Not Separate Calls from Responses
+A model turn containing a `FunctionCall` part and the subsequent `tool` turn containing its corresponding `FunctionResponse` part are a single, indivisible unit. You **MUST NOT** prune one without the other. Pruning a `FunctionCall` while leaving its `FunctionResponse` (or vice-versa) will corrupt the conversation history, violate the API protocol, and cause a `400 Bad Request` error on the next API call. When pruning, always remove the call and its response together.
 
 Use the tool **`ContextWindow.pruneMessage`** and **`ContextWindow.pruneParts`** with the identifiers of **redundant** context entries and a description explaining the reson/rationale for the removal of each of those entries.
 You must bach context pruning tool calls as a "background process" unless otherwise instructed by the user.

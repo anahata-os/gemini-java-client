@@ -13,6 +13,8 @@ import uno.anahata.gemini.functions.spi.*;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.lang.reflect.Modifier;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +23,7 @@ import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
-import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
+import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator2;
 
 @Slf4j
 public class FunctionManager {
@@ -39,21 +41,18 @@ public class FunctionManager {
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
     
-    @Getter
     @AllArgsConstructor
     public static class FunctionInfo {
-        private final FunctionDeclaration declaration;
-        private final Method method;
+        public final FunctionDeclaration declaration;
+        public final Method method;
     }
     
-    @Getter
     @AllArgsConstructor
     public static class FunctionProcessingResult {
-        private final List<FunctionResponse> responses;
-        private final List<FunctionCall> deniedCalls;
-        private final String userComment;
-        // NEW FIELD: Maps a generated FunctionResponse to the Part that contained its FunctionCall.
-        private final Map<FunctionResponse, Part> responseToCallLinks;
+        public final List<FunctionResponse> responses;
+        public final List<FunctionCall> deniedCalls;
+        public final String userComment;
+        public final Map<FunctionResponse, Part> responseToCallLinks;
     }
     
     public FunctionManager(GeminiChat chat, GeminiConfig config, FunctionPrompter prompter) {
@@ -135,7 +134,6 @@ public class FunctionManager {
             return new FunctionProcessingResult(Collections.emptyList(), promptResult.deniedFunctions, promptResult.userComment, Collections.emptyMap());
         }
 
-        // NEW: Map to store the links from the generated response back to the call part.
         Map<FunctionResponse, Part> responseToCallLinks = new HashMap<>();
         List<? extends Part> originalParts = modelResponseMessage.getContent().parts().get();
 
@@ -203,7 +201,6 @@ public class FunctionManager {
                     .build();
                 responses.add(fr);
 
-                // NEW: Find the original Part and create the link.
                 for (Part part : originalParts) {
                     if (part.functionCall().isPresent() && part.functionCall().get() == approvedCall) {
                         responseToCallLinks.put(fr, part);
@@ -261,11 +258,24 @@ public class FunctionManager {
         AIToolMethod methodAnnotation = method.getAnnotation(AIToolMethod.class);
         
         StringBuilder descriptionBuilder = new StringBuilder(methodAnnotation.value());
-        String returnTypeSchema = GeminiSchemaGenerator.generateSchemaAsString(method.getReturnType());
         
-        if (returnTypeSchema != null) {
-            descriptionBuilder.append("\n\nReturns an object with the following JSON schema:\n").append(returnTypeSchema);
+        // Generate and append the full method signature to the description
+        String signature = Modifier.toString(method.getModifiers())
+                + " " + method.getReturnType().getSimpleName()
+                + " " + method.getName() + "("
+                + Stream.of(method.getParameters())
+                        .map(p -> p.getType().getSimpleName() + " " + p.getName())
+                        .collect(Collectors.joining(", "))
+                + ")";
+
+        if (method.getExceptionTypes().length > 0) {
+            signature += " throws " + Stream.of(method.getExceptionTypes())
+                    .map(Class::getSimpleName)
+                    .collect(Collectors.joining(", "));
         }
+        descriptionBuilder.append("\n\njava method signature: ").append(signature);
+        
+        Schema responseSchema = GeminiSchemaGenerator2.generateSchema(method.getReturnType(), "Schema for " + method.getReturnType().getSimpleName());
 
         Map<String, Schema> properties = new HashMap<>();
         List<String> required = new ArrayList<>();
@@ -275,14 +285,14 @@ public class FunctionManager {
             AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
             String paramDescription = (paramAnnotation != null) ? paramAnnotation.value() : "No description";
             
-            properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), paramDescription));
+            properties.put(paramName, GeminiSchemaGenerator2.generateSchema(p.getType(), paramDescription));
             required.add(paramName);
         }
         
         properties.put("asynchronous", Schema.builder().type(Type.Known.BOOLEAN).description("Set to true to run this task in the background and return a job ID immediately.").build());
 
         Schema paramsSchema = Schema.builder()
-                .type("OBJECT")
+                .type(Type.Known.OBJECT)
                 .properties(properties)
                 .required(required)
                 .build();
@@ -296,6 +306,7 @@ public class FunctionManager {
                 .name(finalToolName)
                 .description(descriptionBuilder.toString())
                 .parameters(paramsSchema)
+                .response(responseSchema)
                 .build();
     }
 

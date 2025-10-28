@@ -1,5 +1,6 @@
 package uno.anahata.gemini.functions.pojos;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,17 +14,18 @@ import uno.anahata.gemini.context.StatefulResource;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "A POJO holding file metadata and content, used for context-aware file operations.")
 public class FileInfo implements StatefulResource {
-    /** The absolute path to the file. */
+    @Schema(description = "The absolute path to the file.")
     public String path;
 
-    /** The text content of the file. */
+    @Schema(description = "The text content of the file.")
     public String content;
 
-    /** The last modified timestamp of the file, in milliseconds since the epoch. */
+    @Schema(description = "The last modified timestamp of the file, in milliseconds since the epoch.")
     public long lastModified;
 
-    /** The size of the file in bytes. */
+    @Schema(description = "The size of the file in bytes.")
     public long size;
 
     @Override

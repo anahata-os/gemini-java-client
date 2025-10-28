@@ -168,66 +168,99 @@ public class GeminiChat {
     }
 
     private boolean processAndReloopForFunctionCalls(ChatMessage modelMessageWithCalls) {
-        FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
-        List<FunctionResponse> functionResponses = processingResult.getResponses();
+        // Step 1: Check for function calls and if they are enabled.
+        List<FunctionCall> allProposedCalls = modelMessageWithCalls.getContent().parts().orElse(Collections.emptyList()).stream()
+                .filter(part -> part.functionCall().isPresent())
+                .map(part -> part.functionCall().get())
+                .collect(Collectors.toList());
 
-        boolean hasFeedback = (processingResult.getDeniedCalls() != null && !processingResult.getDeniedCalls().isEmpty())
-                           || (processingResult.getUserComment() != null && !processingResult.getUserComment().trim().isEmpty());
+        if (allProposedCalls.isEmpty()) {
+            return false; // No function calls, so we break the loop.
+        }
 
-        if (hasFeedback) {
-            StringBuilder feedbackText = new StringBuilder("User has provided feedback on the proposed tool calls:\n");
-            if (processingResult.getDeniedCalls() != null && !processingResult.getDeniedCalls().isEmpty()) {
-                String denied = processingResult.getDeniedCalls().stream()
+        if (!functionsEnabled) {
+            String attemptedCalls = allProposedCalls.stream()
                     .map(fc -> fc.name().orElse("unnamed function"))
                     .collect(Collectors.joining(", "));
-                feedbackText.append("- The following calls were denied: [").append(denied).append("]\n");
+            String feedbackText = "User Feedback: The model attempted to call the following tool(s) while local functions were disabled: [" + attemptedCalls + "]. The calls were ignored.";
+            Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText)).build();
+            ChatMessage feedbackMessage = new ChatMessage(config.getApi().getModelId(), feedbackContent, null, null, null);
+            contextManager.add(feedbackMessage);
+            return false; // Stop processing and do not re-loop.
+        }
+
+        // Step 2: Process the function calls (prompt user, execute, etc.)
+        FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
+        List<FunctionResponse> functionResponses = processingResult.responses;
+
+        // Step 3: If there are responses, add the TOOL message to the context IMMEDIATELY.
+        // This is critical to maintain the [MODEL: FunctionCall] -> [TOOL: FunctionResponse] sequence.
+        if (!functionResponses.isEmpty()) {
+            modelMessageWithCalls.setFunctionResponses(functionResponses);
+
+            Map<Part, Part> partLinks = new HashMap<>();
+            List<Part> responseParts = new ArrayList<>();
+
+            for (FunctionResponse fr : functionResponses) {
+                Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
+                Part responsePart = Part.fromFunctionResponse(fr.name().get(), responseMap);
+                responseParts.add(responsePart);
+
+                Part sourceCallPart = processingResult.responseToCallLinks.get(fr);
+                if (sourceCallPart != null) {
+                    partLinks.put(responsePart, sourceCallPart);
+                }
             }
-            if (processingResult.getUserComment() != null && !processingResult.getUserComment().trim().isEmpty()) {
-                feedbackText.append("- User's comment: '").append(processingResult.getUserComment()).append("'\n");
+
+            Content functionResponseContent = Content.builder()
+                    .role("tool")
+                    .parts(responseParts)
+                    .build();
+
+            ChatMessage functionResponseMessage = new ChatMessage(
+                    UUID.randomUUID().toString(),
+                    config.getApi().getModelId(),
+                    functionResponseContent,
+                    modelMessageWithCalls.getId(),
+                    null,
+                    null,
+                    partLinks
+            );
+            contextManager.add(functionResponseMessage);
+        }
+
+        // Step 4: Now, formulate and add the USER feedback message (if any).
+        boolean wasAutopilot = "Autopilot".equals(processingResult.userComment);
+        boolean hasDeniedCalls = processingResult.deniedCalls != null && !processingResult.deniedCalls.isEmpty();
+        boolean hasNonAutopilotComment = processingResult.userComment != null && !processingResult.userComment.trim().isEmpty() && !wasAutopilot;
+
+        if (wasAutopilot || hasDeniedCalls || hasNonAutopilotComment) {
+            StringBuilder feedbackText = new StringBuilder("User has provided feedback on the proposed tool calls:\n");
+            
+            if (wasAutopilot) {
+                int approvedCount = processingResult.responses.size();
+                feedbackText.append("- Autopilot: ").append(approvedCount).append(" tool call(s) were pre-approved and executed automatically.\n");
             }
             
+            if (hasDeniedCalls) {
+                String denied = processingResult.deniedCalls.stream()
+                        .map(fc -> fc.name().orElse("unnamed function"))
+                        .collect(Collectors.joining(", "));
+                feedbackText.append("- The following calls were denied: [").append(denied).append("]\n");
+            }
+            
+            if (hasNonAutopilotComment) {
+                feedbackText.append("- User's comment: '").append(processingResult.userComment).append("'\n");
+            }
+
             Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText.toString())).build();
             ChatMessage feedbackMessage = new ChatMessage(config.getApi().getModelId(), feedbackContent, null, null, null);
             contextManager.add(feedbackMessage);
         }
 
-        if (functionResponses.isEmpty()) {
-            return hasFeedback;
-        }
-
-        modelMessageWithCalls.setFunctionResponses(functionResponses);
-
-        Map<Part, Part> partLinks = new HashMap<>();
-        List<Part> responseParts = new ArrayList<>();
-
-        for (FunctionResponse fr : functionResponses) {
-            Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
-            Part responsePart = Part.fromFunctionResponse(fr.name().get(), responseMap);
-            responseParts.add(responsePart);
-            
-            Part sourceCallPart = processingResult.getResponseToCallLinks().get(fr);
-            if (sourceCallPart != null) {
-                partLinks.put(responsePart, sourceCallPart);
-            }
-        }
-            
-        Content functionResponseContent = Content.builder()
-            .role("tool")
-            .parts(responseParts)
-            .build();
-            
-        ChatMessage functionResponseMessage = new ChatMessage(
-            UUID.randomUUID().toString(),
-            config.getApi().getModelId(),
-            functionResponseContent,
-            modelMessageWithCalls.getId(),
-            null,
-            null,
-            partLinks
-        );
-        contextManager.add(functionResponseMessage);
-        
-        return true;
+        // Step 5: Decide whether to re-loop.
+        // We re-loop if we executed any functions OR if the user provided feedback (e.g., denied a call).
+        return !functionResponses.isEmpty() || hasDeniedCalls || hasNonAutopilotComment;
     }
 
     private void recordLastApiError(Exception e) {
