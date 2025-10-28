@@ -3,13 +3,13 @@ package uno.anahata.gemini.ui;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
 import java.awt.Dimension;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Main {
-    private static final Logger logger = Logger.getLogger(Main.class.getName());
     public static void main(String[] args) {
         
         /*
@@ -41,7 +41,7 @@ public class Main {
         });
         
         Thread.setDefaultUncaughtExceptionHandler((thread, thrwbl) -> {
-            logger.log(Level.SEVERE, "Uncaught exception in " + thread, thrwbl);
+            log.error("Uncaught exception in " + thread, thrwbl);
         });
     }
 }

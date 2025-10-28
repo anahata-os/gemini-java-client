@@ -16,19 +16,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.GeminiConfig;
 
 /**
  *
  * @author pablo
  */
+@Slf4j
 public class UICapture {
 
-    private static final Logger logger = Logger.getLogger(UICapture.class.getName());
     public static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMdd-HHmmss");
     
     public static final File SCREENSHOTS_DIR = GeminiConfig.getWorkingFolder("screenshots");
@@ -51,7 +51,7 @@ public class UICapture {
                 ret.add(tempFile);
             }
         } catch (Exception ex) {
-            logger.log(Level.SEVERE, "Screenshot capture failed", ex);
+            log.error("Screenshot capture failed", ex);
             JOptionPane.showMessageDialog(null, "Could not take screenshot: " + ex.getMessage(), "Screenshot Error", JOptionPane.ERROR_MESSAGE);
         }
         return ret;
@@ -87,7 +87,7 @@ public class UICapture {
                 JOptionPane.showMessageDialog(null, "No visible application frames were found to capture.", "Capture Info", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (IOException ex) {
-            logger.log(Level.SEVERE, "JFrame capture failed", ex);
+            log.error("JFrame capture failed", ex);
             JOptionPane.showMessageDialog(null, "Could not capture frame: " + ex.getMessage(), "Capture Error", JOptionPane.ERROR_MESSAGE);
         }
 

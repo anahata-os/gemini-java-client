@@ -21,9 +21,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextManager;
@@ -34,9 +34,8 @@ import uno.anahata.gemini.functions.spi.ContextWindow;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.context.ContextListener;
 
+@Slf4j
 public class GeminiPanel extends JPanel implements ContextListener {
-
-    private static final Logger logger = Logger.getLogger(GeminiPanel.class.getName());
 
     private GeminiChat chat;
     private SwingGeminiConfig config;
@@ -154,7 +153,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             String selectedModel = (String) modelIdComboBox.getSelectedItem();
             if (selectedModel != null && config != null && config.getApi() != null) {
                 config.getApi().setModelId(selectedModel);
-                logger.log(Level.INFO, "Model ID changed to: {0}", selectedModel);
+                log.info("Model ID changed to: {}", selectedModel);
             }
         });
 
@@ -245,7 +244,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                     attachmentsPanel.addStagedFile(file);
                 }
             } catch (Exception ex) {
-                logger.log(Level.WARNING, "Drag and drop failed", ex);
+                log.warn("Drag and drop failed", ex);
             }
         }
     }
@@ -289,7 +288,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
     @Override
     public void contextChanged(GeminiChat source) {
         SwingUtilities.invokeLater(() -> {
-            logger.info("Context changed. Performing full UI redraw.");
+            log.info("Context changed. Performing full UI redraw.");
             chatContentPanel.removeAll();
             List<ChatMessage> currentContext = chat.getContext();
 
@@ -392,7 +391,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 try {
                     get();
                 } catch (Exception e) {
-                    logger.log(Level.SEVERE, "Exception sending message", e);
+                    log.error("Exception sending message", e);
                 } finally {
                     attachmentsPanel.clearStagedParts();
                     enableInputFieldAndRequestAndFocus();
@@ -432,7 +431,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 JOptionPane.showMessageDialog(this, "Session saved successfully as " + sessionName, "Success", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (IOException ex) {
-            logger.log(Level.SEVERE, "Failed to save session", ex);
+            log.error("Failed to save session", ex);
             JOptionPane.showMessageDialog(this, "Error saving session: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -453,7 +452,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 JOptionPane.showMessageDialog(this, "Session loaded successfully from " + sessionId, "Success", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (IOException ex) {
-            logger.log(Level.SEVERE, "Failed to load session", ex);
+            log.error("Failed to load session", ex);
             JOptionPane.showMessageDialog(this, "Error loading session: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }

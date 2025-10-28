@@ -7,7 +7,6 @@ import com.google.gson.JsonElement;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.*;
-import java.util.logging.Logger;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.spi.*;
@@ -16,6 +15,7 @@ import java.lang.reflect.Modifier;
 import java.util.logging.Level;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Executors;
@@ -23,9 +23,9 @@ import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
 
+@Slf4j
 public class FunctionManager {
 
-    private static final Logger logger = Logger.getLogger(FunctionManager.class.getName());
     private static final Gson GSON = new Gson();
 
     private final GeminiChat chat;
@@ -70,9 +70,9 @@ public class FunctionManager {
         if (prompter != null && config.getAutomaticFunctionClasses() != null) {
             allClasses.addAll(config.getAutomaticFunctionClasses());
         }
-        logger.info("FunctionManager scanning classes for @AIToolMethod: " + allClasses);
+        log.info("FunctionManager scanning classes for @AIToolMethod: " + allClasses);
         this.coreTools = makeFunctionsTool(allClasses.toArray(new Class<?>[0]));
-        logger.info("FunctionManager created. Total Function Declarations: " + coreTools.functionDeclarations().get().size());
+        log.info("FunctionManager created. Total Function Declarations: " + coreTools.functionDeclarations().get().size());
 
         this.toolConfig = makeToolConfigForFunctionCalling();
     }
@@ -123,7 +123,7 @@ public class FunctionManager {
 
         PromptResult promptResult;
         if (allAlwaysApproved) {
-            logger.info("Autopilot: All function calls are pre-approved. Skipping confirmation dialog.");
+            log.info("Autopilot: All function calls are pre-approved. Skipping confirmation dialog.");
             promptResult = new PromptResult(allProposedCalls, Collections.emptyList(), "Autopilot");
         } else {
             promptResult = prompter.prompt(modelResponseMessage, this.chat);
@@ -171,11 +171,11 @@ public class FunctionManager {
                             Object result = invokeFunctionMethod(method, args);
                             completedJobInfo.setStatus(JobStatus.COMPLETED);
                             completedJobInfo.setResult(result);
-                            logger.info("Asynchronous job " + jobId + " completed successfully.");
+                            log.info("Asynchronous job " + jobId + " completed successfully.");
                         } catch (Exception e) {
                             completedJobInfo.setStatus(JobStatus.FAILED);
                             completedJobInfo.setResult(ExceptionUtils.getStackTrace(e));
-                            logger.log(Level.SEVERE, "Asynchronous job " + jobId + " failed.", e);
+                            log.error("Asynchronous job " + jobId + " failed.", e);
                         } finally {
                             chat.notifyJobCompletion(completedJobInfo);
                             GeminiChat.currentChat.remove();

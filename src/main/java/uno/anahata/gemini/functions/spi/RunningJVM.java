@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.FileObject;
@@ -25,6 +24,7 @@ import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.functions.AIToolMethod;
 import uno.anahata.gemini.functions.AIToolParam;
 
@@ -34,9 +34,9 @@ import uno.anahata.gemini.functions.AIToolParam;
  *
  * @author pablo
  */
+@Slf4j
 public class RunningJVM {
 
-    private static final Logger logger = Logger.getLogger(RunningJVM.class.getName());
     public static Map chatTemp = Collections.synchronizedMap(new HashMap());
     public static String defaultCompilerClasspath = initDefaultCompilerClasspath();
     private static ClassLoader parentClassLoader = RunningJVM.class.getClassLoader();
@@ -127,12 +127,12 @@ public class RunningJVM {
         if (!options.contains("-proc:none")) {
             options.add("-proc:none");
         }
-        logger.log(Level.INFO, "Compiling with options: \n{0}", options);
+        log.info("Compiling with options: \n{}", options);
 
         StringWriter writer = new StringWriter();
         JavaCompiler.CompilationTask task = compiler.getTask(writer, fileManager, diagnostics, options, null, Collections.singletonList(source));
         boolean success = task.call();
-        logger.log(Level.INFO, "Compilation Success: {0}", success);
+        log.info("Compilation Success: {}", success);
 
         if (!success) {
             StringBuilder error = new StringBuilder("Compiler: " + compiler + "\n");
@@ -140,7 +140,7 @@ public class RunningJVM {
             error.append("Diagnostics:\n");
             for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
                 error.append(diagnostic.toString()).append("\n");
-                logger.log(Level.INFO, "Compiler Diagnostic: {0}", diagnostic.toString());
+                log.info("Compiler Diagnostic: {}", diagnostic.toString());
             }
             System.out.println(error);
             throw new java.lang.RuntimeException("Compilation error:\n" + error.toString());
@@ -176,17 +176,17 @@ public class RunningJVM {
             @AIToolParam("Compiler's additional options.") String[] compilerOptions) throws Exception {
 
         
-        logger.log(Level.INFO, "executeJavaCode: \nsource={0}", sourceCode);
-        logger.log(Level.INFO, "executeJavaCode: \nextraCompilerClassPath={0}", extraClassPath);
+        log.info("executeJavaCode: \nsource={}", sourceCode);
+        log.info("executeJavaCode: \nextraCompilerClassPath={}", extraClassPath);
 
         Class c = compileJava(sourceCode, "Gemini", extraClassPath, compilerOptions);
         Object o = c.newInstance();
 
         if (o instanceof Callable) {
-            logger.info("Calling call() method");
+            log.info("Calling call() method");
             Callable trueGeminiInstance = (Callable) o;
             Object ret = ensureJsonSerializable(trueGeminiInstance.call());            
-            logger.log(Level.INFO, "call() method returned {0}", ret);
+            log.info("call() method returned {}", ret);
             return ret;
         } else {
             throw new RuntimeException("Source file should implement java.util.Callable");

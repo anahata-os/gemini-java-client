@@ -13,8 +13,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
@@ -25,9 +25,9 @@ import uno.anahata.gemini.internal.FunctionUtils;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
 
+@Slf4j
 public class ContextManager {
 
-    private static final Logger logger = Logger.getLogger(ContextManager.class.getName());
     private static final Gson GSON = GsonUtils.getGson();
 
     private List<ChatMessage> context = new ArrayList<>();
@@ -103,7 +103,7 @@ public class ContextManager {
             return;
         }
 
-        logger.log(Level.INFO, "New stateful resource(s) detected: {0}. Scanning for stale parts.", newResourceIds);
+        log.info("New stateful resource(s) detected: {}. Scanning for stale parts.", newResourceIds);
 
         Set<Part> partsToPrune = new HashSet<>();
         for (ChatMessage message : context) {
@@ -170,7 +170,7 @@ public class ContextManager {
             Files.writeString(logFilePath, logContent.toString(), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to write history content to log file", e);
+            log.error("Failed to write history content to log file", e);
         }
     }
 
@@ -178,7 +178,7 @@ public class ContextManager {
         context.clear();
         totalTokenCount = 0;
         listeners.forEach(l -> l.contextCleared(chat));
-        logger.info("Chat history cleared.");
+        log.info("Chat history cleared.");
     }
 
     public synchronized List<ChatMessage> getContext() {
@@ -198,14 +198,14 @@ public class ContextManager {
                     return 0;
                 })
                 .sum();
-        logger.info("Context set. New token count: " + this.totalTokenCount);
+        log.info("Context set. New token count: " + this.totalTokenCount);
         notifyHistoryChange();
     }
 
     public synchronized void pruneMessages(List<String> uids, String reason) {
         boolean removed = context.removeIf(message -> uids.contains(message.getId()));
         if (removed) {
-            logger.log(Level.INFO, "Pruned {0} message(s). Reason: {1}", new Object[]{uids.size(), reason});
+            log.info("Pruned {} message(s). Reason: {}", uids.size(), reason);
             notifyHistoryChange();
         }
     }
@@ -216,7 +216,7 @@ public class ContextManager {
             if (message.getId().equals(messageUID)) {
                 Content originalContent = message.getContent();
                 if (originalContent == null || !originalContent.parts().isPresent()) {
-                    logger.log(Level.WARNING, "Message {0} has no parts to prune.", messageUID);
+                    log.warn("Message {} has no parts to prune.", messageUID);
                     return;
                 }
 
@@ -234,15 +234,15 @@ public class ContextManager {
                 }
 
                 if (partsToKeep.size() == originalParts.size()) {
-                    logger.log(Level.WARNING, "None of the specified part indices {0} found in message {1}", new Object[]{partIndices, messageUID});
+                    log.warn("None of the specified part indices {} found in message {}", partIndices, messageUID);
                     return;
                 }
 
-                logger.log(Level.INFO, "Pruning {0} part(s) from message {1}. Reason: {2}", new Object[]{originalParts.size() - partsToKeep.size(), messageUID, reason});
+                log.info("Pruning {} part(s) from message {}. Reason: {}", originalParts.size() - partsToKeep.size(), messageUID, reason);
 
                 if (partsToKeep.isEmpty()) {
                     context.remove(i);
-                    logger.log(Level.INFO, "Message {0} became empty and was removed after pruning parts.", messageUID);
+                    log.info("Message {} became empty and was removed after pruning parts.", messageUID);
                     notifyHistoryChange();
                 } else {
                     Content newContent = Content.builder()
@@ -261,7 +261,7 @@ public class ContextManager {
                 return;
             }
         }
-        logger.log(Level.WARNING, "Could not find message with ID {0} to prune parts.", messageUID);
+        log.warn("Could not find message with ID {} to prune parts.", messageUID);
     }
 
     public synchronized void prunePartsByReference(List<Part> partsToPrune, String reason) {
@@ -292,7 +292,7 @@ public class ContextManager {
             contextWasModified = true;
             if (partsToKeep.isEmpty()) {
                 iterator.remove();
-                logger.log(Level.INFO, "Message {0} became empty and was removed after pruning parts.", currentMessage.getId());
+                log.info("Message {} became empty and was removed after pruning parts.", currentMessage.getId());
             } else {
                 Content newContent = ContentUtils.cloneAndRemoveParts(originalContent, partsToPrune);
                 ChatMessage replacement = new ChatMessage(
@@ -305,7 +305,7 @@ public class ContextManager {
         }
 
         if (contextWasModified) {
-            logger.log(Level.INFO, "Pruned {0} part(s) by reference. Reason: {1}", new Object[]{partsToPrune.size(), reason});
+            log.info("Pruned {} part(s) by reference. Reason: {}", partsToPrune.size(), reason);
             notifyHistoryChange();
         }
     }
@@ -387,7 +387,7 @@ public class ContextManager {
         }
 
         if (!partsToPrune.isEmpty()) {
-            logger.log(Level.INFO, "Two-Turn Rule: Pruning {0} old ephemeral parts.", partsToPrune.size());
+            log.info("Two-Turn Rule: Pruning {} old ephemeral parts.", partsToPrune.size());
             prunePartsByReference(new ArrayList<>(partsToPrune), "Automatic pruning of old ephemeral tool calls and responses.");
         }
     }
@@ -496,7 +496,7 @@ public class ContextManager {
             return Optional.of(checkDiskStatus(resource));
 
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to deserialize stateful resource from tool response: " + toolName, e);
+            log.warn("Failed to deserialize stateful resource from tool response: " + toolName, e);
             return Optional.empty();
         }
     }
@@ -529,7 +529,7 @@ public class ContextManager {
                 }
             }
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Error checking disk status for resource: " + resourceId, e);
+            log.warn("Error checking disk status for resource: " + resourceId, e);
             status = ResourceStatus.ERROR;
         }
 

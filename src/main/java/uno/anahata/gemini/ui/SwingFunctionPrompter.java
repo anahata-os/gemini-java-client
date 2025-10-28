@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -28,6 +27,7 @@ import javax.swing.JTextArea;
 import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
@@ -39,8 +39,8 @@ import uno.anahata.gemini.functions.FunctionPrompter;
  *
  * @author pablo-ai
  */
+@Slf4j
 public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
-    private static final Logger logger = Logger.getLogger(SwingFunctionPrompter.class.getName());
 
     private final EditorKitProvider editorKitProvider;
     private final List<InteractiveFunctionCallRenderer> interactiveRenderers = new ArrayList<>();
@@ -71,7 +71,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
             });
         } catch (InterruptedException | InvocationTargetException e) {
             Throwable cause = (e instanceof InvocationTargetException) ? e.getCause() : e;
-            logger.log(Level.SEVERE, "Exception while showing function confirmation dialog", cause);
+            log.error("Exception while showing function confirmation dialog", cause);
             Thread.currentThread().interrupt();
             return new PromptResult(
                 Collections.emptyList(), 

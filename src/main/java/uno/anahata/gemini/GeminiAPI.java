@@ -9,12 +9,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class GeminiAPI {
-
-    private static final Logger logger = Logger.getLogger(GeminiAPI.class.getName());
 
     private static final List<String> AVAILABLE_MODEL_IDS = Arrays.asList(
             "gemini-2.5-pro",
@@ -32,7 +31,7 @@ public class GeminiAPI {
         if (keyPool.length > 0) {
             round = new Random().nextInt(keyPool.length);
         } else {
-            logger.log(Level.SEVERE, "No API keys loaded. GeminiAPI will not function correctly.");
+            log.error("No API keys loaded. GeminiAPI will not function correctly.");
         }
     }
 
@@ -49,7 +48,7 @@ public class GeminiAPI {
                     })
                     .collect(Collectors.toList());
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Failed to load Gemini API keys from " + keysFilePath, e);
+            log.error("Failed to load Gemini API keys from " + keysFilePath, e);
         }
         this.keyPool = keys.toArray(new String[0]);
     }
@@ -60,7 +59,7 @@ public class GeminiAPI {
         }
         int nextIdx = round++ % keyPool.length;
         String key = keyPool[nextIdx];
-        logger.info(round + " round. poolIndex " + nextIdx + " : " + key.substring(key.length() - 5));
+        log.info(round + " round. poolIndex " + nextIdx + " : " + key.substring(key.length() - 5));
         return new Client.Builder().apiKey(key).build();
     }
 
@@ -70,7 +69,7 @@ public class GeminiAPI {
 
     public void setModelId(String modelId) {
         this.modelId = modelId;
-        logger.log(Level.INFO, "Gemini model ID set to: {0}", modelId);
+        log.info("Gemini model ID set to: {}", modelId);
     }
 
     public List<String> getAvailableModelIds() {

@@ -2,12 +2,12 @@ package uno.anahata.gemini.ui.render;
 
 import java.awt.Dimension;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.text.EditorKit;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 /**
@@ -16,9 +16,8 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
  *
  * @author pablo-ai
  */
+@Slf4j
 public final class CodeBlockRenderer {
-
-    private static final Logger logger = Logger.getLogger(CodeBlockRenderer.class.getName());
 
     private CodeBlockRenderer() {
     }
@@ -34,7 +33,7 @@ public final class CodeBlockRenderer {
      */
     public static JComponent render(String language, String code, EditorKitProvider editorKitProvider) {
         if (editorKitProvider == null) {
-            logger.warning("EditorKitProvider is null. Cannot render code block.");
+            log.warn("EditorKitProvider is null. Cannot render code block.");
             return createFallbackPane(code);
         }
 
@@ -44,14 +43,14 @@ public final class CodeBlockRenderer {
         try {
             EditorKit kit = editorKitProvider.getEditorKitForLanguage(language);
             if (kit == null) {
-                logger.warning("No EditorKit found for language '" + language + "'. Falling back to plain text.");
+                log.warn("No EditorKit found for language '" + language + "'. Falling back to plain text.");
                 return createFallbackPane(code);
             }
             codeEditor.setEditorKit(kit);
             codeEditor.setText(code);
             
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to render code block for language '" + language + "'.", e);
+            log.warn("Failed to render code block for language '" + language + "'.", e);
             return createFallbackPane(code);
         }
         

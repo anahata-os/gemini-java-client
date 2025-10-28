@@ -8,8 +8,8 @@ import com.google.genai.types.*;
 import com.google.gson.Gson;
 import java.util.*;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
@@ -17,9 +17,9 @@ import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 
+@Slf4j
 public class GeminiChat {
 
-    private static final Logger logger = Logger.getLogger(GeminiChat.class.getName());
     private static final Gson GSON = GsonUtils.getGson();
     public static final ThreadLocal<GeminiChat> currentChat = new ThreadLocal<>();
 
@@ -54,7 +54,7 @@ public class GeminiChat {
     }
 
     public void setFunctionsEnabled(boolean functionsEnabled) {
-        logger.info("User toggled functions: " + functionsEnabled);
+        log.info("User toggled functions: " + functionsEnabled);
         this.functionsEnabled = functionsEnabled;
     }
 
@@ -75,7 +75,7 @@ public class GeminiChat {
                 try {
                     parts.addAll(provider.getInstructionParts(this));
                 } catch (Exception e) {
-                    logger.log(Level.WARNING, "SystemInstructionProvider " + provider.getId() + " threw an exception", e);
+                    log.warn("SystemInstructionProvider " + provider.getId() + " threw an exception", e);
                     parts.add(Part.fromText("Error in " + provider.getDisplayName() + ": " + e.getMessage()));
                 }
             }
@@ -105,7 +105,7 @@ public class GeminiChat {
         startTime = new Date();
         Content startupContent = config.getStartupContent();
         if (startupContent != null && startupContent.parts().isPresent() && !startupContent.parts().get().isEmpty()) {
-            logger.info("Sending one-time startup instructions to the model.");
+            log.info("Sending one-time startup instructions to the model.");
             sendContent(startupContent);
         }
     }
@@ -120,7 +120,7 @@ public class GeminiChat {
 
     public void sendContent(Content content) {
         if (isProcessing) {
-            logger.warning("A request is already in progress. Ignoring new request.");
+            log.warn("A request is already in progress. Ignoring new request.");
             return;
         }
         isProcessing = true;
@@ -135,7 +135,7 @@ public class GeminiChat {
                 GenerateContentResponse resp = sendToModelWithRetry(apiContext);
 
                 if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
-                    logger.warning("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
+                    log.warn("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
                     Content emptyContent = Content.builder().role("model").parts(Part.fromText("[No response from model]")).build();
                     ChatMessage emptyModelMessage = new ChatMessage(config.getApi().getModelId(), emptyContent, null, resp.usageMetadata().orElse(null), null);
                     contextManager.add(emptyModelMessage);
@@ -144,7 +144,7 @@ public class GeminiChat {
 
                 Candidate cand = resp.candidates().get().get(0);
                 if (cand.content() == null || !cand.content().isPresent()) {
-                    logger.warning("Received candidate with no content. Breaking loop.");
+                    log.warn("Received candidate with no content. Breaking loop.");
                     break;
                 }
 
@@ -242,18 +242,18 @@ public class GeminiChat {
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
                 GenerateContentConfig gcc = makeGenerateContentConfig();
-                logger.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + context.size() + " content elements. Functions enabled: " + functionsEnabled);
+                log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + context.size() + " content elements. Functions enabled: " + functionsEnabled);
                 long ts = System.currentTimeMillis();
                 GenerateContentResponse ret = getGoogleGenAIClient().models.generateContent(config.getApi().getModelId(), context, gcc);
                 lastApiError = null;
                 latency = System.currentTimeMillis() - ts;
-                logger.info(latency + " ms. Received response from model for " + context.size() + " content elements.");
+                log.info(latency + " ms. Received response from model for " + context.size() + " content elements.");
                 return ret;
             } catch (Exception e) {
                 recordLastApiError(e);
                 if (e.toString().contains("429") || e.toString().contains("503") || e.toString().contains("500")) {
                     if (attempt == maxRetries - 1) {
-                        logger.log(Level.SEVERE, "Max retries reached. Aborting.", e);
+                        log.error("Max retries reached. Aborting.", e);
                         throw new RuntimeException("Failed to get response from model after " + maxRetries + " attempts.", e);
                     }
                     long delayMillis = (long) (initialDelayMillis * Math.pow(2, attempt));
@@ -266,7 +266,7 @@ public class GeminiChat {
                         throw new RuntimeException("Chat was interrupted during retry delay.", ie);
                     }
                 } else {
-                    logger.log(Level.SEVERE, "Unknown error from Google's servers", e);
+                    log.error("Unknown error from Google's servers", e);
                     throw new RuntimeException(e);
                 }
             }
@@ -315,11 +315,11 @@ public class GeminiChat {
 
     public void notifyJobCompletion(JobInfo jobInfo) {
         if (isProcessing) {
-            logger.log(Level.INFO, "Chat is busy. Job completion notification for {0} will be queued.", jobInfo.getJobId());
+            log.info("Chat is busy. Job completion notification for {} will be queued.", jobInfo.getJobId());
             return;
         }
 
-        logger.log(Level.INFO, "Job {0} completed. Adding result to context passively.", jobInfo.getJobId());
+        log.info("Job {} completed. Adding result to context passively.", jobInfo.getJobId());
         Map<String, Object> responseMap = GSON.fromJson(GSON.toJson(jobInfo), Map.class);
         FunctionResponse fr = FunctionResponse.builder().name("async_job_result").response(responseMap).build();
         Part part = Part.fromFunctionResponse(fr.name().get(), (Map<String, Object>) fr.response().get());
