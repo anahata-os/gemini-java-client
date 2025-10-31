@@ -73,7 +73,7 @@ public class SystemInstructionsPanel extends JPanel {
                         continue;
                     }
                     
-                    JLabel header = new JLabel(" " + provider.getDisplayName() + " ");
+                    JLabel header = new JLabel(provider.getId() + " " + provider.getDisplayName() + " ");
                     header.setOpaque(true);
                     header.setBackground(config.getTheme().getModelHeaderBg());
                     header.setForeground(config.getTheme().getModelHeaderFg());
@@ -83,8 +83,8 @@ public class SystemInstructionsPanel extends JPanel {
                     providerPanel.setBorder(BorderFactory.createLineBorder(config.getTheme().getModelBorder()));
                     providerPanel.add(header, BorderLayout.NORTH);
 
-                    Content content = Content.builder().role("system").parts(parts).build();
-                    ChatMessage fakeMessage = new ChatMessage(config.getApi().getModelId(), content, null, null, null);
+                    Content content = Content.builder().role("tool").parts(parts).build();
+                    ChatMessage fakeMessage = new ChatMessage(provider.getDisplayName() + " ", null, content, null, null, null);
                     
                     JComponent renderedContent = renderer.render(fakeMessage, -1, chat.getContextManager());
                     providerPanel.add(renderedContent, BorderLayout.CENTER);
