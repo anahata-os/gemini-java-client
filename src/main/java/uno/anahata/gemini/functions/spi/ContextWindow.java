@@ -33,7 +33,7 @@ public class ContextWindow {
 
     @AIToolMethod("Gets the current total token count in the context window as shown to the user.")
     public static int getTokenCount() throws Exception {
-        return ContextManager.get().getTotalTokenCount();
+        return ContextManager.getCallingInstance().getTotalTokenCount();
     }
 
     @AIToolMethod(value = "Prunes one or more entire messages (Content objects) from the context.", requiresApproval = true)
@@ -41,7 +41,7 @@ public class ContextWindow {
             @AIToolParam("A list of the unique, stable IDs of the ChatMessages to be removed.") List<String> uids,
             @AIToolParam("A brief rationale for why the messages are being removed.") String reason
     ) throws Exception {
-        ContextManager cm = ContextManager.get();
+        ContextManager cm = ContextManager.getCallingInstance();
         int countBefore = cm.getContext().size();
         cm.pruneMessages(uids, reason);
         int countAfter = cm.getContext().size();
@@ -63,12 +63,12 @@ public class ContextWindow {
             @AIToolParam("A list of zero-based indices of the parts to remove.") List<Number> parts,
             @AIToolParam("A brief rationale for why the parts are being removed.") String reason
     ) throws Exception {
-        ContextManager.get().pruneParts(messageUID, parts, reason);
+        ContextManager.getCallingInstance().pruneParts(messageUID, parts, reason);
         return "Pruning of " + parts.size() + " part(s) from message " + messageUID + " complete.";
     }
 
     @AIToolMethod("Lists all entries in the context, including their stable IDs, roles, and a summary of their parts.")
     public static String listEntries() {
-        return ContextManager.get().getSummaryAsString();
+        return ContextManager.getCallingInstance().getSummaryAsString();
     }
 }

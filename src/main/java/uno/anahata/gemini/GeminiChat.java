@@ -21,7 +21,7 @@ import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 public class GeminiChat {
 
     private static final Gson GSON = GsonUtils.getGson();
-    public static final ThreadLocal<GeminiChat> currentChat = new ThreadLocal<>();
+    public static final ThreadLocal<GeminiChat> callingInstance = new ThreadLocal<>();
 
     private final FunctionManager functionManager;
     private final GeminiConfig config;
@@ -58,8 +58,8 @@ public class GeminiChat {
         this.functionsEnabled = functionsEnabled;
     }
 
-    public static GeminiChat get() {
-        return currentChat.get();
+    public static GeminiChat getCallingInstance() {
+        return callingInstance.get();
     }
     
     public List<SystemInstructionProvider> getSystemInstructionProviders() {

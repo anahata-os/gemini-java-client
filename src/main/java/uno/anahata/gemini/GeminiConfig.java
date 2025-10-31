@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.prefs.Preferences;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.systeminstructions.spi.ChatStatusProvider;
@@ -23,11 +23,10 @@ import uno.anahata.gemini.systeminstructions.spi.EnvironmentVariablesProvider;
 import uno.anahata.gemini.systeminstructions.spi.StatefulResourcesProvider;
 import uno.anahata.gemini.systeminstructions.spi.SystemPropertiesProvider;
 
+@Slf4j
 public abstract class GeminiConfig {
 
     private final GeminiAPI api = new GeminiAPI(this);
-
-    public static final Logger logger = Logger.getLogger(GeminiConfig.class.getName());
 
     private final transient Preferences prefs = Preferences.userNodeForPackage(GeminiConfig.class);
 
@@ -76,12 +75,12 @@ public abstract class GeminiConfig {
             try {
                 return Collections.singletonList(Part.fromText(Files.readString(startupDotMd.toPath())));
             } catch (Exception e) {
-                logger.log(Level.SEVERE, "Exception reading " + startupDotMd + " no startup message will be sent to the model", e);
+                log.error("Exception reading " + startupDotMd + " no startup message will be sent to the model", e);
                 return Collections.EMPTY_LIST;
             }
 
         } else {
-            logger.info("File  " + startupDotMd + " does not exist, no startup message will be sent to the model");
+            log.info("File  " + startupDotMd + " does not exist, no startup message will be sent to the model");
             return Collections.EMPTY_LIST;
         }
     }

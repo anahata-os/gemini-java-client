@@ -146,7 +146,7 @@ public class FunctionManager {
                     throw new RuntimeException("Tool call '" + approvedCall.name().get() + "' is temporarily blocked due to repeated failures.");
                 }
 
-                GeminiChat.currentChat.set(chat);
+                GeminiChat.callingInstance.set(chat);
                 Method method = functionCallMethods.get(approvedCall.name().get());
                 if (method == null) {
                     throw new RuntimeException("Tool not found: '" + approvedCall.name().get() + "' available tools: " + functionCallMethods.keySet());
@@ -165,7 +165,7 @@ public class FunctionManager {
                     Executors.cachedThreadPool.submit(() -> {
                         JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + approvedCall.name().get(), null);
                         try {
-                            GeminiChat.currentChat.set(chat);
+                            GeminiChat.callingInstance.set(chat);
                             Object result = invokeFunctionMethod(method, args);
                             completedJobInfo.setStatus(JobStatus.COMPLETED);
                             completedJobInfo.setResult(result);
@@ -176,7 +176,7 @@ public class FunctionManager {
                             log.error("Asynchronous job " + jobId + " failed.", e);
                         } finally {
                             chat.notifyJobCompletion(completedJobInfo);
-                            GeminiChat.currentChat.remove();
+                            GeminiChat.callingInstance.remove();
                         }
                     });
                 } else {
@@ -218,7 +218,7 @@ public class FunctionManager {
                     .response(errorMap)
                     .build());
             } finally {
-                GeminiChat.currentChat.remove();
+                GeminiChat.callingInstance.remove();
             }
         }
         

@@ -32,7 +32,7 @@ public class Images {
         }
 
         try {
-            Client client = GeminiChat.get().getGoogleGenAIClient();
+            Client client = GeminiChat.getCallingInstance().getGoogleGenAIClient();
             
             GenerateContentConfig config = GenerateContentConfig.builder()
                 .responseModalities("IMAGE")

@@ -51,10 +51,10 @@ public class ContextManager {
      * @return The active ContextManager.
      * @throws IllegalStateException if not called from a tool execution thread.
      */
-    public static ContextManager get() {
-        GeminiChat chat = GeminiChat.get();
+    public static ContextManager getCallingInstance() {
+        GeminiChat chat = GeminiChat.getCallingInstance();
         if (chat == null) {
-            throw new IllegalStateException("ContextManager.get() can only be called from a thread where a tool is being executed by the model.");
+            throw new IllegalStateException("ContextManager.getCurrentInstance() can only be called from a thread where a tool is being executed by the model.");
         }
         return chat.getContextManager();
     }

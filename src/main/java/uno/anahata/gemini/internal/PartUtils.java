@@ -14,8 +14,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tika.Tika;
 
@@ -23,16 +23,15 @@ import org.apache.tika.Tika;
  *
  * @author pablo
  */
+@Slf4j
 public class PartUtils {
-
-    private static final Logger logger = Logger.getLogger(PartUtils.class.getName());
 
     private static final Tika TIKA = new Tika();
 
     public static Blob toBlob(File file) throws IOException {
         byte[] barr = java.nio.file.Files.readAllBytes(file.toPath());
         String mimeType = TIKA.detect(file);
-        logger.info("TIKA Detected " + mimeType + " for file " + file);
+        log.info("TIKA Detected " + mimeType + " for file " + file);
 
         Blob blob = Blob.builder()
                 .data(barr)
