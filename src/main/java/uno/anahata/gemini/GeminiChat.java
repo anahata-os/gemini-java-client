@@ -73,7 +73,10 @@ public class GeminiChat {
         for (SystemInstructionProvider provider : getSystemInstructionProviders()) {
             if (provider.isEnabled()) {
                 try {
-                    parts.addAll(provider.getInstructionParts(this));
+                    
+                    List<Part> generated = provider.getInstructionParts(this);
+                    parts.add(Part.fromText("Instruction Provider: " + provider.getDisplayName() + " (id: " +  provider.getId() + "): (" + generated.size() + " parts)"));
+                    parts.addAll(generated);
                 } catch (Exception e) {
                     log.warn("SystemInstructionProvider " + provider.getId() + " threw an exception", e);
                     parts.add(Part.fromText("Error in " + provider.getDisplayName() + ": " + e.getMessage()));
