@@ -7,6 +7,8 @@ package uno.anahata.gemini.context;
  * @author Anahata
  */
 public enum ResourceStatus {
+    /** The resource exists on disk but has not been loaded into the context. */
+    NOT_IN_CONTEXT,
     /** The resource in the context is identical to the one on disk. */
     VALID,
     /** The resource on disk has been modified more recently than the one in the context. */
