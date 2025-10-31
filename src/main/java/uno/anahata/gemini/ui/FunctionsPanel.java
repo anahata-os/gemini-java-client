@@ -35,10 +35,10 @@ public class FunctionsPanel extends JScrollPane {
     public FunctionsPanel(GeminiChat chat, SwingGeminiConfig config) {
         this.chat = chat;
         this.config = config;
-        initComponents();
+        refresh();
     }
 
-    private void initComponents() {
+    public void refresh() {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         

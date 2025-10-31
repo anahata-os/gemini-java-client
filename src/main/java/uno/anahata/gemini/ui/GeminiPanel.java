@@ -2,10 +2,9 @@ package uno.anahata.gemini.ui;
 
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
-import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
-import com.google.genai.types.Part;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Image;
@@ -17,22 +16,18 @@ import java.awt.dnd.DropTargetAdapter;
 import java.awt.dnd.DropTargetDropEvent;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.context.ContextListener;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.functions.spi.ContextWindow;
-import uno.anahata.gemini.ui.render.ContentRenderer;
-import uno.anahata.gemini.context.ContextListener;
 
 @Slf4j
 public class GeminiPanel extends JPanel implements ContextListener {
@@ -49,14 +44,10 @@ public class GeminiPanel extends JPanel implements ContextListener {
     private JButton saveSessionButton;
     private JButton loadSessionButton;
     private JToggleButton functionsButton;
-    private JPanel southPanel;
-    private AttachmentsPanel attachmentsPanel;
-    private JTextField inputField;
     private JComboBox<String> modelIdComboBox;
 
     private final EditorKitProvider editorKitProvider;
-    private JScrollPane chatScrollPane;
-    private JPanel chatContentPanel;
+    private ChatPanel chatPanel;
     private ContextHeatmapPanel heatmapPanel;
     private JTabbedPane tabbedPane;
     
@@ -77,7 +68,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
         this.config = config;
         JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider);
-        this.chat = new GeminiChat(config, prompter, this);
+        this.chat = new GeminiChat(config, prompter);
+        this.chat.addContextListener(this);
     }
 
     public GeminiChat getChat() {
@@ -105,7 +97,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         attachButton = new JButton(getIcon("attach.png"));
         attachButton.setToolTipText("Attach Files");
-        attachButton.addActionListener(e -> attachmentsPanel.showFileChooser());
+        attachButton.addActionListener(e -> chatPanel.getAttachmentsPanel().showFileChooser());
 
         screenshotButton = new JButton(getIcon("desktop_screenshot.png"));
         screenshotButton.setToolTipText("Attach Desktop Screenshot");
@@ -164,12 +156,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         add(topPanel, BorderLayout.NORTH);
 
-        chatContentPanel = new ScrollablePanel();
-        chatContentPanel.setLayout(new BoxLayout(chatContentPanel, BoxLayout.Y_AXIS));
-
-        chatScrollPane = new JScrollPane(chatContentPanel);
-        chatScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        
+        chatPanel = new ChatPanel(chat, editorKitProvider, config);
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
         
@@ -178,34 +165,35 @@ public class GeminiPanel extends JPanel implements ContextListener {
         functionsPanel = new FunctionsPanel(chat, config);
         
         tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("Chat", chatScrollPane);
+        tabbedPane.addTab("Chat", chatPanel);
         tabbedPane.addTab("Context Heatmap", heatmapPanel);
         tabbedPane.addTab("System Instructions", systemInstructionsPanel);
         tabbedPane.addTab("Functions", functionsPanel);
         tabbedPane.addTab("API Keys", geminiKeysPanel);
         
+        tabbedPane.addChangeListener(e -> {
+            Component selected = tabbedPane.getSelectedComponent();
+            if (selected == chatPanel) {
+                chatPanel.redraw(); // Redraw the chat when its tab is selected
+            } else if (selected == heatmapPanel) {
+                heatmapPanel.updateContext(chat.getContext()); // Update heatmap when selected
+            } else if (selected == systemInstructionsPanel) {
+                systemInstructionsPanel.refresh();
+            } else if (selected == functionsPanel) {
+                functionsPanel.refresh();
+            }
+        });
+        
         add(tabbedPane, BorderLayout.CENTER);
-
-        southPanel = new JPanel(new BorderLayout());
-        attachmentsPanel = new AttachmentsPanel();
-        inputField = new JTextField("Initializing....");
-        southPanel.add(attachmentsPanel, BorderLayout.NORTH);
-        southPanel.add(inputField, BorderLayout.CENTER);
-        add(southPanel, BorderLayout.SOUTH);
-
-        inputField.addActionListener(e -> sendMessageFromInputField());
 
         FileDropListener fileDropListener = new FileDropListener();
         new DropTarget(this, fileDropListener);
-        new DropTarget(chatContentPanel, fileDropListener);
-        new DropTarget(chatScrollPane, fileDropListener);
-        new DropTarget(attachmentsPanel, fileDropListener);
+        new DropTarget(chatPanel, fileDropListener);
 
-        requestInProgress();
         setVisible(true);
     }
 
-    private static class ScrollablePanel extends JPanel implements Scrollable {
+    public static class ScrollablePanel extends JPanel implements Scrollable {
 
         @Override
         public Dimension getPreferredScrollableViewportSize() {
@@ -241,7 +229,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 dtde.acceptDrop(DnDConstants.ACTION_COPY);
                 List<File> droppedFiles = (List<File>) dtde.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
                 for (File file : droppedFiles) {
-                    attachmentsPanel.addStagedFile(file);
+                    chatPanel.getAttachmentsPanel().addStagedFile(file);
                 }
             } catch (Exception ex) {
                 log.warn("Drag and drop failed", ex);
@@ -259,7 +247,6 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
             @Override
             protected void done() {
-                enableInputFieldAndRequestAndFocus();
                 if (config != null && config.getApi() != null) {
                     modelIdComboBox.removeAllItems();
                     for (String model : config.getApi().getAvailableModelIds()) {
@@ -275,11 +262,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
     @Override
     public void contextCleared(GeminiChat source) {
         SwingUtilities.invokeLater(() -> {
-            chatContentPanel.removeAll();
-            chatContentPanel.repaint();
             updateUsageLabel(null);
             heatmapPanel.updateContext(Collections.emptyList());
-            attachmentsPanel.clearStagedParts();
             systemInstructionsPanel.refresh();
             initChatInSwingWorker();
         });
@@ -288,56 +272,25 @@ public class GeminiPanel extends JPanel implements ContextListener {
     @Override
     public void contextChanged(GeminiChat source) {
         SwingUtilities.invokeLater(() -> {
-            log.info("Context changed. Performing full UI redraw.");
-            chatContentPanel.removeAll();
             List<ChatMessage> currentContext = chat.getContext();
-
             if (!currentContext.isEmpty()) {
                 updateUsageLabel(currentContext.get(currentContext.size() - 1).getUsageMetadata());
             }
-
-            ChatMessageJPanel lastMessageContainer = null;
-            for (ChatMessage chatMessage : currentContext) {
-                if (chatMessage.getContent() != null) {
-                    ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
-                    int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
-                    JComponent messageComponent = renderer.render(chatMessage, contentIdx, chat.getContextManager());
-
-                    ChatMessageJPanel messageContainer = new ChatMessageJPanel(chatMessage);
-                    messageContainer.setLayout(new BorderLayout());
-                    messageContainer.add(messageComponent, BorderLayout.CENTER);
-
-                    chatContentPanel.add(messageContainer);
-                    lastMessageContainer = messageContainer;
-                }
-            }
-
+            // Also update the heatmap in the background so it's ready when the user clicks the tab
             heatmapPanel.updateContext(currentContext);
-            systemInstructionsPanel.refresh();
-            chatContentPanel.revalidate();
-            chatContentPanel.repaint();
-
-            if (lastMessageContainer != null) {
-                final ChatMessageJPanel finalLastComponent = lastMessageContainer;
-                SwingUtilities.invokeLater(() -> {
-                    Rectangle bounds = finalLastComponent.getBounds();
-                    chatContentPanel.scrollRectToVisible(bounds);
-                });
-            }
         });
     }
 
     public void restartChat() {
-        requestInProgress();
         chat.clear();
     }
 
     private void attachScreenshot() {
-        attachmentsPanel.addAll(UICapture.screenshotAllScreenDevices());
+        chatPanel.getAttachmentsPanel().addAll(UICapture.screenshotAllScreenDevices());
     }
 
     private void attachFrameCaptures() {
-        attachmentsPanel.addAll(UICapture.screenshotAllJFrames());
+        chatPanel.getAttachmentsPanel().addAll(UICapture.screenshotAllJFrames());
     }
 
     private void updateUsageLabel(GenerateContentResponseUsageMetadata usage) {
@@ -358,57 +311,6 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
             usageLabel.setText(usageText);
         }
-    }
-
-    private void sendMessageFromInputField() {
-        final String text = inputField.getText().trim();
-        final List<Part> stagedParts = attachmentsPanel.getStagedParts();
-        if (text.isEmpty() && stagedParts.isEmpty()) {
-            return;
-        }
-        requestInProgress();
-        final boolean withFunctions = functionsButton.isSelected();
-
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                if (!stagedParts.isEmpty()) {
-                    List<Part> apiParts = new ArrayList<>();
-                    if (!text.isEmpty()) {
-                        apiParts.add(Part.fromText(text));
-                    }
-                    apiParts.addAll(stagedParts);
-                    Content contentForApi = Content.builder().role("user").parts(apiParts).build();
-                    chat.sendContent(contentForApi);
-                } else {
-                    chat.sendText(text);
-                }
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    get();
-                } catch (Exception e) {
-                    log.error("Exception sending message", e);
-                } finally {
-                    attachmentsPanel.clearStagedParts();
-                    enableInputFieldAndRequestAndFocus();
-                }
-            }
-        }.execute();
-
-    }
-
-    private void requestInProgress() {
-        inputField.setEditable(false);
-    }
-
-    private void enableInputFieldAndRequestAndFocus() {
-        inputField.setText("");
-        inputField.setEditable(true);
-        inputField.requestFocusInWindow();
     }
 
     private void saveSession() {

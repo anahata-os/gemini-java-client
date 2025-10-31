@@ -35,14 +35,17 @@ public class GeminiChat {
 
     public GeminiChat(
             GeminiConfig config,
-            FunctionPrompter prompter,
-            ContextListener listener) {
+            FunctionPrompter prompter) {
         this.config = config;
-        this.contextManager = new ContextManager(this, config, listener);
+        this.contextManager = new ContextManager(this, config, null); // Pass null for the listener
         this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager.setFunctionManager(this.functionManager);
         // Initialize providers here to take a copy from config
         this.systemInstructionProviders = new ArrayList<>(config.getSystemInstructionProviders());
+    }
+    
+    public void addContextListener(ContextListener listener) {
+        this.contextManager.addListener(listener);
     }
 
     public long getLatency() {

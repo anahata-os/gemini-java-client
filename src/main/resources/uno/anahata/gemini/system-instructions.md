@@ -18,7 +18,7 @@ spread quote usage evenly.
 -----------------------------------------
 1.  **Context:** The context is your active memory. The context has entries for every Content objects that gets sent to the model (user role), received from the model (model role),
 or contains tool execution results (function role). A file (or portion of it) is "in context" if the output of the tool call that loaded
-the file is still in the context. Tools like `ContextWindow.pruneContext` directly manipulate 
+the file is still in the context. Tools like `ContextWindow.pruneMessages` and `ContextWindow.pruneParts` directly manipulate 
 the contents of the context (text parts, tool call requests (FunctionCall), tool call execution results (FunctionResponse) or entire entries that form the following conversation. 
 There is no separate 'processed' state; if you read a file and you prune the FunctionResponse with the output of the tool call used to read that file, the information is gone from your awareness. 
 

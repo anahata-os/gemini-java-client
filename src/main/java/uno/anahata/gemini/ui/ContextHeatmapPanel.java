@@ -216,11 +216,16 @@ public class ContextHeatmapPanel extends JPanel {
 
             part.functionResponse().ifPresent(fr -> {
                 Optional<String> resourceIdOpt = functionManager != null ? FunctionUtils.getResourceIdIfStateful(fr, functionManager) : Optional.empty();
-                resourceIdOpt.ifPresent(id
-                    -> tooltip.append("<b>Stateful Resource ID:</b> ").append(StringEscapeUtils.escapeHtml4(id)).append("<br>")
-                );
-                String escaped = StringEscapeUtils.escapeHtml4(GSON.toJson(fr));
-                tooltip.append("<b>Function Response:</b><pre>").append(escaped).append("</pre>");
+
+                // If it's a stateful file, just show the ID.
+                if (resourceIdOpt.isPresent()) {
+                    tooltip.append("<b>Stateful Resource ID:</b> ").append(StringEscapeUtils.escapeHtml4(resourceIdOpt.get()));
+                } else {
+                    // For other responses, show an abbreviated pretty-printed JSON.
+                    String jsonResponse = GsonUtils.prettyPrint(fr);
+                    String escaped = StringEscapeUtils.escapeHtml4(StringUtils.abbreviate(jsonResponse, 500)); // Abbreviate to 500 chars
+                    tooltip.append("<b>Function Response:</b><pre>").append(escaped).append("</pre>");
+                }
             });
 
             tooltip.append("</html>");

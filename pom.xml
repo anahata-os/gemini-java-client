@@ -27,7 +27,7 @@
 
     <developers>
         <developer>
-            <name>Pablo Rodriguez</name>
+            <name>Priyadarshi</name>
             <email>p@anahata.uno</email>
             <organization>Anahata</organization>
             <organizationUrl>http://anahata.uno</organizationUrl>
@@ -47,6 +47,13 @@
     </properties>
 
     <dependencies>
+        
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+    
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -72,11 +79,6 @@
             <groupId>com.vladsch.flexmark</groupId>
             <artifactId>flexmark-all</artifactId>
             <version>0.64.8</version>
-        </dependency>
-        <dependency>
-            <groupId>io.github.java-diff-utils</groupId>
-            <artifactId>java-diff-utils</artifactId>
-            <version>4.15</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -139,6 +141,16 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>standalone</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-jdk14</artifactId>
+                    <version>2.0.17</version>
+                </dependency>
+            </dependencies>
+        </profile>
         <profile>
             <id>build-with-sources</id>
             <build>
