@@ -47,11 +47,11 @@ public class LocalFiles {
         return new FileInfo(path, content, lastModified, size);
     }
 
-    @AIToolMethod(value = "Writes content to a file, but only if the file has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Writes content to an existing file, but only if the file exists and has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object. Don not use this to create new files unse LocalFiles.createFile instead", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo writeFile(
             @AIToolParam("The absolute path of the file to write to.") String path,
             @AIToolParam("The new content to write to the file.") String content,
-            @AIToolParam("The expected 'last modified' timestamp of the file on disk. The write will fail if the actual timestamp is different. Use 0 if the file is not expected to exist.") long lastModified
+            @AIToolParam("The expected 'last modified' timestamp of the file on disk. The write will fail if the actual timestamp is different.") long lastModified
     ) throws IOException {
         Path filePath = Paths.get(path);
 
@@ -65,7 +65,7 @@ public class LocalFiles {
         } else if (lastModified > 0) {
              throw new IOException("File modification conflict. The file at " + path +
                                       " was expected to exist with timestamp " + lastModified + " but it has been deleted.");
-        }
+        } 
 
         Files.writeString(filePath, sanitize(content));
 
