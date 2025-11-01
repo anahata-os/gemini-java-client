@@ -19,6 +19,7 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 public class FunctionCallPartRenderer implements PartRenderer {
 
     private final UITheme theme;
+    private static final int MAX_LINES_EXPANDED = 5;
 
     public FunctionCallPartRenderer(UITheme theme) {
         this.theme = theme;
@@ -52,13 +53,16 @@ public class FunctionCallPartRenderer implements PartRenderer {
 
     private JComponent createCollapsibleArgumentPanel(String key, Object value) {
         JComponent valueComponent;
+        String valueAsString;
+
         if (value == null || (value instanceof String && ((String) value).isEmpty())) {
             JLabel naLabel = new JLabel("n/a");
             naLabel.setFont(naLabel.getFont().deriveFont(java.awt.Font.ITALIC));
             naLabel.setForeground(java.awt.Color.GRAY);
             valueComponent = naLabel;
+            valueAsString = "";
         } else {
-            String valueAsString = GsonUtils.prettyPrint(value);
+            valueAsString = GsonUtils.prettyPrint(value);
             JTextArea textArea = new JTextArea(valueAsString);
             textArea.setEditable(false);
             textArea.setLineWrap(true);
@@ -78,10 +82,11 @@ public class FunctionCallPartRenderer implements PartRenderer {
         valueWrapper.setBorder(BorderFactory.createEmptyBorder(4, 10, 0, 0));
         valueWrapper.add(valueComponent, BorderLayout.CENTER);
 
-        JToggleButton toggleButton = new JToggleButton(key, true);
+        boolean isExpandedByDefault = valueAsString.lines().count() <= MAX_LINES_EXPANDED;
+        JToggleButton toggleButton = new JToggleButton(key, isExpandedByDefault);
         toggleButton.setFont(toggleButton.getFont().deriveFont(java.awt.Font.BOLD));
         toggleButton.setHorizontalAlignment(JToggleButton.LEFT);
-        
+
         valueWrapper.setVisible(toggleButton.isSelected());
 
         toggleButton.addActionListener(e -> valueWrapper.setVisible(toggleButton.isSelected()));
