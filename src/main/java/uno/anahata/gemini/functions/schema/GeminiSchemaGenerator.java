@@ -1,17 +1,11 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 package uno.anahata.gemini.functions.schema;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type.Known;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.annotation.Annotation;
-
 import java.lang.reflect.*;
 import java.util.*;
 import javax.validation.constraints.Max;
@@ -45,12 +39,7 @@ public class GeminiSchemaGenerator {
     public static Schema generateSchema(Class<?> clazz, String description) {
         return generateSchemaInternal(clazz, new HashSet<>(), description);
     }
-    
-    /**
-     * Public entrypoint to generate a JSON schema as a formatted string.
-     * @param clazz The class to generate the schema for.
-     * @return A JSON string representing the schema, or null if the class is void.
-     */
+    /*
     public static String generateSchemaAsString(Class<?> clazz) {
         if (clazz == null || clazz == void.class || clazz == Void.class) {
             return null;
@@ -66,7 +55,7 @@ public class GeminiSchemaGenerator {
         
         Schema schema = generateSchema(clazz, "Schema for " + clazz.getSimpleName());
         return GsonUtils.prettyPrint(schema);
-    }
+    }*/
 
     private static Schema generateSchemaInternal(Type type, Set<Type> seen, String description) {
         if (seen.contains(type)) {
@@ -105,7 +94,6 @@ public class GeminiSchemaGenerator {
                         .build();
             }
 
-            // Collection without generics
             if (Collection.class.isAssignableFrom(clazz)) {
                 Schema itemSchema = Schema.builder().type(Known.OBJECT).build();
                 return Schema.builder()
@@ -148,52 +136,57 @@ public class GeminiSchemaGenerator {
             }
         }
 
-        // Fallback
         return Schema.builder().type(Known.OBJECT).build();
     }
 
-    /**
-     * Creates a Schema from an arbitrary object type.
-     * 
-     * @param clazz
-     * @param seen
-     * @param description
-     * @return 
-     */
     private static Schema buildObjectSchema(Class<?> clazz, Set<Type> seen, String description) {
         Map<String, Schema> props = new LinkedHashMap<>();
         List<String> required = new ArrayList<>();
 
-        for (Field f : clazz.getDeclaredFields()) {
-            if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers())) {
-                continue;
+        String objectDescription = description;
+        if (clazz.isAnnotationPresent(io.swagger.v3.oas.annotations.media.Schema.class)) {
+            io.swagger.v3.oas.annotations.media.Schema classSchema = clazz.getAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+            if (classSchema.description() != null && !classSchema.description().isEmpty()) {
+                objectDescription = classSchema.description();
             }
-            if (f.isAnnotationPresent(JsonIgnore.class)) {
+        }
+
+        for (Field f : clazz.getDeclaredFields()) {
+            if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers()) || f.isAnnotationPresent(JsonIgnore.class)) {
                 continue;
             }
             
+            String fieldName = f.getName();
             String fieldDescription = f.getName();
-            if (f.isAnnotationPresent(AIToolMethod.class)) {
-                fieldDescription = f.getAnnotation(AIToolMethod.class).value();
+            boolean isRequired = false;
+
+            if (f.isAnnotationPresent(io.swagger.v3.oas.annotations.media.Schema.class)) {
+                io.swagger.v3.oas.annotations.media.Schema fieldSchemaAnnotation = f.getAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+                if (fieldSchemaAnnotation.description() != null && !fieldSchemaAnnotation.description().isEmpty()) {
+                    fieldDescription = fieldSchemaAnnotation.description();
+                }
+                if (fieldSchemaAnnotation.required()) {
+                    isRequired = true;
+                }
             }
 
             Schema fieldSchema = generateSchemaInternal(f.getGenericType(), seen, fieldDescription);
             Schema.Builder fieldBuilder = fieldSchema.toBuilder();
 
-            String fieldName = f.getName();
-
-            // Handle Jackson @JsonProperty
             JsonProperty jsonProp = f.getAnnotation(JsonProperty.class);
             if (jsonProp != null) {
                 if (!jsonProp.value().isEmpty()) {
                     fieldName = jsonProp.value();
                 }
                 if (jsonProp.required()) {
-                    required.add(fieldName);
+                    isRequired = true;
                 }
             }
+            
+            if (isRequired && !required.contains(fieldName)) {
+                required.add(fieldName);
+            }
 
-            // Apply validation annotations
             for (Annotation ann : f.getAnnotations()) {
                 applyAnnotation(fieldBuilder, ann, required, fieldName);
             }
@@ -203,7 +196,7 @@ public class GeminiSchemaGenerator {
 
         Schema.Builder builder = Schema.builder()
                 .type(Known.OBJECT)
-                .description(description)
+                .description(objectDescription)
                 .properties(props);
         if (!required.isEmpty()) {
             builder.required(required);
@@ -211,10 +204,9 @@ public class GeminiSchemaGenerator {
         return builder.build();
     }
 
-    private static void applyAnnotation(Schema.Builder builder, Annotation ann,
-                                        List<String> required, String fieldName) {
+    private static void applyAnnotation(Schema.Builder builder, Annotation ann, List<String> required, String fieldName) {
         if (ann instanceof NotNull) {
-            required.add(fieldName);
+            if (!required.contains(fieldName)) required.add(fieldName);
         } else if (ann instanceof Size) {
             Size s = (Size) ann;
             if (s.min() > 0) builder.minLength((long)s.min());
@@ -226,25 +218,5 @@ public class GeminiSchemaGenerator {
         } else if (ann instanceof Pattern) {
             builder.pattern(((Pattern) ann).regexp());
         }
-    }
-
-    // Example usage
-    public static void main(String[] args) {
-        class Person {
-            @JsonProperty(required = true)
-            String name;
-
-            @Min(0)
-            int age;
-
-            @Size(min = 1, max = 5)
-            List<String> hobbies;
-
-            @JsonIgnore
-            String internalId;
-        }
-
-        Schema schema = generateSchema(Person.class, "The person");
-        System.out.println(schema);
     }
 }
