@@ -60,18 +60,19 @@ public class ContextWindow {
         ContextManager.getCallingInstance().pruneParts(messageUID, parts, reason);
         return "Pruning of " + parts.size() + " part(s) from message " + messageUID + " complete.";
     }
-
-    @AIToolMethod("Lists all entries (messages) in the context, including their stable IDs, roles, and a summary of their parts.")
-    public static String listEntries() {
-        return ContextManager.getCallingInstance().getSummaryAsString();
-    }
+    
     
     @AIToolMethod(value = "Prunes all FunctionCall and FunctionResponse parts associated with the given stateful resource IDs. This is the recommended method for removing stale or unnecessary stateful resources (e.g. file contents).", requiresApproval = true)
     public static String pruneStatefulResources(
             @AIToolParam("A list of sateful resource identifiers (e.g., absolute file paths) to be pruned from the context.") List<String> resourceIds,
             @AIToolParam("A brief rationale for why these resources are being removed.") String reason
     ) throws Exception {
-        ContextManager.getCallingInstance().pruneStatefulResources(resourceIds, reason);
+        ContextManager.getCallingInstance().getResourceTracker().pruneStatefulResources(resourceIds);
         return "Pruning of " + resourceIds.size() + " stateful resource(s) complete.";
+    }
+    
+    @AIToolMethod("Lists all entries (messages) in the context, including their stable IDs, roles, and a summary of their parts.")
+    public static String listEntries() {
+        return ContextManager.getCallingInstance().getSessionManager().getSummaryAsString();
     }
 }

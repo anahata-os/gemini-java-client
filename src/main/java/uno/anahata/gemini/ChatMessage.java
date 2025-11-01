@@ -5,6 +5,7 @@ import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import com.google.genai.types.GroundingMetadata;
 import com.google.genai.types.Part;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,6 +29,9 @@ public class ChatMessage {
     private final GenerateContentResponseUsageMetadata usageMetadata;
     private final GroundingMetadata groundingMetadata;
     private final Map<Part, Part> partLinks;
+    
+    @Builder.Default
+    private final Instant createdOn = Instant.now();
 
     // This field is mutable and is set after the model's response is received.
     private List<FunctionResponse> functionResponses;

@@ -1,4 +1,4 @@
-package uno.anahata.gemini.context;
+package uno.anahata.gemini.context.stateful;
 
 /**
  * Represents the status of a stateful resource in the context, indicating

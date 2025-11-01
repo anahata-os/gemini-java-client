@@ -1,4 +1,4 @@
-package uno.anahata.gemini.context;
+package uno.anahata.gemini.context.stateful;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

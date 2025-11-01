@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Value;
-import uno.anahata.gemini.context.StatefulResource;
+import uno.anahata.gemini.context.stateful.StatefulResource;
 import uno.anahata.gemini.functions.ContextBehavior;
 import uno.anahata.gemini.functions.FunctionManager;
 
@@ -28,13 +28,6 @@ public final class FunctionUtils {
     public static final class Fingerprint {
         String name;
         Map<String, Object> args;
-    }
-
-    /**
-     * Creates a fingerprint from a FunctionCall.
-     */
-    public static Fingerprint fingerprintOf(FunctionCall fc) {
-        return new Fingerprint(fc.name().orElse(""), fc.args().orElse(Collections.emptyMap()));
     }
 
     /**

@@ -37,9 +37,8 @@ public class GeminiChat {
             GeminiConfig config,
             FunctionPrompter prompter) {
         this.config = config;
-        this.contextManager = new ContextManager(this, config, null); // Pass null for the listener
         this.functionManager = new FunctionManager(this, config, prompter);
-        this.contextManager.setFunctionManager(this.functionManager);
+        this.contextManager = new ContextManager(this);
         // Initialize providers here to take a copy from config
         this.systemInstructionProviders = new ArrayList<>(config.getSystemInstructionProviders());
     }

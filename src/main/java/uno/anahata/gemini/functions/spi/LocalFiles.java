@@ -2,7 +2,7 @@ package uno.anahata.gemini.functions.spi;
 
 import uno.anahata.gemini.functions.AIToolMethod;
 import uno.anahata.gemini.functions.AIToolParam;
-import uno.anahata.gemini.functions.pojos.FileInfo;
+import uno.anahata.gemini.functions.spi.pojos.FileInfo;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

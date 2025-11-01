@@ -4,7 +4,7 @@ import com.google.genai.types.Part;
 import java.util.Collections;
 import java.util.List;
 import uno.anahata.gemini.context.ContextManager;
-import uno.anahata.gemini.context.StatefulResourceStatus;
+import uno.anahata.gemini.context.stateful.StatefulResourceStatus;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 
@@ -27,7 +27,7 @@ public class StatefulResourcesProvider extends SystemInstructionProvider {
         }
 
         ContextManager cm = chat.getContextManager();
-        List<StatefulResourceStatus> statuses = cm.getStatefulResourcesOverview(chat.getFunctionManager());
+        List<StatefulResourceStatus> statuses = cm.getResourceTracker().getStatefulResourcesOverview();
         
         if (statuses.isEmpty()) {
             return Collections.singletonList(Part.fromText("No stateful resources currently tracked in context."));

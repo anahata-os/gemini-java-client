@@ -1,8 +1,8 @@
-package uno.anahata.gemini.context;
+package uno.anahata.gemini.context.stateful;
 
 /**
  * An interface for objects that represent a stateful resource in the context,
- * allowing the ContextManager to identify and manage them without reflection.
+ * allowing the ContextManager to identify and manage them.
  * This provides a compile-time safe contract for resource identification.
  *
  * @author Anahata

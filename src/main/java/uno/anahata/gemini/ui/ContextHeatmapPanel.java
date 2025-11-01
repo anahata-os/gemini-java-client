@@ -1,6 +1,7 @@
 package uno.anahata.gemini.ui;
 
 import com.google.genai.types.Part;
+import com.google.genai.types.FunctionResponse;
 import com.google.gson.Gson;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -23,7 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.functions.FunctionManager;
-import uno.anahata.gemini.internal.FunctionUtils;
+import uno.anahata.gemini.context.stateful.ResourceTracker;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.ui.render.PartType;
 
@@ -146,7 +147,7 @@ public class ContextHeatmapPanel extends JPanel {
 
         private String extractResourceIdFilename(Part part) {
             if (part.functionResponse().isPresent() && functionManager != null) {
-                return FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager)
+                return ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), functionManager)
                     .map(fullPath -> {
                         int lastSeparator = fullPath.lastIndexOf(File.separator);
                         if (lastSeparator != -1 && lastSeparator < fullPath.length() - 1) {
@@ -215,7 +216,7 @@ public class ContextHeatmapPanel extends JPanel {
             });
 
             part.functionResponse().ifPresent(fr -> {
-                Optional<String> resourceIdOpt = functionManager != null ? FunctionUtils.getResourceIdIfStateful(fr, functionManager) : Optional.empty();
+                Optional<String> resourceIdOpt = functionManager != null ? ResourceTracker.getResourceIdIfStateful(fr, functionManager) : Optional.empty();
 
                 // If it's a stateful file, just show the ID.
                 if (resourceIdOpt.isPresent()) {

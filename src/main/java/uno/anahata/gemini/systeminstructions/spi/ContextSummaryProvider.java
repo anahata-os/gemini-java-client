@@ -32,7 +32,7 @@ public class ContextSummaryProvider extends SystemInstructionProvider {
                 ContextWindow.getTokenThreshold()
         ));
         contextStatusBlock.append("\n");
-        contextStatusBlock.append(chat.getContextManager().getSummaryAsString());
+        contextStatusBlock.append(chat.getContextManager().getSessionManager().getSummaryAsString());
         contextStatusBlock.append("\n-------------------------------------------------------------------");
         
         return Collections.singletonList(Part.fromText(contextStatusBlock.toString()));

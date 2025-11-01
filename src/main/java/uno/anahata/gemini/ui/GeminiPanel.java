@@ -268,7 +268,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             protected Void doInBackground() throws Exception {
                 try {
                     String sessionName = "autobackup-" + config.getApplicationInstanceId();
-                    chat.getContextManager().loadSession(sessionName);
+                    chat.getContextManager().getSessionManager().loadSession(sessionName);
                 } catch (IOException e) {
                     error = e;
                 }
@@ -383,7 +383,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 }
                 String sessionName = StringUtils.removeEnd(fileName, ".kryo");
 
-                chat.getContextManager().saveSession(sessionName);
+                chat.getContextManager().getSessionManager().saveSession(sessionName);
                 JOptionPane.showMessageDialog(this, "Session saved successfully as " + sessionName, "Success", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (IOException ex) {
@@ -404,7 +404,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                 File fileToLoad = fileChooser.getSelectedFile();
                 String sessionId = StringUtils.removeEnd(fileToLoad.getName(), ".kryo");
 
-                chat.getContextManager().loadSession(sessionId);
+                chat.getContextManager().getSessionManager().loadSession(sessionId);
                 JOptionPane.showMessageDialog(this, "Session loaded successfully from " + sessionId, "Success", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (IOException ex) {
