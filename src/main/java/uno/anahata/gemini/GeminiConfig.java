@@ -44,6 +44,11 @@ public abstract class GeminiConfig {
     }
 
     public abstract String getApplicationInstanceId();
+    
+    public File getAutobackupFile() {
+        File sessionsDir = getWorkingFolder("sessions");
+        return new File(sessionsDir, "autobackup-" + getApplicationInstanceId() + ".kryo");
+    }
 
     public List<SystemInstructionProvider> getSystemInstructionProviders() {
         List<SystemInstructionProvider> providers = new ArrayList<>();
