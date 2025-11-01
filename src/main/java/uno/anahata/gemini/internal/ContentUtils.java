@@ -10,29 +10,6 @@ import java.util.stream.Collectors;
  * @author Anahata
  */
 public final class ContentUtils {
-
-    /**
-     * Creates a new Content object that is a clone of the original, but with a
-     * specific Part removed.
-     *
-     * @param original The original Content object.
-     * @param partToRemove The Part to exclude from the new object.
-     * @return A new Content object without the specified part.
-     */
-    public static Content cloneAndRemovePart(Content original, Part partToRemove) {
-        if (original == null || !original.parts().isPresent()) {
-            return original;
-        }
-
-        List<Part> partsToKeep = original.parts().get().stream()
-            .filter(p -> p != partToRemove)
-            .collect(Collectors.toList());
-
-        return Content.builder()
-            .role(original.role().orElse(null))
-            .parts(partsToKeep)
-            .build();
-    }
     
     /**
      * Creates a new Content object that is a clone of the original, but with
