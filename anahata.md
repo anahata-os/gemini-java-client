@@ -24,51 +24,69 @@ The project is logically divided into four main areas:
 
 This package contains the central orchestrators of the application.
 
-- **`GeminiChat`**: The heart of the client. It manages the main conversation loop, constructs the system instructions, sends content to the Gemini API, and orchestrates the response processing, including the function-calling loop.
-- **`ContextManager`**: The state machine for the conversation. It holds the `List<Content>` that represents the chat history and notifies listeners of any changes. It also manages stateful resources (like files) and handles the automatic pruning of dependent function calls/responses.
-- **`GeminiAPI`**: Manages the connection details, including a round-robin system for using a pool of API keys.
-- **`GeminiConfig`**: An abstract class that defines the contract for host-specific configurations, allowing the core logic to remain agnostic of its environment.
+| Class | Summary |
+| :--- | :--- |
+| **`GeminiChat.java`** | The main orchestrator. Manages the conversation loop, builds system instructions, handles API retries, and processes function calls/responses. |
+| **`ContextManager.java`** | The state machine for the conversation. Manages the `List<ChatMessage>`, handles stateful resource replacement (e.g., file updates), and performs automatic context pruning. |
+| **`GeminiConfig.java`** | Abstract base for host-specific configuration (API keys, working folder, function confirmation preferences). |
+| **`GeminiAPI.java`** | Manages the Google GenAI client, handles API key pooling (round-robin), and model selection. |
+| **`ChatMessage.java`** | The core data model for a single message, including content, usage metadata, and links between function calls and responses. |
+| **`Executors.java`** | Static utility for providing a cached thread pool for asynchronous tasks. |
 
 ### b. Function & Tool System (`uno.anahata.gemini.functions`)
 
 This is the system that grants the AI its advanced capabilities.
 
-- **`FunctionManager`**: Discovers all public static methods annotated with `@AITool` from the classes in the `spi` package. It builds the `FunctionDeclaration` list for the API and processes `FunctionCall` responses by invoking the correct Java methods with the arguments provided by the model.
-- **`spi` (Service Provider Interface)**: This sub-package contains the concrete implementations of the tools. Key classes include:
-    - `LocalFiles`: For all file system operations.
-    - `LocalShell`: For executing shell commands.
-    - `RunningJVM`: For compiling and executing Java code on the fly.
-    - `ContextWindow`: For managing the chat context itself (pruning, etc.).
-- **`FunctionPrompter`**: An interface that decouples the function approval process from the UI. `SwingFunctionPrompter` is the implementation that shows the interactive confirmation dialog.
+| Class/Package | Summary |
+| :--- | :--- |
+| **`FunctionManager.java`** | Discovers, registers, and executes local tools (`@AIToolMethod`). Generates the function schema for the Gemini API. |
+| **`AIToolMethod.java`** | Annotation for defining a tool method, including its description and context behavior. |
+| **`AIToolParam.java`** | Annotation for describing a tool method's parameter. |
+| **`ContextBehavior.java`** | Enum defining how a tool's output affects the context (`EPHEMERAL` or `STATEFUL_REPLACE`). |
+| **`JobInfo.java`** | POJO for tracking asynchronous tool execution results. |
+| **`FailureTracker.java`** | Prevents the model from getting stuck in a loop of repeatedly failing tool calls. |
+| **`pojos/FileInfo.java`** | POJO used by file-related tools, implementing `StatefulResource` to track file metadata. |
+| **`pojos/ProposeChangeResult.java`** | POJO for the result of a user-approved file change, also implementing `StatefulResource`. |
+| **`schema/GeminiSchemaGenerator.java`** | Generates the JSON schema for Java classes/methods using reflection and Swagger annotations. |
+| **`spi/*`** | Package containing concrete tool implementations (`LocalFiles`, `RunningJVM`, `ContextWindow`, etc.). |
 
 ### c. UI Layer (`uno.anahata.gemini.ui`)
 
 This package contains the entire Swing-based user interface.
 
-- **`GeminiPanel`**: The main `JPanel` that houses the entire chat UI, including the toolbar, chat display area, and input field.
-- **`render` (sub-package)**: A sophisticated rendering engine for displaying the chat history.
-    - **`ContentRenderer`**: The master renderer that takes a `Content` object and orchestrates its display.
-    - **`PartRenderer`**: An interface for components that can render a specific type of `Part` (e.g., text, function call). Implementations like `TextPartRenderer`, `FunctionCallPartRenderer`, and `FunctionResponsePartRenderer` build the specific Swing components for each part type.
+| Class/Package | Summary |
+| :--- | :--- |
+| **`Main.java`** | **The standalone application entry point** (`main` method) for launching the client in a `JFrame`. |
+| **`GeminiPanel.java`** | The main Swing component housing the entire chat interface, toolbar, and configuration tabs. |
+| **`ChatPanel.java`** | The panel containing the message history display and the input area (now a multi-line `JTextArea`). |
+| **`ContentRenderer.java`** | The master renderer that orchestrates the display of a `ChatMessage` by delegating to specific `PartRenderer` implementations. |
+| **`render/*`** | Sub-package containing specific renderers for different `Part` types (Text, FunctionCall, Blob, etc.). |
+| **`SwingGeminiConfig.java`** | Concrete `GeminiConfig` implementation for the Swing environment, including UI theme definitions. |
 
 ### d. Internal Utilities (`uno.anahata.gemini.internal`)
 
 This package contains helper classes and custom serializers.
 
-- **`GsonUtils`**: A critical utility for handling JSON serialization and deserialization. It is responsible for pretty-printing JSON for display in the UI.
-- **`ContentAdapter` & `PartAdapter`**: Custom GSON type adapters that ensure the Google GenAI library's core `Content` and `Part` objects are correctly serialized for session persistence.
+| Class | Summary |
+| :--- | :--- |
+| **`GsonUtils.java`** | Manages the Gson instance, including custom type adapters for `Optional` and pretty-printing JSON. |
+| **`ContentAdapter.java`** | Custom Gson adapter for serializing/deserializing the Google GenAI SDK's `Content` object for session persistence. |
+| **`PartAdapter.java`** | Custom Gson adapter for serializing/deserializing the Google GenAI SDK's `Part` object for session persistence. |
+| **`FunctionUtils.java`** | Helpers for creating tool call fingerprints and extracting stateful resource IDs from tool responses. |
+| **`PartUtils.java`** | Helpers for summarizing and converting `Part` objects (e.g., file to Blob). |
 
 ## 4. Current Status & Known Issues
 
 - **Pruning Dependency Fix Implemented:** The critical issue where pruning a FunctionCall or FunctionResponse without its counterpart caused a 400 Bad Request error has been addressed. The `ContextManager` now automatically resolves and prunes the dependent call/response pair to maintain API protocol integrity.
 
-## TODO - 2025-10-31 (Consolidated)
+## TODO - 2025-10-31 (Consolidated & Updated)
 
 -   **Generic Tool Disabling:** Implement a mechanism in `FunctionManager` or `GeminiChat` to disable `@AIToolMethod`s if a `SystemInstructionProvider` already supplies its data (e.g., prevent `IDE.getAllIDEAlerts` from being offered if `IdeAlertsInstructionsProvider` is active and providing the same data).
 -   **Kryo Session Serialization:** Investigate and implement session serialization using Kryo as a replacement for the current JSON-based approach. If successful, this could simplify the codebase by removing the need for custom GSON adapters (`ContentAdapter`, `PartAdapter`).
+-   **Multi-Model Abstraction Layer:** Create a generic interface for chat models to allow plugging in other providers like OpenAI or Claude.
 -   **GeminiPanel UI Enhancements:**
-    -   Replace the input `JTextField` with a `JTextArea` that supports multi-line input and uses Ctrl+Enter to send messages.
     -   Add a real-time status indicator to the UI showing:
         -   A running timer (in seconds) for the current API call round trip.
         -   A traffic light system for API call status: Green for "in-progress," Yellow for "retrying" (displaying the error and retry count), and Red for "failed" (displaying the final error and retry count).
         -   Display the total time of the last round trip upon completion or failure.
--   **EDT Responsiveness:** Investigate and fix performance issues where the Swing Event Dispatch Thread (EDT) becomes unresponsive for long periods during model responses. This likely involves moving more processing off the EDT.
+    -   **EDT Responsiveness:** Investigate and fix performance issues where the Swing Event Dispatch Thread (EDT) becomes unresponsive for long periods during model responses. This likely involves moving more processing off the EDT.
