@@ -237,7 +237,58 @@ public class GeminiPanel extends JPanel implements ContextListener {
         }
     }
 
-    public void initChatInSwingWorker() {
+    public void completeInitialisation() {
+        File autobackupFile = config.getAutobackupFile();
+        boolean restoreAttempted = false;
+
+        if (autobackupFile.exists() && autobackupFile.length() > 0) {
+            int response = JOptionPane.showConfirmDialog(
+                    this,
+                    "An automatic backup from a previous session was found. Do you want to restore it?",
+                    "Restore Session",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+            );
+            if (response == JOptionPane.YES_OPTION) {
+                restoreAttempted = true;
+                loadAutobackupInSwingWorker();
+            }
+        }
+
+        if (!restoreAttempted) {
+            initFreshChatInSwingWorker();
+        }
+    }
+
+    private void loadAutobackupInSwingWorker() {
+        new SwingWorker<Void, Void>() {
+            Exception error = null;
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                try {
+                    String sessionName = "autobackup-" + config.getApplicationInstanceId();
+                    chat.getContextManager().loadSession(sessionName);
+                } catch (IOException e) {
+                    error = e;
+                }
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                if (error != null) {
+                    log.error("Failed to load autobackup session", error);
+                    JOptionPane.showMessageDialog(GeminiPanel.this, "Error loading backup: " + error.getMessage() + "\nStarting a new session.", "Error", JOptionPane.ERROR_MESSAGE);
+                    initFreshChatInSwingWorker();
+                } else {
+                    finalizeUIInitialization();
+                }
+            }
+        }.execute();
+    }
+
+    private void initFreshChatInSwingWorker() {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
@@ -247,16 +298,20 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
             @Override
             protected void done() {
-                if (config != null && config.getApi() != null) {
-                    modelIdComboBox.removeAllItems();
-                    for (String model : config.getApi().getAvailableModelIds()) {
-                        modelIdComboBox.addItem(model);
-                    }
-                    modelIdComboBox.setSelectedItem(config.getApi().getModelId());
-                    modelIdComboBox.setEnabled(true);
-                }
+                finalizeUIInitialization();
             }
         }.execute();
+    }
+
+    private void finalizeUIInitialization() {
+        if (config != null && config.getApi() != null) {
+            modelIdComboBox.removeAllItems();
+            for (String model : config.getApi().getAvailableModelIds()) {
+                modelIdComboBox.addItem(model);
+            }
+            modelIdComboBox.setSelectedItem(config.getApi().getModelId());
+            modelIdComboBox.setEnabled(true);
+        }
     }
 
     @Override
@@ -265,7 +320,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
             updateUsageLabel(null);
             heatmapPanel.updateContext(Collections.emptyList());
             systemInstructionsPanel.refresh();
-            initChatInSwingWorker();
+            initFreshChatInSwingWorker();
         });
     }
 
@@ -276,7 +331,6 @@ public class GeminiPanel extends JPanel implements ContextListener {
             if (!currentContext.isEmpty()) {
                 updateUsageLabel(currentContext.get(currentContext.size() - 1).getUsageMetadata());
             }
-            // Also update the heatmap in the background so it's ready when the user clicks the tab
             heatmapPanel.updateContext(currentContext);
         });
     }
@@ -318,16 +372,16 @@ public class GeminiPanel extends JPanel implements ContextListener {
             File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
             JFileChooser fileChooser = new JFileChooser(sessionsDir);
             fileChooser.setDialogTitle("Save Session");
-            fileChooser.setFileFilter(new FileNameExtensionFilter("JSON Files", "json"));
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Kryo Session Files", "kryo"));
             int userSelection = fileChooser.showSaveDialog(this);
 
             if (userSelection == JFileChooser.APPROVE_OPTION) {
                 File fileToSave = fileChooser.getSelectedFile();
                 String fileName = fileToSave.getName();
-                if (!fileName.toLowerCase().endsWith(".json")) {
-                    fileName += ".json";
+                if (!fileName.toLowerCase().endsWith(".kryo")) {
+                    fileName += ".kryo";
                 }
-                String sessionName = StringUtils.removeEnd(fileName, ".json");
+                String sessionName = StringUtils.removeEnd(fileName, ".kryo");
 
                 chat.getContextManager().saveSession(sessionName);
                 JOptionPane.showMessageDialog(this, "Session saved successfully as " + sessionName, "Success", JOptionPane.INFORMATION_MESSAGE);
@@ -343,12 +397,12 @@ public class GeminiPanel extends JPanel implements ContextListener {
             File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
             JFileChooser fileChooser = new JFileChooser(sessionsDir);
             fileChooser.setDialogTitle("Load Session");
-            fileChooser.setFileFilter(new FileNameExtensionFilter("JSON Files", "json"));
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Kryo Session Files", "kryo"));
             int userSelection = fileChooser.showOpenDialog(this);
 
             if (userSelection == JFileChooser.APPROVE_OPTION) {
                 File fileToLoad = fileChooser.getSelectedFile();
-                String sessionId = StringUtils.removeEnd(fileToLoad.getName(), ".json");
+                String sessionId = StringUtils.removeEnd(fileToLoad.getName(), ".kryo");
 
                 chat.getContextManager().loadSession(sessionId);
                 JOptionPane.showMessageDialog(this, "Session loaded successfully from " + sessionId, "Success", JOptionPane.INFORMATION_MESSAGE);

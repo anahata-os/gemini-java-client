@@ -2,6 +2,7 @@ package uno.anahata.gemini.context;
 
 import com.google.genai.types.*;
 import com.google.gson.Gson;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.ContextBehavior;
@@ -336,6 +338,30 @@ public class ContextManager {
 
     public void notifyHistoryChange() {
         listeners.forEach(l -> l.contextChanged(chat));
+        triggerAutobackup();
+    }
+    
+    private void triggerAutobackup() {
+        final List<ChatMessage> contextCopy = new ArrayList<>(this.context);
+        final File autobackupFile = config.getAutobackupFile();
+
+        Executors.cachedThreadPool.submit(() -> {
+            try {
+                if (contextCopy.isEmpty()) {
+                    if (Files.exists(autobackupFile.toPath())) {
+                        Files.delete(autobackupFile.toPath());
+                        log.info("Autobackup: Context is empty, deleted autobackup file.");
+                    }
+                    return;
+                }
+
+                byte[] bytes = KryoUtils.serialize(contextCopy);
+                Files.write(autobackupFile.toPath(), bytes);
+                log.debug("Autobackup: Session automatically saved to {}", autobackupFile.getName());
+            } catch (Exception e) {
+                log.error("Autobackup: Failed to save session automatically.", e);
+            }
+        });
     }
 
     public String getContextId() {
