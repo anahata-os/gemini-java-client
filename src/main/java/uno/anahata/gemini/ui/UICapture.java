@@ -58,11 +58,14 @@ public class UICapture {
     }
 
     public static List<File> screenshotAllJFrames() {
+        log.info("Starting screenshot capture of all JFrames.");
         List<File> ret = new ArrayList<>();
         try {
             java.awt.Frame[] frames = java.awt.Frame.getFrames();
+            log.info("Found {} total frames.", frames.length);
             int capturedCount = 0;
             for (java.awt.Frame frame : frames) {
+                log.info("Checking frame: title='{}', class='{}', isShowing={}", frame.getTitle(), frame.getClass().getName(), frame.isShowing());
                 if (frame instanceof JFrame && frame.isShowing()) {
                     JFrame jframe = (JFrame) frame;
                     BufferedImage image = new BufferedImage(jframe.getWidth(), jframe.getHeight(), BufferedImage.TYPE_INT_ARGB);
@@ -81,11 +84,14 @@ public class UICapture {
                     ImageIO.write(image, "png", tempFile);
                     ret.add(tempFile);
                     capturedCount++;
+                    log.info("Captured frame '{}'", title);
                 }
             }
             if (capturedCount == 0) {
+                log.warn("No visible application frames were found to capture.");
                 JOptionPane.showMessageDialog(null, "No visible application frames were found to capture.", "Capture Info", JOptionPane.INFORMATION_MESSAGE);
             }
+            log.info("Finished screenshot capture. Captured {} frames.", capturedCount);
         } catch (IOException ex) {
             log.error("JFrame capture failed", ex);
             JOptionPane.showMessageDialog(null, "Could not capture frame: " + ex.getMessage(), "Capture Error", JOptionPane.ERROR_MESSAGE);

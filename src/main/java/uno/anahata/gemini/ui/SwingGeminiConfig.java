@@ -3,21 +3,18 @@ package uno.anahata.gemini.ui;
 import java.awt.Color;
 import java.awt.Font;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
-import uno.anahata.gemini.GeminiAPI;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
+import uno.anahata.gemini.ui.instructions.ScreenInstructionsProvider;
 
 /**
  * A simple, concrete GeminiConfig for standalone Swing applications.
  */
 public class SwingGeminiConfig extends GeminiConfig {
     
-    
-
     @Override
     public String getApplicationInstanceId() {
         return "standalone";
@@ -32,7 +29,9 @@ public class SwingGeminiConfig extends GeminiConfig {
     
     @Override
     public List<SystemInstructionProvider> getApplicationSpecificInstructionProviders() {
-        return Collections.emptyList();
+        List<SystemInstructionProvider> providers = new ArrayList<>();
+        //providers.add(new ScreenInstructionsProvider());
+        return providers;
     }
     
     public UITheme getTheme() {

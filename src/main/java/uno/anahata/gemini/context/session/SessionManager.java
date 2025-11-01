@@ -102,26 +102,26 @@ public class SessionManager {
         List<ChatMessage> historyCopy = contextManager.getContext();
         StringBuilder sb = new StringBuilder();
         sb.append("\n# Context Entries: ").append(historyCopy.size()).append("\n");
-        sb.append("----------------------------------------------------------------------------------------------------------------------------------------\n");
-        sb.append(String.format("%-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "ID", "Created On", "Name", "Role", "Elapsed", "Content Summary"));
-        sb.append("----------------------------------------------------------------------------------------------------------------------------------------\n");
+        sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
+        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "Index", "ID", "Created On", "Name", "Role", "Elapsed", "Content Summary"));
+        sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
 
         Instant previousTimestamp = null;
 
         for (int i = 0; i < historyCopy.size(); i++) {
             ChatMessage msg = historyCopy.get(i);
-            sb.append(summarizeMessage(msg, previousTimestamp));
+            sb.append(summarizeMessage(msg, i, previousTimestamp));
             previousTimestamp = msg.getCreatedOn();
         }
-        sb.append("----------------------------------------------------------------------------------------------------------------------------------------\n");
+        sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
         return sb.toString();
     }
 
     public String summarizeMessage(ChatMessage msg) {
-        return summarizeMessage(msg, null);
+        return summarizeMessage(msg, -1, null);
     }
 
-    private String summarizeMessage(ChatMessage msg, Instant previousTimestamp) {
+    private String summarizeMessage(ChatMessage msg, int index, Instant previousTimestamp) {
         StringBuilder sb = new StringBuilder();
         Content content = msg.getContent();
         String role = content != null ? content.role().orElse("system") : "system";
@@ -147,23 +147,25 @@ public class SessionManager {
             long elapsedMillis = Duration.between(previousTimestamp, msg.getCreatedOn()).toMillis();
             elapsedStr = formatDuration(elapsedMillis);
         }
+        
+        String indexStr = (index == -1) ? "" : String.valueOf(index);
 
         if (content != null && content.parts().isPresent()) {
             List<Part> parts = content.parts().get();
             if (parts.isEmpty()) {
-                sb.append(String.format("%-38s | %-20s | %-20s | %-8s | %-10s | %s\n", msg.getId(), createdOn, name, role, elapsedStr, "(No Parts)"));
+                sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Parts)"));
             } else {
                 for (int j = 0; j < parts.size(); j++) {
                     String prefix = String.format("[%d/%d] ", j, parts.size());
                     if (j == 0) {
-                        sb.append(String.format("%-38s | %-20s | %-20s | %-8s | %-10s | %s\n", msg.getId(), createdOn, name, role, elapsedStr, prefix + summarizePart(parts.get(j))));
+                        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, prefix + summarizePart(parts.get(j))));
                     } else {
-                        sb.append(String.format("%-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "", "", "", "", "", prefix + summarizePart(parts.get(j))));
+                        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "", "", "", "", "", "", prefix + summarizePart(parts.get(j))));
                     }
                 }
             }
         } else {
-            sb.append(String.format("%-38s | %-20s | %-20s | %-8s | %-10s | %s\n", msg.getId(), createdOn, name, role, elapsedStr, "(No Content)"));
+            sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Content)"));
         }
         return sb.toString();
     }

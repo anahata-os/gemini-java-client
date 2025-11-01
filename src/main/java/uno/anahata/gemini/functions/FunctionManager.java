@@ -24,6 +24,7 @@ import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
+import uno.anahata.gemini.internal.GsonUtils;
 
 
 /**
@@ -32,9 +33,11 @@ import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
 @Slf4j
 public class FunctionManager {
 
-    private static final Gson GSON = new Gson();
+    private static final Gson GSON = GsonUtils.getGson();
 
+    @Getter
     private final GeminiChat chat;
+    @Getter
     private final FunctionPrompter prompter;
     private final Map<String, Method> functionCallMethods = new HashMap<>();
     private final Tool coreTools;
