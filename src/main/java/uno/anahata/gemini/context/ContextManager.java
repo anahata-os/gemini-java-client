@@ -14,6 +14,7 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
@@ -23,6 +24,7 @@ import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.internal.ContentUtils;
 import uno.anahata.gemini.internal.FunctionUtils;
 import uno.anahata.gemini.internal.GsonUtils;
+import uno.anahata.gemini.internal.KryoUtils;
 import uno.anahata.gemini.internal.PartUtils;
 
 @Slf4j
@@ -319,9 +321,9 @@ public class ContextManager {
                 Content newContent = ContentUtils.cloneAndRemoveParts(originalContent, partsToPrune);
                 ChatMessage replacement = new ChatMessage(
                         currentMessage.getId(), currentMessage.getModelId(), newContent, currentMessage.getParentId(),
-                        currentMessage.getUsageMetadata(), currentMessage.getGroundingMetadata(), currentMessage.getPartLinks()
+                        currentMessage.getUsageMetadata(), currentMessage.getGroundingMetadata(), currentMessage.getPartLinks(),
+                        currentMessage.getFunctionResponses()
                 );
-                replacement.setFunctionResponses(currentMessage.getFunctionResponses());
                 iterator.set(replacement);
             }
         }
@@ -341,15 +343,38 @@ public class ContextManager {
     }
 
     public synchronized String saveSession(String name) throws IOException {
-        throw new UnsupportedOperationException("Session saving is disabled until Kryo implementation.");
+        Path sessionsDir = config.getWorkingFolder("sessions").toPath();
+        Files.createDirectories(sessionsDir);
+        Path sessionFile = sessionsDir.resolve(name + ".kryo");
+        byte[] bytes = KryoUtils.serialize(new ArrayList<>(context));
+        Files.write(sessionFile, bytes);
+        log.info("Session '{}' saved successfully to {}", name, sessionFile);
+        return "Session saved as " + name;
     }
 
     public synchronized List<String> listSavedSessions() throws IOException {
-        throw new UnsupportedOperationException("Session listing is disabled until Kryo implementation.");
+        Path sessionsDir = config.getWorkingFolder("sessions").toPath();
+        if (!Files.exists(sessionsDir)) {
+            return Collections.emptyList();
+        }
+        try (Stream<Path> stream = Files.list(sessionsDir)) {
+            return stream
+                    .filter(p -> p.toString().endsWith(".kryo"))
+                    .map(p -> p.getFileName().toString().replace(".kryo", ""))
+                    .collect(Collectors.toList());
+        }
     }
 
     public synchronized void loadSession(String id) throws IOException {
-        throw new UnsupportedOperationException("Session loading is disabled until Kryo implementation.");
+        Path sessionsDir = config.getWorkingFolder("sessions").toPath();
+        Path sessionFile = sessionsDir.resolve(id + ".kryo");
+        if (!Files.exists(sessionFile)) {
+            throw new IOException("Session file not found: " + sessionFile);
+        }
+        byte[] bytes = Files.readAllBytes(sessionFile);
+        List<ChatMessage> loadedContext = KryoUtils.deserialize(bytes, ArrayList.class);
+        setContext(loadedContext);
+        log.info("Session '{}' loaded successfully.", id);
     }
 
     private boolean isUserMessage(ChatMessage message) {
@@ -453,7 +478,7 @@ public class ContextManager {
                         FunctionResponse fr = p.functionResponse().get();
                         Optional<String> resourceIdOpt = FunctionUtils.getResourceIdIfStateful(fr, functionManager);
                         if (resourceIdOpt.isPresent()) {
-                            summary = "[FunctionResponse]:STATEFUL:" + resourceIdOpt.get();
+                            summary = "[FunctionResponse][" + fr.name().get() + "]:STATEFUL:" + resourceIdOpt.get();
                         } else {
                             summary = PartUtils.summarize(p);
                         }
@@ -556,5 +581,35 @@ public class ContextManager {
         }
 
         return new StatefulResourceStatus(resourceId, contextLastModified, contextSize, diskLastModified, diskSize, status, resource);
+    }
+    
+    public synchronized void pruneStatefulResources(List<String> resourceIds, String reason) {
+        if (resourceIds == null || resourceIds.isEmpty() || functionManager == null) {
+            return;
+        }
+
+        log.info("Attempting to prune stateful resources: {}. Reason: {}", resourceIds, reason);
+
+        Set<Part> partsToPrune = new HashSet<>();
+        for (ChatMessage message : context) {
+            for (Part part : message.getContent().parts().orElse(Collections.emptyList())) {
+                if (part.functionResponse().isPresent()) {
+                    Optional<String> resourceIdOpt = FunctionUtils.getResourceIdIfStateful(part.functionResponse().get(), functionManager);
+                    if (resourceIdOpt.isPresent() && resourceIds.contains(resourceIdOpt.get())) {
+                        partsToPrune.add(part);
+                        Part callPart = message.getFunctionCallForResponse(part);
+                        if (callPart != null) {
+                            partsToPrune.add(callPart);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!partsToPrune.isEmpty()) {
+            prunePartsByReference(new ArrayList<>(partsToPrune), reason);
+        } else {
+            log.warn("No parts found for the specified stateful resource IDs: {}", resourceIds);
+        }
     }
 }

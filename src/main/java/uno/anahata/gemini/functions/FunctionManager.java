@@ -23,7 +23,7 @@ import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
-import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator2;
+import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
 
 @Slf4j
 public class FunctionManager {
@@ -140,16 +140,17 @@ public class FunctionManager {
         List<FunctionResponse> responses = new ArrayList<>();
         for (FunctionCall approvedCall : allApprovedCalls) {
             String anahataId = approvedCall.id().orElse(UUID.randomUUID().toString());
+            String toolName = approvedCall.name().orElse("unknown");
             
             try {
                 if (failureTracker.isBlocked(approvedCall)) {
-                    throw new RuntimeException("Tool call '" + approvedCall.name().get() + "' is temporarily blocked due to repeated failures.");
+                    throw new RuntimeException("Tool call '" + toolName + "' is temporarily blocked due to repeated failures.");
                 }
 
                 GeminiChat.callingInstance.set(chat);
-                Method method = functionCallMethods.get(approvedCall.name().get());
+                Method method = functionCallMethods.get(toolName);
                 if (method == null) {
-                    throw new RuntimeException("Tool not found: '" + approvedCall.name().get() + "' available tools: " + functionCallMethods.keySet());
+                    throw new RuntimeException("Tool not found: '" + toolName + "' available tools: " + functionCallMethods.keySet());
                 }
                 
                 Map<String, Object> args = new HashMap<>(approvedCall.args().get());
@@ -160,10 +161,10 @@ public class FunctionManager {
 
                 if (isAsync) {
                     final String jobId = UUID.randomUUID().toString();
-                    funcResponsePayload = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + approvedCall.name().get(), null);
+                    funcResponsePayload = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + toolName, null);
                     
                     Executors.cachedThreadPool.submit(() -> {
-                        JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + approvedCall.name().get(), null);
+                        JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + toolName, null);
                         try {
                             GeminiChat.callingInstance.set(chat);
                             Object result = invokeFunctionMethod(method, args);
@@ -196,7 +197,7 @@ public class FunctionManager {
                 
                 FunctionResponse fr = FunctionResponse.builder()
                     .id(anahataId)
-                    .name(approvedCall.name().get())
+                    .name(toolName)
                     .response(responseMap)
                     .build();
                 responses.add(fr);
@@ -209,12 +210,13 @@ public class FunctionManager {
                 }
 
             } catch (Exception e) {
+                log.error("Error executing tool call: {}", toolName, e);
                 failureTracker.recordFailure(approvedCall, e);
                 Map<String, Object> errorMap = new HashMap<>();
                 errorMap.put("error", ExceptionUtils.getStackTrace(e));
                 responses.add(FunctionResponse.builder()
                     .id(anahataId)
-                    .name(approvedCall.name().get())
+                    .name(toolName)
                     .response(errorMap)
                     .build());
             } finally {
@@ -275,7 +277,7 @@ public class FunctionManager {
         }
         descriptionBuilder.append("\n\njava method signature: ").append(signature);
         
-        Schema responseSchema = GeminiSchemaGenerator2.generateSchema(method.getReturnType(), "Schema for " + method.getReturnType().getSimpleName());
+        Schema responseSchema = GeminiSchemaGenerator.generateSchema(method.getReturnType(), "Schema for " + method.getReturnType().getSimpleName());
 
         Map<String, Schema> properties = new HashMap<>();
         List<String> required = new ArrayList<>();
@@ -285,7 +287,7 @@ public class FunctionManager {
             AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
             String paramDescription = (paramAnnotation != null) ? paramAnnotation.value() : "No description";
             
-            properties.put(paramName, GeminiSchemaGenerator2.generateSchema(p.getType(), paramDescription));
+            properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), paramDescription));
             required.add(paramName);
         }
         

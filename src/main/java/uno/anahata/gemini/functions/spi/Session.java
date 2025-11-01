@@ -6,10 +6,10 @@ import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.functions.AIToolMethod;
 
 /**
- * A tool for managing chat sessions.
+ * A tool for managing chat sessions using Kryo serialization.
  */
 public class Session {
-    @AIToolMethod("Saves the current chat session to a file.")
+    @AIToolMethod("Saves the current chat session to a file using Kryo serialization.")
     public static String saveSession(String name) throws IOException {
         return ContextManager.getCallingInstance().saveSession(name);
     }

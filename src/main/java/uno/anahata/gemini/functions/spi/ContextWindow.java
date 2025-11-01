@@ -57,7 +57,7 @@ public class ContextWindow {
         return "Pruning complete. Removed " + removedCount + " messages.";
     }
     
-    @AIToolMethod(value = "Prunes one or several parts from a given message.", requiresApproval = true)
+    @AIToolMethod(value = "Prunes one or several parts from a given message. If a FunctionCall or FunctionResponse part is pruned, its corresponding paired part (FunctionResponse or FunctionCall) is automatically resolved and pruned as well to maintain conversation integrity.", requiresApproval = true)
     public static String pruneParts(
             @AIToolParam("The unique, stable ID of the ChatMessage containing the parts.") String messageUID,
             @AIToolParam("A list of zero-based indices of the parts to remove.") List<Number> parts,
@@ -70,5 +70,14 @@ public class ContextWindow {
     @AIToolMethod("Lists all entries in the context, including their stable IDs, roles, and a summary of their parts.")
     public static String listEntries() {
         return ContextManager.getCallingInstance().getSummaryAsString();
+    }
+    
+    @AIToolMethod(value = "Prunes all FunctionResponse parts associated with the given stateful resource IDs, along with their corresponding FunctionCall parts.", requiresApproval = true)
+    public static String pruneStatefulResources(
+            @AIToolParam("A list of resource identifiers (e.g., absolute file paths) to be pruned from the context.") List<String> resourceIds,
+            @AIToolParam("A brief rationale for why these resources are being removed.") String reason
+    ) throws Exception {
+        ContextManager.getCallingInstance().pruneStatefulResources(resourceIds, reason);
+        return "Pruning of " + resourceIds.size() + " stateful resource(s) complete.";
     }
 }

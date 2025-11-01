@@ -39,24 +39,29 @@ This architecture allows you to create sophisticated AI agents that can reason a
 
 ## Getting Started
 
-*(Full usage examples and Maven dependency information to be added).*
+The standalone client can be launched by running the `main` method in `uno.anahata.gemini.ui.Main.java`.
 
-### Basic Example (without UI)
+For programmatic use, here is a basic setup:
 
 ```java
+import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.ui.SwingGeminiConfig;
+import uno.anahata.gemini.ui.SwingFunctionPrompter;
+import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
+import uno.anahata.gemini.functions.FunctionPrompter;
+
 // 1. Configure your API key and other settings
-GeminiConfig config = new StandaloneSwingGeminiConfig();
+//    (Ensure gemini-api-keys.txt is in your working directory)
+SwingGeminiConfig config = new SwingGeminiConfig();
 
-// 2. Create an instance of your tool class
-MyApplicationTools myTools = new MyApplicationTools();
+// 2. Initialize the chat with a FunctionPrompter (e.g., a Swing one)
+//    Note: Tools are automatically discovered via the SPI and config.getAutomaticFunctionClasses()
+FunctionPrompter prompter = new SwingFunctionPrompter(null, new DefaultEditorKitProvider());
+GeminiChat chat = new GeminiChat(config, prompter);
 
-// 3. Initialize the chat
-GeminiChat chat = new GeminiChat(config);
-chat.getFunctionManager().addTool(myTools); // Register your tools
-
-// 4. Start a conversation
-String response = chat.send("Hello! Can you use your tools to tell me the current time?");
-System.out.println(response);
+// 3. Start a conversation
+chat.sendText("Hello! Can you use your tools to tell me the current time?");
+// The response will be processed asynchronously and added to the chat context.
 ```
 
 ## Support the Project

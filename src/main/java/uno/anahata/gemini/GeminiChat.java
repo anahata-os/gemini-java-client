@@ -230,7 +230,8 @@ public class GeminiChat {
                     modelMessageWithCalls.getId(),
                     null,
                     null,
-                    partLinks
+                    partLinks,
+                    null
             );
             contextManager.add(functionResponseMessage);
         }
