@@ -25,6 +25,10 @@ import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
 
+
+/**
+ * Handles java method to genai tool/function conversation for a given GeminiChat. 
+ */
 @Slf4j
 public class FunctionManager {
 
@@ -41,12 +45,18 @@ public class FunctionManager {
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
     
+    /**
+     * Maps a FunctionDeclaration to its declaring method.
+     */
     @AllArgsConstructor
     public static class FunctionInfo {
         public final FunctionDeclaration declaration;
         public final Method method;
     }
     
+    /**
+     * The result of a function call prompt containing the prompt for several functions
+     */
     @AllArgsConstructor
     public static class FunctionProcessingResult {
         public final List<FunctionResponse> responses;
