@@ -35,7 +35,7 @@ public class Main {
             frame.setVisible(true);
             
             geminiPanel.initComponents();
-            geminiPanel.initChatInSwingWorker();
+            geminiPanel.completeInitialisation();
             //geminiPanel.init(config);
             
         });
