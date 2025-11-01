@@ -47,9 +47,7 @@ public final class GsonUtils {
     
     private static Gson createGson(boolean prettyPrinting) {
         GsonBuilder builder = new GsonBuilder()
-                .registerTypeAdapterFactory(new OptionalTypeAdapterFactory())
-                .registerTypeAdapter(Content.class, new ContentAdapter())
-                .registerTypeAdapter(Part.class, new PartAdapter());
+                .registerTypeAdapterFactory(new OptionalTypeAdapterFactory());
 
         if (prettyPrinting) {
             builder.setPrettyPrinting();
