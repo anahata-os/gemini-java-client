@@ -132,7 +132,10 @@ public class GeminiChat {
         isProcessing = true;
         try {
             if (content != null) {
-                ChatMessage userMessage = new ChatMessage(config.getApi().getModelId(), content, null, null, null);
+                ChatMessage userMessage = ChatMessage.builder()
+                        .modelId(config.getApi().getModelId())
+                        .content(content)
+                        .build();
                 contextManager.add(userMessage);
             }
 
@@ -143,7 +146,11 @@ public class GeminiChat {
                 if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
                     log.warn("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
                     Content emptyContent = Content.builder().role("model").parts(Part.fromText("[No response from model]")).build();
-                    ChatMessage emptyModelMessage = new ChatMessage(config.getApi().getModelId(), emptyContent, null, resp.usageMetadata().orElse(null), null);
+                    ChatMessage emptyModelMessage = ChatMessage.builder()
+                            .modelId(config.getApi().getModelId())
+                            .content(emptyContent)
+                            .usageMetadata(resp.usageMetadata().orElse(null))
+                            .build();
                     contextManager.add(emptyModelMessage);
                     break;
                 }
@@ -155,13 +162,12 @@ public class GeminiChat {
                 }
 
                 Content modelResponseContent = cand.content().get();
-                ChatMessage modelMessage = new ChatMessage(
-                        config.getApi().getModelId(),
-                        modelResponseContent,
-                        null,
-                        resp.usageMetadata().orElse(null),
-                        cand.groundingMetadata().orElse(null)
-                );
+                ChatMessage modelMessage = ChatMessage.builder()
+                        .modelId(config.getApi().getModelId())
+                        .content(modelResponseContent)
+                        .usageMetadata(resp.usageMetadata().orElse(null))
+                        .groundingMetadata(cand.groundingMetadata().orElse(null))
+                        .build();
                 contextManager.add(modelMessage);
 
                 if (!processAndReloopForFunctionCalls(modelMessage)) {
@@ -190,7 +196,10 @@ public class GeminiChat {
                     .collect(Collectors.joining(", "));
             String feedbackText = "User Feedback: The model attempted to call the following tool(s) while local functions were disabled: [" + attemptedCalls + "]. The calls were ignored.";
             Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText)).build();
-            ChatMessage feedbackMessage = new ChatMessage(config.getApi().getModelId(), feedbackContent, null, null, null);
+            ChatMessage feedbackMessage = ChatMessage.builder()
+                    .modelId(config.getApi().getModelId())
+                    .content(feedbackContent)
+                    .build();
             contextManager.add(feedbackMessage);
             return false; // Stop processing and do not re-loop.
         }
@@ -223,16 +232,13 @@ public class GeminiChat {
                     .parts(responseParts)
                     .build();
 
-            ChatMessage functionResponseMessage = new ChatMessage(
-                    UUID.randomUUID().toString(),
-                    config.getApi().getModelId(),
-                    functionResponseContent,
-                    modelMessageWithCalls.getId(),
-                    null,
-                    null,
-                    partLinks,
-                    null
-            );
+            ChatMessage functionResponseMessage = ChatMessage.builder()
+                    .id(UUID.randomUUID().toString())
+                    .modelId(config.getApi().getModelId())
+                    .content(functionResponseContent)
+                    .parentId(modelMessageWithCalls.getId())
+                    .partLinks(partLinks)
+                    .build();
             contextManager.add(functionResponseMessage);
         }
 
@@ -261,7 +267,10 @@ public class GeminiChat {
             }
 
             Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText.toString())).build();
-            ChatMessage feedbackMessage = new ChatMessage(config.getApi().getModelId(), feedbackContent, null, null, null);
+            ChatMessage feedbackMessage = ChatMessage.builder()
+                    .modelId(config.getApi().getModelId())
+                    .content(feedbackContent)
+                    .build();
             contextManager.add(feedbackMessage);
         }
 
@@ -365,7 +374,10 @@ public class GeminiChat {
         Part part = Part.fromFunctionResponse(fr.name().get(), (Map<String, Object>) fr.response().get());
         Content notificationContent = Content.builder().role("tool").parts(part).build();
         
-        ChatMessage jobResultMessage = new ChatMessage(config.getApi().getModelId(), notificationContent, null, null, null);
+        ChatMessage jobResultMessage = ChatMessage.builder()
+                .modelId(config.getApi().getModelId())
+                .content(notificationContent)
+                .build();
         contextManager.add(jobResultMessage);
     }
 }

@@ -6,8 +6,8 @@ import com.google.gson.Gson;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import lombok.Value;
 import uno.anahata.gemini.context.StatefulResource;
 import uno.anahata.gemini.functions.ContextBehavior;
 import uno.anahata.gemini.functions.FunctionManager;
@@ -24,35 +24,10 @@ public final class FunctionUtils {
      * An immutable class to represent the unique fingerprint of a tool call (name + arguments).
      * This is the Java 8 compatible version of a record.
      */
+    @Value
     public static final class Fingerprint {
-        private final String name;
-        private final Map<String, Object> args;
-
-        public Fingerprint(String name, Map<String, Object> args) {
-            this.name = name;
-            this.args = args;
-        }
-
-        public String name() {
-            return name;
-        }
-
-        public Map<String, Object> args() {
-            return args;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Fingerprint that = (Fingerprint) o;
-            return Objects.equals(name, that.name) && Objects.equals(args, that.args);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(name, args);
-        }
+        String name;
+        Map<String, Object> args;
     }
 
     /**

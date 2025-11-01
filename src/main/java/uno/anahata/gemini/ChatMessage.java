@@ -8,40 +8,30 @@ import com.google.genai.types.Part;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.Builder;
+import lombok.Data;
 
 /**
  * A rich, stateful representation of a single message in the chat history.
  * This is the core data model for the new architecture.
  * @author Anahata
  */
-@Getter
-@NoArgsConstructor
-@AllArgsConstructor
+@Data
+@Builder(toBuilder = true)
 public class ChatMessage {
 
-    private String id;
-    private String modelId;
-    private Content content;
-    private String parentId;
-    private GenerateContentResponseUsageMetadata usageMetadata;
-    private GroundingMetadata groundingMetadata;
-    private Map<Part, Part> partLinks;
+    @Builder.Default
+    private final String id = UUID.randomUUID().toString();
+    private final String modelId;
+    private final Content content;
+    private final String parentId;
+    private final GenerateContentResponseUsageMetadata usageMetadata;
+    private final GroundingMetadata groundingMetadata;
+    private final Map<Part, Part> partLinks;
 
-    @Setter
+    // This field is mutable and is set after the model's response is received.
     private List<FunctionResponse> functionResponses;
 
-    public ChatMessage(String modelId, Content content, String parentId, GenerateContentResponseUsageMetadata usageMetadata, GroundingMetadata groundingMetadata) {
-        this(UUID.randomUUID().toString(), modelId, content, parentId, usageMetadata, groundingMetadata, null, null);
-    }
-    
-    public ChatMessage(String id, String modelId, Content content, String parentId, GenerateContentResponseUsageMetadata usageMetadata, GroundingMetadata groundingMetadata) {
-        this(id, modelId, content, parentId, usageMetadata, groundingMetadata, null, null);
-    }
-    
     /**
      * Convenience method to find the originating FunctionCall Part for a given FunctionResponse Part.
      * @param responsePart The Part containing the FunctionResponse.

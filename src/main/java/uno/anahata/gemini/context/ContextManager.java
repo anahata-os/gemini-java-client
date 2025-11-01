@@ -321,11 +321,9 @@ public class ContextManager {
                 log.info("Message {} became empty and was removed after pruning parts.", currentMessage.getId());
             } else {
                 Content newContent = ContentUtils.cloneAndRemoveParts(originalContent, partsToPrune);
-                ChatMessage replacement = new ChatMessage(
-                        currentMessage.getId(), currentMessage.getModelId(), newContent, currentMessage.getParentId(),
-                        currentMessage.getUsageMetadata(), currentMessage.getGroundingMetadata(), currentMessage.getPartLinks(),
-                        currentMessage.getFunctionResponses()
-                );
+                ChatMessage replacement = currentMessage.toBuilder()
+                        .content(newContent)
+                        .build();
                 iterator.set(replacement);
             }
         }

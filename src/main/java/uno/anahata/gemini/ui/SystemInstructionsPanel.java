@@ -84,7 +84,12 @@ public class SystemInstructionsPanel extends JPanel {
                     providerPanel.add(header, BorderLayout.NORTH);
 
                     Content content = Content.builder().role("tool").parts(parts).build();
-                    ChatMessage fakeMessage = new ChatMessage(provider.getDisplayName() + " ", null, content, null, null, null);
+                    
+                    // FIX: Use builder instead of constructor
+                    ChatMessage fakeMessage = ChatMessage.builder()
+                            .content(content)
+                            .modelId(provider.getDisplayName() + " ") // Use display name as a placeholder model ID
+                            .build();
                     
                     JComponent renderedContent = renderer.render(fakeMessage, -1, chat.getContextManager());
                     providerPanel.add(renderedContent, BorderLayout.CENTER);
