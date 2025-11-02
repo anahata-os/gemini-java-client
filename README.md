@@ -1,5 +1,4 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 # Gemini Java Client
 
@@ -24,18 +23,6 @@ The client also features a built-in Swing UI (`GeminiPanel`) that can be easily 
 - **Automatic Context Management:** Strategies for automatically pruning the conversation history to stay within the model's token limit.
 - **Multimodality:** Send text, images, and other file types to the model.
 - **Extensible:** Designed to be easily extended and customized for specific host applications.
-
-## How It Works
-
-The core of the client is the `GeminiChat` class, which manages the conversation with the Gemini API. The real power, however, comes from the `FunctionManager` and the `@AITool` annotation.
-
-1.  **Tool Discovery:** When you initialize the `FunctionManager`, you provide it with instances of classes containing methods annotated with `@AITool`.
-2.  **Schema Generation:** The manager uses reflection to inspect these methods and automatically generates the JSON schema that the Gemini API requires to understand what the function does, what parameters it accepts, and what it returns.
-3.  **Function Calling:** When the Gemini model decides to call one of your tools, the `GeminiChat` class intercepts the `FunctionCall` from the API response.
-4.  **Local Execution:** It then invokes the corresponding Java method in your tool class, passing the arguments provided by the model.
-5.  **Response:** The return value of your Java method is wrapped in a `FunctionResponse` and sent back to the model, completing the loop.
-
-This architecture allows you to create sophisticated AI agents that can reason about problems and then use your application's own logic to solve them.
 
 ## Getting Started
 
@@ -75,8 +62,6 @@ This project is the result of countless hours of passion and dedication. If you 
 
 `gemini-java-client` is available under a dual-license model to accommodate both open-source and commercial needs.
 
-- **Open Source:** For use in open-source projects, the client is licensed under the **GNU Affero General Public License v3 (AGPLv3)**. This license ensures that any derivative works or applications that use this library and are publicly accessible must also be made open-source.
+-   **Open Source:** For use in open-source projects, the client is licensed under the **GNU Affero General Public License v3 (AGPLv3)**. See the [LICENSE](LICENSE) file for the full license text.
 
-- **Commercial Use:** For use in proprietary, closed-source applications, a **commercial license is required**. This allows you to integrate the power of the `gemini-java-client` into your commercial products without the obligation to open-source your own code.
-
-To inquire about a commercial license, please contact us at **sales@anahata.uno**.
+-   **Commercial Use:** For use in proprietary, closed-source applications, a **commercial license is required**. This allows you to integrate the power of the `gemini-java-client` into your commercial products without the obligation to open-source your own code. Please see the [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) file for more information.
