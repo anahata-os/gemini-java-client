@@ -102,9 +102,8 @@ public class SessionManager {
         List<ChatMessage> historyCopy = contextManager.getContext();
         StringBuilder sb = new StringBuilder();
         sb.append("\n# Context Entries: ").append(historyCopy.size()).append("\n");
-        sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
-        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "Nº", "UUID", "Created On", "Name", "Role", "Elapsed", "Content Summary"));
-        sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
+        sb.append("| Nº | UUID | Created On | Name | Role | Elapsed | Content Summary |\n");
+        sb.append("|---:|:---|:---|:---|:---|---:|:---|\n");
 
         Instant previousTimestamp = null;
 
@@ -113,7 +112,6 @@ public class SessionManager {
             sb.append(summarizeMessage(msg, i, previousTimestamp));
             previousTimestamp = msg.getCreatedOn();
         }
-        sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
         return sb.toString();
     }
 
@@ -153,19 +151,20 @@ public class SessionManager {
         if (content != null && content.parts().isPresent()) {
             List<Part> parts = content.parts().get();
             if (parts.isEmpty()) {
-                sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Parts)"));
+                sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s |\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Parts)"));
             } else {
                 for (int j = 0; j < parts.size(); j++) {
                     String prefix = String.format("[%d/%d] ", j, parts.size());
+                    String summary = prefix + summarizePart(parts.get(j));
                     if (j == 0) {
-                        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, prefix + summarizePart(parts.get(j))));
+                        sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s |\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, summary));
                     } else {
-                        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "", "", "", "", "", "", prefix + summarizePart(parts.get(j))));
+                        sb.append(String.format("| | | | | | | %s |\n", summary));
                     }
                 }
             }
         } else {
-            sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Content)"));
+            sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s |\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Content)"));
         }
         return sb.toString();
     }
@@ -225,7 +224,7 @@ public class SessionManager {
         }
 
         // Sanitize and truncate the final string
-        String finalString = sb.toString().replace("\n", "\\n").replace("\r", "");
+        String finalString = sb.toString().replace("\n", "\\n").replace("\r", "").replace("|", "\\|");
         return StringUtils.truncate(finalString, MAX_LENGTH);
     }
 }
