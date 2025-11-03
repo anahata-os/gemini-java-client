@@ -88,9 +88,8 @@ public class ResourceTracker {
                     Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), functionManager);
                     if (resourceIdOpt.isPresent() && newResourceIds.contains(resourceIdOpt.get())) {
                         partsToPrune.add(part);
-                        Part callPart = message.getFunctionCallForResponse(part);
-                        if (callPart != null) {
-                            partsToPrune.add(callPart);
+                        if (message.getDependencies() != null) {
+                            partsToPrune.addAll(message.getDependencies().getOrDefault(part, Collections.emptyList()));
                         }
                     }
                 }
@@ -203,9 +202,8 @@ public class ResourceTracker {
                     Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), functionManager);
                     if (resourceIdOpt.isPresent() && resourceIds.contains(resourceIdOpt.get())) {
                         partsToPrune.add(part);
-                        Part callPart = message.getFunctionCallForResponse(part);
-                        if (callPart != null) {
-                            partsToPrune.add(callPart);
+                        if (message.getDependencies() != null) {
+                            partsToPrune.addAll(message.getDependencies().getOrDefault(part, Collections.emptyList()));
                         }
                     }
                 }

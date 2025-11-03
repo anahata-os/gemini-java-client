@@ -16,13 +16,14 @@ import lombok.extern.slf4j.Slf4j;
 public class GeminiAPI {
 
     private static final List<String> AVAILABLE_MODEL_IDS = Arrays.asList(
-            "gemini-2.5-pro",
+            "gemini-pro-latest",
             "gemini-flash-latest",            
             "gemini-flash-lite-latest",            
             "learnlm-2.0-flash-experimental"
     );
 
-    private String modelId = "gemini-2.5-pro";
+    private String modelId = AVAILABLE_MODEL_IDS.getFirst();
+            
     private String[] keyPool;
     private int round = 0;
 

@@ -57,15 +57,23 @@ public class FunctionManager {
         public final Method method;
     }
     
+    @Getter
+    @AllArgsConstructor
+    public static class ExecutedToolCall {
+        public final Part sourceCallPart;
+        public final FunctionResponse response;
+        public final Object rawResult;
+    }
+    
     /**
      * The result of a function call prompt containing the prompt for several functions
      */
+    @Getter
     @AllArgsConstructor
     public static class FunctionProcessingResult {
-        public final List<FunctionResponse> responses;
-        public final List<FunctionCall> deniedCalls;
+        public final List<ExecutedToolCall> executedCalls;
+        public final List<Part> deniedCallParts;
         public final String userComment;
-        public final Map<FunctionResponse, Part> responseToCallLinks;
     }
     
     public FunctionManager(GeminiChat chat, GeminiConfig config, FunctionPrompter prompter) {
@@ -113,16 +121,18 @@ public class FunctionManager {
     public FunctionProcessingResult processFunctionCalls(ChatMessage modelResponseMessage) {
         Content modelResponseContent = modelResponseMessage.getContent();
         
-        List<FunctionCall> allProposedCalls = new ArrayList<>();
+        Map<FunctionCall, Part> callToPartMap = new HashMap<>();
         modelResponseContent.parts().ifPresent(parts -> {
             for (Part part : parts) {
-                part.functionCall().ifPresent(allProposedCalls::add);
+                part.functionCall().ifPresent(fc -> callToPartMap.put(fc, part));
             }
         });
 
-        if (allProposedCalls.isEmpty()) {
-            return new FunctionProcessingResult(Collections.emptyList(), Collections.emptyList(), "", Collections.emptyMap());
+        if (callToPartMap.isEmpty()) {
+            return new FunctionProcessingResult(Collections.emptyList(), Collections.emptyList(), "");
         }
+        
+        List<FunctionCall> allProposedCalls = new ArrayList<>(callToPartMap.keySet());
         
         GeminiConfig config = chat.getContextManager().getConfig();
         boolean allAlwaysApproved = true;
@@ -142,18 +152,20 @@ public class FunctionManager {
         }
         
         List<FunctionCall> allApprovedCalls = promptResult.approvedFunctions;
+        List<Part> deniedCallParts = promptResult.deniedFunctions.stream()
+                .map(callToPartMap::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
 
         if (allApprovedCalls.isEmpty()) {
-            return new FunctionProcessingResult(Collections.emptyList(), promptResult.deniedFunctions, promptResult.userComment, Collections.emptyMap());
+            return new FunctionProcessingResult(Collections.emptyList(), deniedCallParts, promptResult.userComment);
         }
 
-        Map<FunctionResponse, Part> responseToCallLinks = new HashMap<>();
-        List<? extends Part> originalParts = modelResponseMessage.getContent().parts().get();
-
-        List<FunctionResponse> responses = new ArrayList<>();
+        List<ExecutedToolCall> executedCalls = new ArrayList<>();
         for (FunctionCall approvedCall : allApprovedCalls) {
             String anahataId = approvedCall.id().orElse(UUID.randomUUID().toString());
             String toolName = approvedCall.name().orElse("unknown");
+            Part sourceCallPart = callToPartMap.get(approvedCall);
             
             try {
                 if (failureTracker.isBlocked(approvedCall)) {
@@ -170,11 +182,11 @@ public class FunctionManager {
                 Object asyncFlag = args.remove("asynchronous");
                 boolean isAsync = asyncFlag instanceof Boolean && (Boolean) asyncFlag;
 
-                Object funcResponsePayload;
+                Object rawResult;
 
                 if (isAsync) {
                     final String jobId = UUID.randomUUID().toString();
-                    funcResponsePayload = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + toolName, null);
+                    rawResult = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + toolName, null);
                     
                     Executors.cachedThreadPool.submit(() -> {
                         JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + toolName, null);
@@ -194,18 +206,18 @@ public class FunctionManager {
                         }
                     });
                 } else {
-                    funcResponsePayload = invokeFunctionMethod(method, args);
+                    rawResult = invokeFunctionMethod(method, args);
                 }
                 
                 Map<String, Object> responseMap;
-                if (funcResponsePayload instanceof JobInfo) {
-                    responseMap = GSON.fromJson(GSON.toJson(funcResponsePayload), Map.class);
-                } else if (funcResponsePayload != null && !(funcResponsePayload instanceof String || funcResponsePayload instanceof Number || funcResponsePayload instanceof Boolean || funcResponsePayload instanceof Collection || funcResponsePayload.getClass().isArray())) {
-                     JsonElement jsonElement = GSON.toJsonTree(funcResponsePayload);
+                if (rawResult instanceof JobInfo) {
+                    responseMap = GSON.fromJson(GSON.toJson(rawResult), Map.class);
+                } else if (rawResult != null && !(rawResult instanceof String || rawResult instanceof Number || rawResult instanceof Boolean || rawResult instanceof Collection || rawResult.getClass().isArray())) {
+                     JsonElement jsonElement = GSON.toJsonTree(rawResult);
                      responseMap = GSON.fromJson(jsonElement, Map.class);
                 } else {
                     responseMap = new HashMap<>();
-                    responseMap.put("output", funcResponsePayload == null ? "" : funcResponsePayload);
+                    responseMap.put("output", rawResult == null ? "" : rawResult);
                 }
                 
                 FunctionResponse fr = FunctionResponse.builder()
@@ -213,31 +225,26 @@ public class FunctionManager {
                     .name(toolName)
                     .response(responseMap)
                     .build();
-                responses.add(fr);
-
-                for (Part part : originalParts) {
-                    if (part.functionCall().isPresent() && part.functionCall().get() == approvedCall) {
-                        responseToCallLinks.put(fr, part);
-                        break; 
-                    }
-                }
+                
+                executedCalls.add(new ExecutedToolCall(sourceCallPart, fr, rawResult));
 
             } catch (Exception e) {
                 log.error("Error executing tool call: {}", toolName, e);
                 failureTracker.recordFailure(approvedCall, e);
                 Map<String, Object> errorMap = new HashMap<>();
                 errorMap.put("error", ExceptionUtils.getStackTrace(e));
-                responses.add(FunctionResponse.builder()
+                FunctionResponse errorResponse = FunctionResponse.builder()
                     .id(anahataId)
                     .name(toolName)
                     .response(errorMap)
-                    .build());
+                    .build();
+                executedCalls.add(new ExecutedToolCall(sourceCallPart, errorResponse, e));
             } finally {
                 GeminiChat.callingInstance.remove();
             }
         }
         
-        return new FunctionProcessingResult(responses, promptResult.deniedFunctions, promptResult.userComment, responseToCallLinks);
+        return new FunctionProcessingResult(executedCalls, deniedCallParts, promptResult.userComment);
     }
 
     private Object invokeFunctionMethod(Method method, Map<String, Object> argsFromModel) throws Exception {

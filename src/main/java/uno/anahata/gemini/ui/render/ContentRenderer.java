@@ -87,7 +87,7 @@ public class ContentRenderer {
         
         Optional<GenerateContentResponseUsageMetadata> usageOpt = Optional.ofNullable(message.getUsageMetadata());
         if (usageOpt.isPresent()) {
-            headerText += String.format(" <font color='#888888'><i>(Tokens: %d)</i></font>", usageOpt.get().totalTokenCount().orElse(0));
+            headerText += String.format(" <font color='#888888'><i>(Tokens: %d)</i></font>", usageOpt.get().candidatesTokenCount().orElse(0));
         }
         headerText += "</html>";
         

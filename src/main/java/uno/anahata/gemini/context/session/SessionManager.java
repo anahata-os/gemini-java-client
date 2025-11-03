@@ -103,7 +103,7 @@ public class SessionManager {
         StringBuilder sb = new StringBuilder();
         sb.append("\n# Context Entries: ").append(historyCopy.size()).append("\n");
         sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
-        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "Index", "ID", "Created On", "Name", "Role", "Elapsed", "Content Summary"));
+        sb.append(String.format("%-5s | %-38s | %-20s | %-20s | %-8s | %-10s | %s\n", "Nº", "UUID", "Created On", "Name", "Role", "Elapsed", "Content Summary"));
         sb.append("-------------------------------------------------------------------------------------------------------------------------------------------\n");
 
         Instant previousTimestamp = null;

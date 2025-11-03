@@ -66,27 +66,32 @@ entries are just one (the opening user message) (because the host app was just l
 
 ## Tool call batching / user-model round trip performance
 --------------------------------------------------------------
-User-Model round trips are slow and costly, always batch tool calls so if you need to read or organize your notes, manage the context window
+User-Model round trips are slow and costly, so -unless otherwise instructed by the user- always batch tool calls so if you need to read or organize your notes, manage the context window
 read source files, write source files, run shell scripts, etc., always batch all your tool calls to 
 b) minimize round trips.
 c) minimize latency.
 d) minimize total context size (smaller contexts "can" lead to lower latency in some cases)
 
+If the user tells you to go "step by set" or "file byfile" or "one at the time"
+
 ## Automatic Pruning
 --------------------
 The system performs several automatic pruning operations to manage context size and maintain data integrity, in addition to the manual pruning you can perform via the `ContextWindow` tool.
 
-1.  **Ephemeral Tool Calls (Two-Turn Rule):**
-    *   Tool calls marked with `ContextBehavior.EPHEMERAL` (the default for most tools like `LocalShell.runShell`) and their corresponding responses are automatically removed from the context after **two subsequent user turns**. This ensures short-lived, non-stateful operations do not permanently consume tokens.
+1.  **Ephemeral & Orphaned Tool Calls (Two-Turn Rule):**
+    *   To keep the context relevant, the system automatically prunes tool-related messages that are older than **two user turns**. A message is considered a candidate for this pruning if it meets any of the following "ephemeral" criteria:
+        *   **Naturally Ephemeral:** The tool call is explicitly marked with `ContextBehavior.EPHEMERAL` (e.g., `LocalShell.runShell`).
+        *   **Orphaned Call:** It is a `FunctionCall` that, for any reason, does not have a corresponding `FunctionResponse` in the context.
+        *   **Failed Stateful Response:** It is a `FunctionResponse` from a tool that was *supposed* to be stateful (e.g., `LocalFiles.readFile`) but failed to return a valid resource.
+    *   When a part is pruned under this rule, its corresponding pair (the `FunctionResponse` for a `FunctionCall` and vice-versa) is also automatically removed to ensure conversation integrity.
 
 2.  **Stateful Resource Replacement:**
-    *   Tool calls marked with `ContextBehavior.STATEFUL_REPLACE` (e.g., `LocalFiles.readFile`, `Coding.proposeChange`) are designed to track the content of a specific resource (like a file).
-    *   When a **newer** version of a resource is successfully loaded into the context, the **older** `FunctionCall` and `FunctionResponse` pair for that same resource ID (e.g., the same file path) are automatically pruned. This ensures the context always holds the single, latest version of any tracked file.
+    *   Tool calls marked with `ContextBehavior.STATEFUL_REPLACE` (e.g., `LocalFiles.readFile`, `Coding.proposeChange`) are designed to track a specific resource (like a file) by its unique ID (e.g., its path).
+    *   When a **new** `FunctionResponse` successfully loads a stateful resource into the context, the system automatically scans the entire history and prunes **all older** `FunctionCall` and `FunctionResponse` pairs that refer to the **exact same resource ID**. This guarantees the context always contains only the single, most recent version of any tracked file.
 
 3.  **Failure Tracker Blocking:**
-    *   If a tool call fails repeatedly (currently **3 times within 5 minutes**), the `FailureTracker` will temporarily block the tool from executing.
-    *   The failed `FunctionCall` and `FunctionResponse` (containing the error stack trace) are **NOT** automatically pruned. They remain in the context to inform the model of the failure and allow for manual pruning or correction.
+    *   If a tool call fails repeatedly (currently **3 times within 5 minutes**), the `FailureTracker` will temporarily block that specific tool from executing.
+    *   The failed `FunctionCall` and `FunctionResponse` (containing the error) are **NOT** automatically pruned. They remain in the context to provide you with the necessary information to debug the issue.
 
 4.  **User Interface Pruning:**
     *   The user has the ability to manually prune messages or parts directly from the chat UI. This action is equivalent to you calling `ContextWindow.pruneMessages` or `ContextWindow.pruneParts`.
-

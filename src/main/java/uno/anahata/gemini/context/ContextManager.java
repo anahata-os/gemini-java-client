@@ -77,7 +77,7 @@ public class ContextManager {
         }
 
         if (isUserMessage(message)) {
-            contextPruner.pruneOldEphemeralResults(functionManager);
+            contextPruner.pruneEphemeralToolCalls(functionManager);
         }
         
         notifyHistoryChange();

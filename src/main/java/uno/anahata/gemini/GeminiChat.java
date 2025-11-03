@@ -1,20 +1,23 @@
 package uno.anahata.gemini;
 
-import uno.anahata.gemini.functions.JobInfo;
-import uno.anahata.gemini.context.ContextManager;
-import uno.anahata.gemini.context.ContextListener;
 import com.google.genai.Client;
 import com.google.genai.types.*;
 import com.google.gson.Gson;
+import java.io.File;
 import java.util.*;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import uno.anahata.gemini.context.ContextManager;
+import uno.anahata.gemini.context.ContextListener;
 import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.FunctionManager.ExecutedToolCall;
 import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
 import uno.anahata.gemini.functions.FunctionPrompter;
+import uno.anahata.gemini.functions.JobInfo;
+import uno.anahata.gemini.functions.MultiPartResponse;
 import uno.anahata.gemini.internal.GsonUtils;
+import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 
 @Slf4j
@@ -42,7 +45,7 @@ public class GeminiChat {
         // Initialize providers here to take a copy from config
         this.systemInstructionProviders = new ArrayList<>(config.getSystemInstructionProviders());
     }
-    
+
     public void addContextListener(ContextListener listener) {
         this.contextManager.addListener(listener);
     }
@@ -63,7 +66,7 @@ public class GeminiChat {
     public static GeminiChat getCallingInstance() {
         return callingInstance.get();
     }
-    
+
     public List<SystemInstructionProvider> getSystemInstructionProviders() {
         // Return the list initialized in the constructor
         return systemInstructionProviders;
@@ -71,13 +74,13 @@ public class GeminiChat {
 
     private Content buildSystemInstructions() {
         List<Part> parts = new ArrayList<>();
-        
+
         for (SystemInstructionProvider provider : getSystemInstructionProviders()) {
             if (provider.isEnabled()) {
                 try {
-                    
+
                     List<Part> generated = provider.getInstructionParts(this);
-                    parts.add(Part.fromText("Instruction Provider: " + provider.getDisplayName() + " (id: " +  provider.getId() + "): (" + generated.size() + " parts)"));
+                    parts.add(Part.fromText("Instruction Provider: " + provider.getDisplayName() + " (id: " + provider.getId() + "): (" + generated.size() + " parts)"));
                     parts.addAll(generated);
                 } catch (Exception e) {
                     log.warn("SystemInstructionProvider " + provider.getId() + " threw an exception", e);
@@ -170,7 +173,7 @@ public class GeminiChat {
                 contextManager.add(modelMessage);
 
                 if (!processAndReloopForFunctionCalls(modelMessage)) {
-                    break; 
+                    break;
                 }
             }
         } finally {
@@ -179,14 +182,13 @@ public class GeminiChat {
     }
 
     private boolean processAndReloopForFunctionCalls(ChatMessage modelMessageWithCalls) {
-        // Step 1: Check for function calls and if they are enabled.
         List<FunctionCall> allProposedCalls = modelMessageWithCalls.getContent().parts().orElse(Collections.emptyList()).stream()
                 .filter(part -> part.functionCall().isPresent())
                 .map(part -> part.functionCall().get())
                 .collect(Collectors.toList());
 
         if (allProposedCalls.isEmpty()) {
-            return false; // No function calls, so we break the loop.
+            return false;
         }
 
         if (!functionsEnabled) {
@@ -194,88 +196,114 @@ public class GeminiChat {
                     .map(fc -> fc.name().orElse("unnamed function"))
                     .collect(Collectors.joining(", "));
             String feedbackText = "User Feedback: The model attempted to call the following tool(s) while local functions were disabled: [" + attemptedCalls + "]. The calls were ignored.";
-            Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText)).build();
-            ChatMessage feedbackMessage = ChatMessage.builder()
-                    .modelId(config.getApi().getModelId())
-                    .content(feedbackContent)
-                    .build();
-            contextManager.add(feedbackMessage);
-            return false; // Stop processing and do not re-loop.
+            sendContent(Content.builder().role("user").parts(Part.fromText(feedbackText)).build());
+            return false;
         }
 
-        // Step 2: Process the function calls (prompt user, execute, etc.)
         FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
-        List<FunctionResponse> functionResponses = processingResult.responses;
+        List<ExecutedToolCall> executedCalls = processingResult.getExecutedCalls();
+        
+        Map<Part, List<Part>> modelDependencies = new HashMap<>();
+        Map<Part, List<Part>> toolDependencies = new HashMap<>();
+        Map<Part, List<Part>> userFeedbackDependencies = new HashMap<>();
+        
+        List<Part> extraUserParts = new ArrayList<>();
+        List<ChatMessage> messagesToAdd = new ArrayList<>();
+        ChatMessage toolMessage = null;
 
-        // Step 3: If there are responses, add the TOOL message to the context IMMEDIATELY.
-        // This is critical to maintain the [MODEL: FunctionCall] -> [TOOL: FunctionResponse] sequence.
-        if (!functionResponses.isEmpty()) {
-            modelMessageWithCalls.setFunctionResponses(functionResponses);
-
-            Map<Part, Part> partLinks = new HashMap<>();
+        if (!executedCalls.isEmpty()) {
             List<Part> responseParts = new ArrayList<>();
-
-            for (FunctionResponse fr : functionResponses) {
+            for (ExecutedToolCall etc : executedCalls) {
+                Part sourceCallPart = etc.getSourceCallPart();
+                FunctionResponse fr = etc.getResponse();
                 Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
                 Part responsePart = Part.fromFunctionResponse(fr.name().get(), responseMap);
                 responseParts.add(responsePart);
 
-                Part sourceCallPart = processingResult.responseToCallLinks.get(fr);
-                if (sourceCallPart != null) {
-                    partLinks.put(responsePart, sourceCallPart);
+                // 1. Model Dependency (Forward Link: Call -> Response)
+                modelDependencies.computeIfAbsent(sourceCallPart, k -> new ArrayList<>()).add(responsePart);
+
+                // 2. Tool Dependency (Reverse Link: Response -> Call)
+                toolDependencies.computeIfAbsent(responsePart, k -> new ArrayList<>()).add(sourceCallPart);
+
+                // 3. Handle MultiPartResponse (Links between tool and user messages)
+                if (etc.getRawResult() instanceof MultiPartResponse) {
+                    MultiPartResponse mpr = (MultiPartResponse) etc.getRawResult();
+                    for (String filePath : mpr.getFilePaths()) {
+                        try {
+                            Part imagePart = PartUtils.toPart(new File(filePath));
+                            extraUserParts.add(imagePart);
+                            
+                            // Tool Dependency (Link to Image): Response -> ImagePart
+                            toolDependencies.computeIfAbsent(responsePart, k -> new ArrayList<>()).add(imagePart);
+                            
+                            // User Feedback Dependency (Link from Image): ImagePart -> Response
+                            userFeedbackDependencies.computeIfAbsent(imagePart, k -> new ArrayList<>()).add(responsePart);
+                            
+                        } catch (Exception e) {
+                            log.error("Failed to create Part from file path: {}", filePath, e);
+                        }
+                    }
                 }
             }
 
-            Content functionResponseContent = Content.builder()
-                    .role("tool")
-                    .parts(responseParts)
-                    .build();
+            // Update the model message in place (via mutability and merging)
+            for (Map.Entry<Part, List<Part>> entry : modelDependencies.entrySet()) {
+                modelMessageWithCalls.addDependencies(entry.getKey(), entry.getValue());
+            }
+            // contextManager.notifyHistoryChange() is intentionally removed here as it will be triggered by contextManager.add() below.
 
-            ChatMessage functionResponseMessage = ChatMessage.builder()
-                    .id(UUID.randomUUID().toString())
+            // Prepare the tool message to be added later
+            Content functionResponseContent = Content.builder().role("tool").parts(responseParts).build();
+            toolMessage = ChatMessage.builder()
                     .modelId(config.getApi().getModelId())
                     .content(functionResponseContent)
-                    .parentId(modelMessageWithCalls.getId())
-                    .partLinks(partLinks)
+                    .dependencies(toolDependencies)
                     .build();
-            contextManager.add(functionResponseMessage);
+            messagesToAdd.add(toolMessage);
         }
 
-        // Step 4: Now, formulate and add the USER feedback message (if any).
-        boolean wasAutopilot = "Autopilot".equals(processingResult.userComment);
-        boolean hasDeniedCalls = processingResult.deniedCalls != null && !processingResult.deniedCalls.isEmpty();
-        boolean hasNonAutopilotComment = processingResult.userComment != null && !processingResult.userComment.trim().isEmpty() && !wasAutopilot;
+        boolean wasAutopilot = "Autopilot".equals(processingResult.getUserComment());
+        boolean hasDeniedCalls = !processingResult.getDeniedCallParts().isEmpty();
+        boolean hasNonAutopilotComment = processingResult.getUserComment() != null && !processingResult.getUserComment().trim().isEmpty() && !wasAutopilot;
 
-        if (wasAutopilot || hasDeniedCalls || hasNonAutopilotComment) {
+        if (wasAutopilot || hasDeniedCalls || hasNonAutopilotComment || !extraUserParts.isEmpty()) {
+            List<Part> userFeedbackParts = new ArrayList<>();
             StringBuilder feedbackText = new StringBuilder("User has provided feedback on the proposed tool calls:\n");
-            
+
             if (wasAutopilot) {
-                int approvedCount = processingResult.responses.size();
-                feedbackText.append("- Autopilot: ").append(approvedCount).append(" tool call(s) were pre-approved and executed automatically.\n");
+                feedbackText.append("- Autopilot: ").append(executedCalls.size()).append(" tool call(s) were pre-approved and executed automatically.\n");
             }
-            
+
             if (hasDeniedCalls) {
-                String denied = processingResult.deniedCalls.stream()
-                        .map(fc -> fc.name().orElse("unnamed function"))
+                String denied = processingResult.getDeniedCallParts().stream()
+                        .map(part -> part.functionCall().get().name().orElse("unnamed"))
                         .collect(Collectors.joining(", "));
                 feedbackText.append("- The following calls were denied: [").append(denied).append("]\n");
             }
-            
+
             if (hasNonAutopilotComment) {
-                feedbackText.append("- User's comment: '").append(processingResult.userComment).append("'\n");
+                feedbackText.append("- User's comment: '").append(processingResult.getUserComment()).append("'\n");
             }
 
-            Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText.toString())).build();
+            userFeedbackParts.add(Part.fromText(feedbackText.toString()));
+            userFeedbackParts.addAll(extraUserParts);
+
+            Content feedbackContent = Content.builder().role("user").parts(userFeedbackParts).build();
             ChatMessage feedbackMessage = ChatMessage.builder()
                     .modelId(config.getApi().getModelId())
                     .content(feedbackContent)
+                    .dependencies(userFeedbackDependencies)
                     .build();
-            contextManager.add(feedbackMessage);
+            messagesToAdd.add(feedbackMessage);
         }
 
-        // Step 5: Decide whether to re-loop.
-        // We re-loop if we executed any functions OR if the user provided feedback (e.g., denied a call).
-        return !functionResponses.isEmpty() || hasDeniedCalls || hasNonAutopilotComment;
+        // Add all new messages at the end
+        for (ChatMessage message : messagesToAdd) {
+            contextManager.add(message);
+        }
+
+        return !executedCalls.isEmpty() || hasDeniedCalls;
     }
 
     private void recordLastApiError(Exception e) {
@@ -356,7 +384,7 @@ public class GeminiChat {
     public ContextManager getContextManager() {
         return contextManager;
     }
-    
+
     public FunctionManager getFunctionManager() {
         return functionManager;
     }
@@ -372,7 +400,7 @@ public class GeminiChat {
         FunctionResponse fr = FunctionResponse.builder().name("async_job_result").response(responseMap).build();
         Part part = Part.fromFunctionResponse(fr.name().get(), (Map<String, Object>) fr.response().get());
         Content notificationContent = Content.builder().role("tool").parts(part).build();
-        
+
         ChatMessage jobResultMessage = ChatMessage.builder()
                 .modelId(config.getApi().getModelId())
                 .content(notificationContent)

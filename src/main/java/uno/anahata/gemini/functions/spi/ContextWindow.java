@@ -39,7 +39,7 @@ public class ContextWindow {
     @AIToolMethod(value = "Prunes one or more entire messages (Content objects) from the context. "
             + "IMPORTANT: If a message contains FunctionCall or FunctionResponse parts, their counter parts will automatically be prunned to mantain conversation integrity.", requiresApproval = true)
     public static String pruneMessages(
-            @AIToolParam("A list of the unique, stable IDs of the ChatMessages to be removed.") List<String> uids,
+            @AIToolParam("A list of the unique, stable UUIDs of the ChatMessages to be removed.") List<String> uids,
             @AIToolParam("A brief rationale for why the messages are being removed.") String reason
     ) throws Exception {
         ContextManager cm = ContextManager.getCallingInstance();
@@ -53,7 +53,7 @@ public class ContextWindow {
     
     @AIToolMethod(value = "Prunes one or several parts from a given message. IMPORTANT: If a FunctionCall or FunctionResponse part is targeted, its corresponding paired part (FunctionResponse or FunctionCall) is **automatically resolved and pruned as well** by the system to maintain conversation integrity. The model only needs to specify one part of the pair.", requiresApproval = true)
     public static String pruneParts(
-            @AIToolParam("The unique, stable ID of the ChatMessage containing the parts.") String messageUID,
+            @AIToolParam("The unique, stable UUIDs of the ChatMessage containing the parts.") String messageUID,
             @AIToolParam("A list of zero-based indices of the parts to remove.") List<Number> parts,
             @AIToolParam("A brief rationale for why the parts are being removed.") String reason
     ) throws Exception {
