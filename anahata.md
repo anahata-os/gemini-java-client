@@ -90,3 +90,29 @@ This package contains helper classes and custom serializers.
         -   A traffic light system for API call status: Green for "in-progress," Yellow for "retrying" (displaying the error and retry count), and Red for "failed" (displaying the final error and retry count).
         -   Display the total time of the last round trip upon completion or failure.
     -   **EDT Responsiveness:** Investigate and fix performance issues where the Swing Event Dispatch Thread (EDT) becomes unresponsive for long periods during model responses. This likely involves moving more processing off the EDT.
+
+## Future UI Refactoring Plan (2025-11-01)
+
+The following is a summary of a deferred plan to refactor the UI for better performance and usability:
+
+1.  **`SystemInstructionsPanel` Overhaul**:
+    *   **Problem**: The panel tries to render all provider content at once, causing major UI freezes.
+    *   **Solution**: Refactor the layout into a `JSplitPane`.
+        *   **Left Pane**: A navigation list of all `SystemInstructionProvider`s, showing their name, an on/off toggle, and the size of the content they produce.
+        *   **Right Pane**: A viewer that renders the content of *only* the selected provider, eliminating the freeze.
+    *   **Smart Rendering**: The right pane will intelligently reuse existing renderers (`FunctionResponsePartRenderer` for JSON, `TextPartRenderer` for markdown/text) to ensure proper formatting.
+
+2.  **New `StatefulResourcesPanel`**:
+    *   **Problem**: The current `StatefulResourcesProvider` produces a poorly formatted markdown table.
+    *   **Solution**: Create a new, dedicated tab named `StatefulResourcesPanel`.
+        *   This panel will feature a proper Swing `JTable` for a clean, sortable view of all stateful resources.
+        *   The `StatefulResourcesProvider` will be changed to produce clean JSON for the model.
+
+3.  **`ContextHeatmapPanel` Refactoring**:
+    *   **Problem**: The current heatmap is not ideal for detailed analysis.
+    *   **Solution**: Refactor the panel into a `JTable`-based view.
+        *   It will list all context entries (messages) with sortable columns for ID, Role, Size/Token Count, and Content Summary.
+
+4.  **Phase 2 - Visualizations**:
+    *   Add a charting library (`JFreeChart` or `XChart`).
+    *   Implement pie charts in the `SystemInstructionsPanel` (showing token contribution by provider) and `StatefulResourcesPanel` (showing file size distribution).
