@@ -3,114 +3,290 @@ package uno.anahata.gemini.ui;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Image;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 import javax.swing.*;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableColumn;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
+@Slf4j
 public class SystemInstructionsPanel extends JPanel {
 
     private final GeminiChat chat;
     private final EditorKitProvider editorKitProvider;
     private final SwingGeminiConfig config;
-    
-    private JToolBar systemInstructionsToolbar;
-    private JPanel contentPanel;
+
+    private JTable providerTable;
+    private ProviderTableModel tableModel;
+    private JPanel rightPanel;
+    private JLabel rightPanelStatusLabel;
+    private SwingWorker<List<Part>, Void> contentDisplayWorker;
+    private SwingWorker<List<ProviderInfo>, Void> refreshWorker;
 
     public SystemInstructionsPanel(GeminiChat chat, EditorKitProvider editorKitProvider, SwingGeminiConfig config) {
         this.chat = chat;
         this.editorKitProvider = editorKitProvider;
         this.config = config;
         initComponents();
+        refresh(); // Initial data load
     }
 
     private void initComponents() {
         setLayout(new BorderLayout());
-        
-        systemInstructionsToolbar = new JToolBar();
-        systemInstructionsToolbar.setFloatable(false);
-        
-        for (SystemInstructionProvider provider : chat.getSystemInstructionProviders()) {
-            JToggleButton providerButton = new JToggleButton(provider.getDisplayName(), provider.isEnabled());
-            providerButton.addActionListener(e -> {
-                provider.setEnabled(providerButton.isSelected());
-                refresh();
-            });
-            systemInstructionsToolbar.add(providerButton);
-        }
-        
-        systemInstructionsToolbar.add(Box.createHorizontalGlue());
-        JButton refreshButton = new JButton(getIcon("restart.png"));
-        refreshButton.setToolTipText("Refresh Instructions");
-        refreshButton.addActionListener(e -> refresh());
-        systemInstructionsToolbar.add(refreshButton);
-        
-        add(systemInstructionsToolbar, BorderLayout.NORTH);
-        
-        contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(24); // Increase scroll speed
-        add(scrollPane, BorderLayout.CENTER);
-        
-        refresh();
-    }
-    
-    public void refresh() {
-        contentPanel.removeAll();
-        ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
-        
-        for (SystemInstructionProvider provider : chat.getSystemInstructionProviders()) {
-            if (provider.isEnabled()) {
-                try {
-                    List<Part> parts = provider.getInstructionParts(chat);
-                    if (parts.isEmpty()) {
-                        continue;
-                    }
-                    
-                    JLabel header = new JLabel(provider.getId() + " " + provider.getDisplayName() + " ");
-                    header.setOpaque(true);
-                    header.setBackground(config.getTheme().getModelHeaderBg());
-                    header.setForeground(config.getTheme().getModelHeaderFg());
-                    header.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
-                    
-                    JPanel providerPanel = new JPanel(new BorderLayout());
-                    providerPanel.setBorder(BorderFactory.createLineBorder(config.getTheme().getModelBorder()));
-                    providerPanel.add(header, BorderLayout.NORTH);
 
-                    Content content = Content.builder().role("tool").parts(parts).build();
-                    
-                    // FIX: Use builder instead of constructor
-                    ChatMessage fakeMessage = ChatMessage.builder()
-                            .content(content)
-                            .modelId(provider.getDisplayName() + " ") // Use display name as a placeholder model ID
-                            .build();
-                    
-                    JComponent renderedContent = renderer.render(fakeMessage, -1, chat.getContextManager());
-                    providerPanel.add(renderedContent, BorderLayout.CENTER);
-                    
-                    contentPanel.add(providerPanel);
-                    contentPanel.add(Box.createVerticalStrut(8));
+        // Left Panel (Navigation with JTable)
+        tableModel = new ProviderTableModel();
+        providerTable = new JTable(tableModel);
+        providerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        providerTable.setFillsViewportHeight(true);
 
-                } catch (Exception e) {
-                    JLabel errorLabel = new JLabel("Error loading instructions from " + provider.getDisplayName() + ": " + e.getMessage());
-                    contentPanel.add(errorLabel);
+        // Set column widths and renderers
+        TableColumn enabledColumn = providerTable.getColumnModel().getColumn(0);
+        enabledColumn.setMaxWidth(40);
+        providerTable.getColumnModel().getColumn(1).setPreferredWidth(120); // Provider Name
+        providerTable.getColumnModel().getColumn(2).setPreferredWidth(60); // Size
+        providerTable.getColumnModel().getColumn(3).setPreferredWidth(60); // Time
+
+        providerTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int selectedRow = providerTable.getSelectedRow();
+                if (selectedRow != -1) {
+                    ProviderInfo selectedProviderInfo = tableModel.getProviderInfo(selectedRow);
+                    displayProviderContent(selectedProviderInfo.provider);
                 }
             }
-        }
-        
-        contentPanel.revalidate();
-        contentPanel.repaint();
+        });
+
+        JScrollPane tableScrollPane = new JScrollPane(providerTable);
+
+        JButton refreshButton = new JButton(getIcon("restart.png"));
+        refreshButton.setToolTipText("Refresh All Providers (Logs Timing)");
+        refreshButton.addActionListener(e -> refresh());
+
+        JToolBar leftToolbar = new JToolBar();
+        leftToolbar.setFloatable(false);
+        leftToolbar.add(refreshButton);
+
+        JPanel leftPanel = new JPanel(new BorderLayout());
+        leftPanel.add(leftToolbar, BorderLayout.NORTH);
+        leftPanel.add(tableScrollPane, BorderLayout.CENTER);
+
+        // Right Panel (Content Viewer)
+        rightPanel = new JPanel(new BorderLayout());
+        rightPanelStatusLabel = new JLabel("Select a provider from the list to view its content.", SwingConstants.CENTER);
+        rightPanel.add(rightPanelStatusLabel, BorderLayout.CENTER);
+
+        // Split Pane
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
+        splitPane.setDividerLocation(300);
+
+        add(splitPane, BorderLayout.CENTER);
     }
-    
+
+    private void displayProviderContent(SystemInstructionProvider provider) {
+        if (contentDisplayWorker != null && !contentDisplayWorker.isDone()) {
+            contentDisplayWorker.cancel(true);
+        }
+
+        rightPanel.removeAll();
+        rightPanelStatusLabel.setText("Loading content for: " + provider.getDisplayName() + "...");
+        rightPanel.add(rightPanelStatusLabel, BorderLayout.CENTER);
+        rightPanel.revalidate();
+        rightPanel.repaint();
+
+        if (!provider.isEnabled()) {
+            rightPanelStatusLabel.setText("Provider is disabled.");
+            rightPanel.revalidate();
+            rightPanel.repaint();
+            return;
+        }
+
+        contentDisplayWorker = new SwingWorker<List<Part>, Void>() {
+            @Override
+            protected List<Part> doInBackground() throws Exception {
+                return provider.getInstructionParts(chat);
+            }
+
+            @Override
+            protected void done() {
+                if (isCancelled()) return;
+                rightPanel.removeAll();
+                try {
+                    List<Part> parts = get();
+                    if (parts.isEmpty()) {
+                        rightPanelStatusLabel.setText("Provider returned no content.");
+                        rightPanel.add(rightPanelStatusLabel, BorderLayout.CENTER);
+                    } else {
+                        ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
+                        Content content = Content.builder().role("tool").parts(parts).build();
+                        ChatMessage fakeMessage = ChatMessage.builder().content(content).build();
+                        JComponent renderedContent = renderer.render(fakeMessage, -1, chat.getContextManager());
+                        JScrollPane scrollPane = new JScrollPane(renderedContent);
+                        scrollPane.getVerticalScrollBar().setUnitIncrement(24);
+                        rightPanel.add(scrollPane, BorderLayout.CENTER);
+                    }
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Failed to get content for provider {}", provider.getId(), e);
+                    rightPanelStatusLabel.setText("Error: " + e.getCause().getMessage());
+                    rightPanel.add(rightPanelStatusLabel, BorderLayout.CENTER);
+                } finally {
+                    rightPanel.revalidate();
+                    rightPanel.repaint();
+                }
+            }
+        };
+        contentDisplayWorker.execute();
+    }
+
+    public void refresh() {
+        if (refreshWorker != null && !refreshWorker.isDone()) {
+            refreshWorker.cancel(true);
+        }
+
+        refreshWorker = new SwingWorker<List<ProviderInfo>, Void>() {
+            @Override
+            protected List<ProviderInfo> doInBackground() throws Exception {
+                log.info("--- Starting parallel refresh of all providers ---");
+                List<ProviderInfo> results = chat.getSystemInstructionProviders().parallelStream()
+                    .map(provider -> {
+                        long startTime = System.currentTimeMillis();
+                        long size = 0;
+                        try {
+                            if (provider.isEnabled()) {
+                                List<Part> parts = provider.getInstructionParts(chat);
+                                size = parts.stream().mapToLong(PartUtils::calculateSizeInBytes).sum();
+                            }
+                        } catch (Exception e) {
+                            log.warn("Exception during parallel refresh of provider '{}'", provider.getId(), e);
+                        } finally {
+                            long duration = System.currentTimeMillis() - startTime;
+                            log.info("Provider '{}' took {}ms in parallel refresh.", provider.getId(), duration);
+                            return new ProviderInfo(provider, size, duration);
+                        }
+                    })
+                    .collect(Collectors.toList());
+                log.info("--- Parallel refresh finished ---");
+                return results;
+            }
+
+            @Override
+            protected void done() {
+                if (isCancelled()) return;
+                try {
+                    tableModel.setProviders(get());
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Failed to refresh provider list", e);
+                }
+            }
+        };
+        refreshWorker.execute();
+    }
+
     private ImageIcon getIcon(String icon) {
-        ImageIcon originalIcon = new ImageIcon(getClass().getResource("/icons/" + icon));
+        java.net.URL imgURL = getClass().getResource("/icons/" + icon);
+        if (imgURL == null) {
+            log.error("Could not find icon resource: /icons/{}", icon);
+            return new ImageIcon();
+        }
+        ImageIcon originalIcon = new ImageIcon(imgURL);
         Image scaledImage = originalIcon.getImage().getScaledInstance(24, 24, Image.SCALE_SMOOTH);
         return new ImageIcon(scaledImage);
+    }
+
+    // --- Inner Classes for JTable ---
+    private static class ProviderInfo {
+        final SystemInstructionProvider provider;
+        long sizeInBytes;
+        long timeInMillis;
+
+        ProviderInfo(SystemInstructionProvider provider, long sizeInBytes, long timeInMillis) {
+            this.provider = provider;
+            this.sizeInBytes = sizeInBytes;
+            this.timeInMillis = timeInMillis;
+        }
+    }
+
+    private class ProviderTableModel extends AbstractTableModel {
+        private final String[] columnNames = {"Enabled", "Provider", "Size", "Time (ms)"};
+        private List<ProviderInfo> providers = new ArrayList<>();
+
+        public void setProviders(List<ProviderInfo> providers) {
+            this.providers = providers;
+            fireTableDataChanged();
+        }
+
+        public ProviderInfo getProviderInfo(int rowIndex) {
+            return providers.get(rowIndex);
+        }
+
+        @Override
+        public int getRowCount() {
+            return providers.size();
+        }
+
+        @Override
+        public int getColumnCount() {
+            return columnNames.length;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return columnNames[column];
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            switch (columnIndex) {
+                case 0: return Boolean.class;
+                case 1: return String.class;
+                case 2:
+                case 3: return Long.class;
+                default: return Object.class;
+            }
+        }
+
+        @Override
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            return columnIndex == 0; // Only the "Enabled" checkbox is editable
+        }
+
+        @Override
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            ProviderInfo info = providers.get(rowIndex);
+            switch (columnIndex) {
+                case 0: return info.provider.isEnabled();
+                case 1: return info.provider.getDisplayName();
+                case 2: return info.sizeInBytes;
+                case 3: return info.timeInMillis;
+                default: return null;
+            }
+        }
+
+        @Override
+        public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+            if (columnIndex == 0 && aValue instanceof Boolean) {
+                ProviderInfo info = providers.get(rowIndex);
+                info.provider.setEnabled((Boolean) aValue);
+                fireTableCellUpdated(rowIndex, columnIndex);
+                
+                // If the currently selected row was just toggled, refresh the content view
+                if (providerTable.getSelectedRow() == rowIndex) {
+                    displayProviderContent(info.provider);
+                }
+                // Also refresh the data for the row
+                refresh();
+            }
+        }
     }
 }
