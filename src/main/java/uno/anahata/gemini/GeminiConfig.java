@@ -89,8 +89,10 @@ public abstract class GeminiConfig {
             return Collections.EMPTY_LIST;
         }
     }
-
     
+    public List<Part> getLiveWorkspaceParts() {
+        return Collections.emptyList();
+    }
 
     public List<Class<?>> getAutomaticFunctionClasses() {
         return Collections.emptyList();
