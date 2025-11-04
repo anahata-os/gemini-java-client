@@ -78,8 +78,8 @@ If the user tells you to go "step by set" or "file byfile" or "one at the time"
 --------------------
 The system performs several automatic pruning operations to manage context size and maintain data integrity, in addition to the manual pruning you can perform via the `ContextWindow` tool.
 
-1.  **Ephemeral & Orphaned Tool Calls (Two-Turn Rule):**
-    *   To keep the context relevant, the system automatically prunes tool-related messages that are older than **two user turns**. A message is considered a candidate for this pruning if it meets any of the following "ephemeral" criteria:
+1.  **Ephemeral & Orphaned Tool Calls (Five-Turn Rule):**
+    *   To keep the context relevant, the system automatically prunes tool-related messages that are older than **five user turns**. A message is considered a candidate for this pruning if it meets any of the following "ephemeral" criteria:
         *   **Naturally Ephemeral:** The tool call is explicitly marked with `ContextBehavior.EPHEMERAL` (e.g., `LocalShell.runShell`).
         *   **Orphaned Call:** It is a `FunctionCall` that, for any reason, does not have a corresponding `FunctionResponse` in the context.
         *   **Failed Stateful Response:** It is a `FunctionResponse` from a tool that was *supposed* to be stateful (e.g., `LocalFiles.readFile`) but failed to return a valid resource.
