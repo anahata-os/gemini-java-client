@@ -296,7 +296,7 @@ public class ContextPruner {
             return;
         }
         List<ChatMessage> context = contextManager.getContext();
-        final int turnsToKeep = 2;
+        final int turnsToKeep = 5;
 
         // Find the index of the message that marks our cutoff point (2 user turns ago).
         List<Integer> userMessageIndices = new ArrayList<>();
