@@ -35,9 +35,9 @@ public class StatefulResourcesProvider extends SystemInstructionProvider {
 
         StringBuilder sb = new StringBuilder();
         sb.append("# Stateful Resources in Context\n");
-        sb.append("The following resources are tracked in the chat context. 'Status' indicates if the file on disk matches the version in context.\n");
+        sb.append("The following resources are tracked in the chat context. 'Status' indicates if the file on disk matches the version in context.\n\n"); // ADDED BLANK LINE
         sb.append("| Resource ID | Ctx Last Mod | Ctx Size | Disk Last Mod | Disk Size | Status |\n");
-        sb.append("| :--- | :--- | :--- | :--- | :--- | :--- |\n");
+        sb.append("| :--- | ---: | ---: | ---: | ---: | :--- |\n");
 
         for (StatefulResourceStatus status : statuses) {
             String contextTime = (status.getContextLastModified() > 0) ? String.valueOf(status.getContextLastModified()) : "N/A";
