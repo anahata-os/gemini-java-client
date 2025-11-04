@@ -1,11 +1,16 @@
 package uno.anahata.gemini.ui;
 
+import com.google.genai.types.Part;
 import java.awt.Color;
 import java.awt.Font;
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
 import uno.anahata.gemini.ui.instructions.ScreenInstructionsProvider;
@@ -13,6 +18,7 @@ import uno.anahata.gemini.ui.instructions.ScreenInstructionsProvider;
 /**
  * A simple, concrete GeminiConfig for standalone Swing applications.
  */
+@Slf4j
 public class SwingGeminiConfig extends GeminiConfig {
     
     @Override
@@ -32,6 +38,32 @@ public class SwingGeminiConfig extends GeminiConfig {
         List<SystemInstructionProvider> providers = new ArrayList<>();
         //providers.add(new ScreenInstructionsProvider());
         return providers;
+    }
+    
+    @Override
+    public List<Part> getLiveWorkspaceParts() {
+        try {
+            List<File> captures = UICapture.screenshotAllJFrames();
+            if (captures.isEmpty()) {
+                return Collections.emptyList();
+            }
+            
+            List<Part> workspaceParts = new ArrayList<>();
+            workspaceParts.add(Part.fromText("Active Workspace Screenshot (just-in-time):"));
+            
+            for (File capture : captures) {
+                try {
+                    workspaceParts.add(PartUtils.toPart(capture));
+                } catch (Exception e) {
+                    log.error("Failed to convert capture file to Part: {}", capture.getAbsolutePath(), e);
+                    workspaceParts.add(Part.fromText("Error capturing workspace frame " + capture.getName() + ": " + e.getMessage()));
+                }
+            }
+            return workspaceParts;
+        } catch (Exception e) {
+            log.error("Failed to capture workspace for live context", e);
+            return Collections.singletonList(Part.fromText("Error capturing workspace: " + e.getMessage()));
+        }
     }
     
     public UITheme getTheme() {
