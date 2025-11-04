@@ -6,6 +6,8 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.context.ContextManager;
@@ -21,6 +23,7 @@ import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
 
 @Slf4j
+@Getter
 public class GeminiChat {
 
     private static final Gson GSON = GsonUtils.getGson();
@@ -30,10 +33,14 @@ public class GeminiChat {
     private final GeminiConfig config;
     private final ContextManager contextManager;
     private long latency = -1;
+    @Setter
     private boolean functionsEnabled = true;
-    private String lastApiError = null;
+    @Getter
+    @Setter
+    private volatile boolean liveWorkspaceEnabled = true;
+    private String lastApiError = "";
     private volatile boolean isProcessing = false;
-    private Date startTime;
+    private Date startTime = new Date();
     private List<SystemInstructionProvider> systemInstructionProviders;
 
     public GeminiChat(
@@ -50,26 +57,8 @@ public class GeminiChat {
         this.contextManager.addListener(listener);
     }
 
-    public long getLatency() {
-        return latency;
-    }
-
-    public boolean isFunctionsEnabled() {
-        return functionsEnabled;
-    }
-
-    public void setFunctionsEnabled(boolean functionsEnabled) {
-        log.info("User toggled functions: " + functionsEnabled);
-        this.functionsEnabled = functionsEnabled;
-    }
-
     public static GeminiChat getCallingInstance() {
         return callingInstance.get();
-    }
-
-    public List<SystemInstructionProvider> getSystemInstructionProviders() {
-        // Return the list initialized in the constructor
-        return systemInstructionProviders;
     }
 
     private Content buildSystemInstructions() {
@@ -202,11 +191,11 @@ public class GeminiChat {
 
         FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
         List<ExecutedToolCall> executedCalls = processingResult.getExecutedCalls();
-        
+
         Map<Part, List<Part>> modelDependencies = new HashMap<>();
         Map<Part, List<Part>> toolDependencies = new HashMap<>();
         Map<Part, List<Part>> userFeedbackDependencies = new HashMap<>();
-        
+
         List<Part> extraUserParts = new ArrayList<>();
         List<ChatMessage> messagesToAdd = new ArrayList<>();
         ChatMessage toolMessage = null;
@@ -233,13 +222,13 @@ public class GeminiChat {
                         try {
                             Part imagePart = PartUtils.toPart(new File(filePath));
                             extraUserParts.add(imagePart);
-                            
+
                             // Tool Dependency (Link to Image): Response -> ImagePart
                             toolDependencies.computeIfAbsent(responsePart, k -> new ArrayList<>()).add(imagePart);
-                            
+
                             // User Feedback Dependency (Link from Image): ImagePart -> Response
                             userFeedbackDependencies.computeIfAbsent(imagePart, k -> new ArrayList<>()).add(responsePart);
-                            
+
                         } catch (Exception e) {
                             log.error("Failed to create Part from file path: {}", filePath, e);
                         }
@@ -306,8 +295,11 @@ public class GeminiChat {
         return !executedCalls.isEmpty() || hasDeniedCalls;
     }
 
-    private void recordLastApiError(Exception e) {
-        this.lastApiError = new Date() + "\n" + ExceptionUtils.getStackTrace(e);
+    private void recordLastApiError(Exception e, int attempts) {
+        this.lastApiError += "\nAttempt: " + attempts
+                + "\nTime: " + new Date()
+                + "\nError: " + ExceptionUtils.getStackTrace(e)
+                + "\n-----------------------------------";
     }
 
     private GenerateContentResponse sendToModelWithRetry(List<Content> context) {
@@ -318,15 +310,27 @@ public class GeminiChat {
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
                 GenerateContentConfig gcc = makeGenerateContentConfig();
-                log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + context.size() + " content elements. Functions enabled: " + functionsEnabled);
+
+                List<Content> finalContext = context;
+                if (liveWorkspaceEnabled) {
+                    log.info("Live Workspace is enabled. Augmenting context.");
+                    List<Part> workspaceParts = config.getLiveWorkspaceParts();
+                    if (!workspaceParts.isEmpty()) {
+                        List<Content> augmentedContext = new ArrayList<>(context);
+                        augmentedContext.add(Content.builder().role("user").parts(workspaceParts).build());
+                        finalContext = augmentedContext;
+                    }
+                }
+
+                log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + finalContext.size() + " content elements. Functions enabled: " + functionsEnabled);
                 long ts = System.currentTimeMillis();
-                GenerateContentResponse ret = getGoogleGenAIClient().models.generateContent(config.getApi().getModelId(), context, gcc);
-                lastApiError = null;
+                GenerateContentResponse ret = getGoogleGenAIClient().models.generateContent(config.getApi().getModelId(), finalContext, gcc);
+                lastApiError = "";
                 latency = System.currentTimeMillis() - ts;
-                log.info(latency + " ms. Received response from model for " + context.size() + " content elements.");
+                log.info(latency + " ms. Received response from model for " + finalContext.size() + " content elements.");
                 return ret;
             } catch (Exception e) {
-                recordLastApiError(e);
+                recordLastApiError(e, attempt);
                 if (e.toString().contains("429") || e.toString().contains("503") || e.toString().contains("500")) {
                     if (attempt == maxRetries - 1) {
                         log.error("Max retries reached. Aborting.", e);
@@ -357,36 +361,12 @@ public class GeminiChat {
                 .collect(Collectors.toList());
     }
 
-    public GeminiConfig getConfig() {
-        return config;
-    }
-
-    public String getLastApiError() {
-        return lastApiError;
-    }
-
-    public boolean isIsProcessing() {
-        return isProcessing;
-    }
-
-    public Date getStartTime() {
-        return startTime;
-    }
-
     public Client getGoogleGenAIClient() {
         return config.getApi().getClient();
     }
 
     public List<ChatMessage> getContext() {
         return contextManager.getContext();
-    }
-
-    public ContextManager getContextManager() {
-        return contextManager;
-    }
-
-    public FunctionManager getFunctionManager() {
-        return functionManager;
     }
 
     public void notifyJobCompletion(JobInfo jobInfo) {
