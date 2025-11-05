@@ -49,7 +49,7 @@ public class SwingGeminiConfig extends GeminiConfig {
             }
             
             List<Part> workspaceParts = new ArrayList<>();
-            workspaceParts.add(Part.fromText("Active Workspace Screenshot (just-in-time):"));
+            workspaceParts.add(Part.fromText("Live Workspace Screenshot (just-in-time): " + captures.size() + " parts"));
             
             for (File capture : captures) {
                 try {
@@ -103,5 +103,19 @@ public class SwingGeminiConfig extends GeminiConfig {
         private final Color functionResponseFg = new Color(0, 255, 0);
         private final Color functionErrorBg = new Color(51, 28, 28);
         private final Color functionErrorFg = new Color(255, 80, 80); // Brighter Red for better visibility
+        
+        // Grounding Metadata (Outer Block)
+        private final Color groundingHeaderBg = new Color(200, 230, 201); // #D4EDDA - Aligned with userHeaderBg
+        private final Color groundingContentBg = new Color(233, 247, 239); // #E9F7EF - Aligned with userContentBg
+        
+        // Grounding Details (Inner Sections: Supporting Text, Sources, Search Suggestions)
+        private final Color groundingDetailsHeaderBg = new Color(212, 237, 218); // #C8E6C9 - Aligned with chipBackground
+        private final Color groundingDetailsContentBg = new Color(233, 247, 239); // #E9F7EF - Aligned with userContentBg
+        private final Color groundingDetailsHeaderColor = Color.BLACK;
+        
+        // Grounding Chips (Keeping existing for now as requested)
+        private final Color chipBackground = new Color(200, 230, 201); // #C8E6C9 - Anahata Green
+        private final Color chipBorder = new Color(210, 210, 210);
+        private final Color chipText = new Color(0, 77, 64); // #004D40 - Dark Anahata Green
     }
 }
