@@ -31,7 +31,6 @@ import javax.swing.border.Border;
 import org.apache.commons.text.StringEscapeUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextManager;
-import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.ui.SwingGeminiConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
@@ -42,9 +41,9 @@ public class ContentRenderer {
     private final EditorKitProvider editorKitProvider;
     private final SwingGeminiConfig.UITheme theme;
 
-    public ContentRenderer(EditorKitProvider editorKitProvider, GeminiConfig config) {
+    public ContentRenderer(EditorKitProvider editorKitProvider, SwingGeminiConfig config) {
         this.editorKitProvider = editorKitProvider;
-        this.theme = (config instanceof SwingGeminiConfig) ? ((SwingGeminiConfig) config).getTheme() : new SwingGeminiConfig.UITheme();
+        this.theme = config.getTheme();
         this.typeRendererMap = new HashMap<>();
         this.instanceRendererMap = new HashMap<>();
 
@@ -157,7 +156,7 @@ public class ContentRenderer {
         
         if (message.getGroundingMetadata() != null) {
             gbc.insets = new Insets(10, 0, 0, 0);
-            GroundingMetadataRenderer groundingRenderer = new GroundingMetadataRenderer(message.getGroundingMetadata());
+            GroundingMetadataRenderer groundingRenderer = new GroundingMetadataRenderer(message.getGroundingMetadata(), theme);
             contentPanel.add(groundingRenderer, gbc);
         }
 
