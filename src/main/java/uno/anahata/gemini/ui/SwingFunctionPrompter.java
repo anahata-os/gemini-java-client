@@ -16,7 +16,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -33,6 +32,7 @@ import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.functions.FunctionPrompter;
+import uno.anahata.gemini.ui.SwingGeminiConfig.UITheme;
 
 /**
  * A combined JDialog and FunctionPrompter implementation for Swing.
@@ -43,15 +43,17 @@ import uno.anahata.gemini.functions.FunctionPrompter;
 public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
 
     private final EditorKitProvider editorKitProvider;
+    private final SwingGeminiConfig config;
     private final List<InteractiveFunctionCallRenderer> interactiveRenderers = new ArrayList<>();
     
     private List<FunctionCall> approvedFunctions = new ArrayList<>();
     private List<FunctionCall> deniedFunctions = new ArrayList<>();
     private String userComment = "";
 
-    public SwingFunctionPrompter(JFrame owner, EditorKitProvider editorKitProvider) {
+    public SwingFunctionPrompter(JFrame owner, EditorKitProvider editorKitProvider, SwingGeminiConfig config) {
         super(owner, "Confirm Proposed Actions", true);
         this.editorKitProvider = editorKitProvider;
+        this.config = config;
     }
 
     @Override
@@ -84,14 +86,12 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
 
     private void initComponents(ChatMessage modelMessage, GeminiChat chat) {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
-        GeminiConfig config = chat.getContextManager().getConfig();
+        
         ContentRenderer contentRenderer = new ContentRenderer(editorKitProvider, config);
 
         final List<? extends Part> parts = modelMessage.getContent().parts().get();
         
-        SwingGeminiConfig.UITheme theme = (config instanceof SwingGeminiConfig)
-            ? ((SwingGeminiConfig) config).getTheme()
-            : new SwingGeminiConfig.UITheme();
+        UITheme theme = config.getTheme();
         
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {
