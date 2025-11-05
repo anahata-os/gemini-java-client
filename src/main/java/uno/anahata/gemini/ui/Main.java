@@ -1,8 +1,8 @@
 package uno.anahata.gemini.ui;
 
+import com.formdev.flatlaf.FlatLightLaf;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
 import java.awt.Dimension;
-import java.util.logging.Level;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -12,12 +12,12 @@ import lombok.extern.slf4j.Slf4j;
 public class Main {
     public static void main(String[] args) {
         
-        /*
         try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // Set FlatLaf as the Look and Feel
+            UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (Exception e) {
-            e.printStackTrace();
-        }*/
+            log.error("Failed to initialize FlatLaf", e);
+        }
 
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("AI Assistant");
