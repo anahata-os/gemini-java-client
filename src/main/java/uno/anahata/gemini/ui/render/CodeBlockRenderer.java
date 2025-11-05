@@ -47,6 +47,12 @@ public final class CodeBlockRenderer {
                 return createFallbackPane(code);
             }
             codeEditor.setEditorKit(kit);
+            
+            // FIX: Manually set the mimeType property on the document. This is the key
+            // that the NetBeans editor infrastructure uses to find the correct
+            // lexer and trigger the "second pass" of advanced syntax highlighting.
+            codeEditor.getDocument().putProperty("mimeType", kit.getContentType());
+            
             codeEditor.setText(code);
             
         } catch (Exception e) {
