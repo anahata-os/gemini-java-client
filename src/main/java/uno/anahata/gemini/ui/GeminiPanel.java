@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.ChatMessage;
@@ -30,6 +31,7 @@ import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.functions.spi.ContextWindow;
 
 @Slf4j
+@Getter
 public class GeminiPanel extends JPanel implements ContextListener {
 
     private GeminiChat chat;
@@ -40,6 +42,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
     private JButton clearButton;
     private JButton attachButton;
     private JButton screenshotButton;
+    private JToggleButton liveWorkspaceButton;
     private JButton captureFramesButton;
     private JButton saveSessionButton;
     private JButton loadSessionButton;
@@ -67,13 +70,9 @@ public class GeminiPanel extends JPanel implements ContextListener {
     public void init(SwingGeminiConfig config) {
         this.config = config;
         JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider);
+        FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider, config);
         this.chat = new GeminiChat(config, prompter);
         this.chat.addContextListener(this);
-    }
-
-    public GeminiChat getChat() {
-        return chat;
     }
 
     private ImageIcon getIcon(String icon) {
@@ -103,6 +102,10 @@ public class GeminiPanel extends JPanel implements ContextListener {
         screenshotButton.setToolTipText("Attach Desktop Screenshot");
         screenshotButton.addActionListener(e -> attachScreenshot());
 
+        liveWorkspaceButton = new JToggleButton(getIcon("compress.png"), chat.isLiveWorkspaceEnabled());
+        liveWorkspaceButton.setToolTipText("Toggle Live Workspace View");
+        liveWorkspaceButton.addActionListener(e -> chat.setLiveWorkspaceEnabled(liveWorkspaceButton.isSelected()));
+        
         captureFramesButton = new JButton(getIcon("capture_frames.png"));
         captureFramesButton.setToolTipText("Attach Application Frames");
         captureFramesButton.addActionListener(e -> attachFrameCaptures());
@@ -119,6 +122,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         toolbar.add(functionsButton);
         toolbar.add(attachButton);
         toolbar.add(screenshotButton);
+        toolbar.add(liveWorkspaceButton);
         toolbar.add(captureFramesButton);
         toolbar.add(new JToolBar.Separator());
         toolbar.add(saveSessionButton);
@@ -237,15 +241,18 @@ public class GeminiPanel extends JPanel implements ContextListener {
         }
     }
 
-    public void completeInitialisation() {
+    public void checkAutobackupOrStartupContent() {
         File autobackupFile = config.getAutobackupFile();
         boolean restoreAttempted = false;
 
         if (autobackupFile.exists() && autobackupFile.length() > 0) {
             int response = JOptionPane.showConfirmDialog(
                     this,
-                    "An automatic backup from a previous session was found. Do you want to restore it?",
-                    "Restore Session",
+                    "An automatic backup from a previous session was found. \n"
+                            + "\n\n" + autobackupFile + "</b>"
+                            + "\n\nDo you want to restore it?",
+                    
+                    "Anahata AI - Restore Session? " + autobackupFile.getName(),
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.QUESTION_MESSAGE
             );
@@ -270,6 +277,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
                     String sessionName = "autobackup-" + config.getApplicationInstanceId();
                     chat.getContextManager().getSessionManager().loadSession(sessionName);
                 } catch (IOException e) {
+                    log.error("Exception restoring " + config.getAutobackupFile(), e);
                     error = e;
                 }
                 return null;
