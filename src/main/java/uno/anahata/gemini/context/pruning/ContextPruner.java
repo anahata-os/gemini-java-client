@@ -290,13 +290,14 @@ public class ContextPruner {
      * @param functionManager The FunctionManager, needed to check tool metadata.
      */
     public void pruneEphemeralToolCalls(FunctionManager functionManager) {
-        log.info("Starting pruneEphemeralToolCalls (Two-Turn Rule check).");
+        final int turnsToKeep = 5;
+        log.info("Starting pruneEphemeralToolCalls (" + turnsToKeep + "-Turn Rule check).");
         if (functionManager == null) {
             log.warn("FunctionManager is null. Aborting ephemeral pruning.");
             return;
         }
         List<ChatMessage> context = contextManager.getContext();
-        final int turnsToKeep = 5;
+        
 
         // Find the index of the message that marks our cutoff point (2 user turns ago).
         List<Integer> userMessageIndices = new ArrayList<>();
