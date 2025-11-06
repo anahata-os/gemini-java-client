@@ -43,7 +43,7 @@ public final class CodeBlockRenderer {
         try {
             EditorKit kit = editorKitProvider.getEditorKitForLanguage(language);
             if (kit == null) {
-                log.warn("No EditorKit found for language '" + language + "'. Falling back to plain text.");
+                log.warn("No EditorKit found for language '" + language + "'. Falling back to plain text for code: {}.", code);
                 return createFallbackPane(code);
             }
             codeEditor.setEditorKit(kit);
@@ -52,6 +52,7 @@ public final class CodeBlockRenderer {
             // that the NetBeans editor infrastructure uses to find the correct
             // lexer and trigger the "second pass" of advanced syntax highlighting.
             codeEditor.getDocument().putProperty("mimeType", kit.getContentType());
+            log.info("codeEditor.getDocument().putProperty(mimeType, {}); for {}'" + language + "'.", kit.getContentType());
             
             codeEditor.setText(code);
             
