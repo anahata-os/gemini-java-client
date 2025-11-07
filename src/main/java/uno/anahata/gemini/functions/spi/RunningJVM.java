@@ -105,12 +105,24 @@ public class RunningJVM {
                 return result;
             }
         };
+        
+        if (extraClassPath != null) {
+            log.info("extraClassPath: {} entries:\n{}", extraClassPath.split(File.pathSeparator).length, extraClassPath);
+        }
+        
+        log.info("defaultCompilerClasspath: {} entries:", defaultCompilerClasspath.split(File.pathSeparator).length);
 
         String classpath = defaultCompilerClasspath;
         if (extraClassPath != null && !extraClassPath.isEmpty()) {
             // CRITICAL FIX: Prepend extraClassPath to ensure hot-reloaded classes take precedence
             classpath = extraClassPath + File.pathSeparator + classpath;
         }
+        
+        log.info("total classpathEntries: {} entries:", classpath.split(File.pathSeparator).length);
+        if (compilerOptions != null) {
+            log.info("compilerOptions:", Arrays.asList(compilerOptions));
+        }
+        
 
         List<String> options = new ArrayList<>(Arrays.asList("-classpath", classpath));
 
@@ -120,7 +132,7 @@ public class RunningJVM {
         if (!options.contains("-proc:none")) {
             options.add("-proc:none");
         }
-        log.info("Compiling with options: \n{}", options);
+        log.debug("Compiling with options: \n{}", options);
 
         StringWriter writer = new StringWriter();
         JavaCompiler.CompilationTask task = compiler.getTask(writer, fileManager, diagnostics, options, null, Collections.singletonList(source));
