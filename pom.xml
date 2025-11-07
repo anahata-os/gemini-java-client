@@ -85,7 +85,7 @@
         <dependency>
             <groupId>com.google.genai</groupId>
             <artifactId>google-genai</artifactId>
-            <version>1.23.0</version>
+            <version>1.25.0</version>
         </dependency>
         <dependency>
             <groupId>javax.validation</groupId>
