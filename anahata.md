@@ -2,84 +2,41 @@
 
 ## 1. High-Level Summary
 
-`gemini-java-client` is a comprehensive, pure-Java client framework for the Google Gemini API. It is designed to be more than a simple API wrapper, providing a full-featured, extensible chat application architecture with a focus on integrating powerful local tools (functions). The project includes a ready-to-use Swing UI implementation, making it suitable for both standalone desktop applications and for embedding into larger host applications like the Anahata NetBeans Plugin.
+`gemini-java-client` is a comprehensive, pure-Java client framework for the Google Gemini API. It is designed to be more than a simple API wrapper, providing a full-featured, extensible chat application architecture with a focus on integrating powerful local tools (functions). The project includes a ready-to-use Swing UI implementation, making it suitable for both standalone desktop applications and for embedding into larger host applications.
 
 ## 2. Core Features
 
-- **Pure Java:** No external non-Java dependencies are required, ensuring high portability.
-- **Swing UI Framework:** A complete, renderer-based UI (`GeminiPanel`) is provided for displaying complex chat interactions, including text, images, and interactive tool calls.
-- **Extensible Local Tools (SPI):** The framework's power lies in its Service Provider Interface (SPI) for local functions. This allows the AI to interact directly with the user's machine to:
-    - Read, write, and modify local files (`LocalFiles`).
-    - Execute arbitrary shell commands (`LocalShell`).
-    - Compile and run Java code within the host application's JVM (`RunningJVM`).
-- **Configuration-Driven:** The `GeminiConfig` system allows the client to be adapted to different environments by providing host-specific system instructions and toolsets.
-- **Robust Session Management:** The `ContextManager` handles the conversation history. Session persistence is managed by `SessionManager` using the efficient Kryo serialization library.
+- **Pure Java:** Ensures high portability across different environments.
+- **Embeddable Swing UI:** A complete, renderer-based UI (`uno.anahata.gemini.ui.GeminiPanel`) is provided for displaying complex chat interactions.
+- **Extensible Local Tools (SPI):** The framework's power lies in its Service Provider Interface for local functions, allowing the AI to interact directly with the user's machine via tools like `LocalFiles`, `LocalShell`, and `RunningJVM`.
+- **Robust Session Management:** Includes context management with automatic pruning and session persistence using the Kryo serialization library.
+- **Dynamic System Instructions:** A provider-based system allows for dynamically injecting context-aware instructions into the model's prompt.
 
-## 3. Architectural Breakdown
+## 3. Architectural Overview
 
-The project is logically divided into four main areas:
+The project is logically divided into four main layers. For a detailed breakdown of the classes and responsibilities within each package, please refer to the `package-info.java` files, which serve as the definitive source for architectural documentation.
 
-### a. Core Logic (`uno.anahata.gemini`)
+- **Core Logic (`uno.anahata.gemini`):** Contains the central orchestrators like `GeminiChat` and `ContextManager`.
+- **Function System (`uno.anahata.gemini.functions`):** The framework for discovering, managing, and executing local tools.
+- **UI Layer (`uno.anahata.gemini.ui`):** The complete Swing-based user interface.
+- **Internal Utilities (`uno.anahata.gemini.internal`):** Helper classes for serialization and data conversion.
 
-This package contains the central orchestrators of the application.
+## 4. V1 Launch Goals (Status Update)
 
-| Class | Summary |
-| :--- | :--- |
-| **`GeminiChat.java`** | The main orchestrator. Manages the conversation loop, builds system instructions, handles API retries, and processes function calls/responses. |
-| **`ContextManager.java`** | The state machine for the conversation. Manages the `List<ChatMessage>`, handles stateful resource replacement, and performs automatic context pruning. |
-| **`GeminiConfig.java`** | Abstract base for host-specific configuration (API keys, working folder, function confirmation preferences). |
-| **`GeminiAPI.java`** | Manages the Google GenAI client, handles API key pooling (round-robin), and model selection. |
+-   [x] **API Robustness:** Implement retries for API errors (e.g., 429 Quota Exceeded).
+    -   *Status: **DONE**. The retry logic is implemented in `uno.anahata.gemini.GeminiChat`.*
+-   [ ] **Performance Tuning:**
+    -   Investigate and improve the initial startup time of the client, especially when embedded in a host application like NetBeans.
+    -   *Status: **TODO**.*
+-   [ ] **UI Enhancements:**
+    -   Add a real-time status indicator to `GeminiPanel` for API call latency and status (in-progress, retrying, failed).
+    -   *Status: **TODO**.*
 
-### b. Function & Tool System (`uno.anahata.gemini.functions`)
+## 5. V2 Mega-Refactor Plan (Future Focus)
 
-This is the system that grants the AI its advanced capabilities.
+This is the long-term architectural plan to be executed after the V1 launch.
 
-| Class/Package | Summary |
-| :--- | :--- |
-| **`FunctionManager.java`** | Discovers, registers, and executes local tools (`@AIToolMethod`). Generates the function schema for the Gemini API. |
-| **`AIToolMethod.java`** | Annotation for defining a tool method, including its description and context behavior. |
-| **`ContextBehavior.java`** | Enum defining how a tool's output affects the context (`EPHEMERAL` or `STATEFUL_REPLACE`). |
-| **`FailureTracker.java`** | Prevents the model from getting stuck in a loop of repeatedly failing tool calls. |
-| **`schema/GeminiSchemaGenerator.java`** | Generates the JSON schema for Java classes/methods using reflection. |
-| **`spi/*`** | Package containing concrete, generic tool implementations (`LocalFiles`, `RunningJVM`, `ContextWindow`, etc.). |
-
-### c. UI Layer (`uno.anahata.gemini.ui`)
-
-This package contains the entire Swing-based user interface.
-
-| Class/Package | Summary |
-| :--- | :--- |
-| **`Main.java`** | **The standalone application entry point** (`main` method) for launching the client in a `JFrame`. |
-| **`GeminiPanel.java`** | The main Swing component housing the entire chat interface, toolbar, and configuration tabs. |
-| **`ContentRenderer.java`** | The master renderer that orchestrates the display of a `ChatMessage` by delegating to specific `PartRenderer` implementations. |
-| **`render/*`** | Sub-package containing specific renderers for different `Part` types (Text, FunctionCall, Blob, etc.). |
-
-### d. Internal Utilities (`uno.anahata.gemini.internal`)
-
-This package contains helper classes and custom serializers.
-
-| Class | Summary |
-| :--- | :--- |
-| **`KryoUtils.java`** | Manages the Kryo instance and registration of serializers for session persistence. |
-| **`GsonUtils.java`** | Manages the Gson instance for handling JSON in tool calls, not for session persistence. |
-| **`PartUtils.java`** | Helpers for summarizing and converting `Part` objects (e.g., file to Blob). |
-
-## V1 Launch Goals (Immediate Focus)
-
--   **API Robustness:** Implement additional retries for API errors (e.g., 429 Quota Exceeded), increasing the wait time exponentially but not stopping the process entirely.
--   **Performance:**
-    -   Investigate and improve the initial startup time of the `AnahataTopComponent` in the NetBeans host.
--   **GeminiPanel UI Enhancements:**
-    -   Add a real-time status indicator to the UI showing:
-        -   A running timer (in seconds) for the current API call round trip.
-        -   A traffic light system for API call status: Green for "in-progress," Yellow for "retrying," and Red for "failed."
-        -   Display the total time of the last round trip upon completion or failure.
-
-## V2 Mega-Refactor Plan (Future Focus)
-
-This is the long-term architectural plan to be executed after V1 launch.
-
-1.  **Project Modularity:** Split the project into three modules: `anahata-ai` (core interfaces), `anahata-ai-gemini` (Gemini implementation), and `anahata-ai-swing` (reusable UI).
-2.  **Multi-Model Abstraction Layer:** Create a generic interface for chat models to allow plugging in other providers like OpenAI or Claude.
-3.  **Tooling Model Refactor:** Migrate from static tool methods to an instance-based model for better testability and state management.
-4.  **Active Workspace Implementation:** Implement the "Active Workspace" concept where stateful resources (like files) are automatically injected into the user prompt on every turn. This will allow `LocalFiles.readFile` to simply add the file to the workspace, eliminating the current context bloat where `writeFile` keeps the file content twice in the context (FunctionCall and FunctionResponse).
+-   [ ] **Project Modularity:** Split the project into three modules: `anahata-ai-core` (interfaces), `anahata-ai-gemini` (Gemini implementation), and `anahata-ai-swing` (reusable UI).
+-   [ ] **Multi-Model Abstraction:** Create a generic interface for chat models to allow plugging in other providers (OpenAI, Claude, etc.).
+-   [ ] **Instance-Based Tooling:** Refactor the tool system from static methods to an instance-based model to improve testability and state management.
+-   [ ] **Active Workspace:** Implement the "Active Workspace" concept where stateful resources are managed separately and injected into the prompt, simplifying context management and making all tool calls ephemeral.
