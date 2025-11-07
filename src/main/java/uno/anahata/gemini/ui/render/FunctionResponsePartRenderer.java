@@ -30,7 +30,18 @@ public class FunctionResponsePartRenderer implements PartRenderer {
         java.util.Map<String, Object> responseMap = fr.response().get();
 
         boolean isError = responseMap.containsKey("error");
-        Object contentToRender = isError ? responseMap.get("error") : (responseMap.containsKey("output") ? responseMap.get("output") : responseMap);
+        Object contentToRender;
+
+        if (isError) {
+            contentToRender = responseMap.get("error");
+        } else if (responseMap.size() == 1 && responseMap.containsKey("output")) {
+            // Only one key, and it's "output", so just show the value for simplicity.
+            contentToRender = responseMap.get("output");
+        } else {
+            // Multiple keys, or a single key that isn't "output", so show the whole object.
+            contentToRender = responseMap;
+        }
+        
         String finalContentString = GsonUtils.prettyPrint(contentToRender);
         
         JTextArea contentArea = new JTextArea(finalContentString);
