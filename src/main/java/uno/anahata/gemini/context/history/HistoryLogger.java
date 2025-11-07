@@ -2,16 +2,12 @@ package uno.anahata.gemini.context.history;
 
 import uno.anahata.gemini.ChatMessage;
 import com.google.genai.types.Content;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.context.ContextManager;
-import uno.anahata.gemini.internal.PartUtils;
 
 @Slf4j
 public class HistoryLogger {
