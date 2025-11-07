@@ -58,14 +58,14 @@ public class UICapture {
     }
 
     public static List<File> screenshotAllJFrames() {
-        log.info("Starting screenshot capture of all JFrames.");
+        log.debug("Starting screenshot capture of all JFrames.");
         List<File> ret = new ArrayList<>();
         try {
             java.awt.Frame[] frames = java.awt.Frame.getFrames();
-            log.info("Found {} total frames.", frames.length);
+            log.debug("Found {} total frames.", frames.length);
             int capturedCount = 0;
             for (java.awt.Frame frame : frames) {
-                log.info("Checking frame: title='{}', class='{}', isShowing={}", frame.getTitle(), frame.getClass().getName(), frame.isShowing());
+                log.debug("Checking frame: title='{}', class='{}', isShowing={}", frame.getTitle(), frame.getClass().getName(), frame.isShowing());
                 if (frame instanceof JFrame && frame.isShowing()) {
                     JFrame jframe = (JFrame) frame;
                     BufferedImage image = new BufferedImage(jframe.getWidth(), jframe.getHeight(), BufferedImage.TYPE_INT_ARGB);
