@@ -7,6 +7,8 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -14,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.logging.Level;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.FileObject;
@@ -39,7 +40,6 @@ public class RunningJVM {
 
     public static Map chatTemp = Collections.synchronizedMap(new HashMap());
     public static String defaultCompilerClasspath = initDefaultCompilerClasspath();
-    private static ClassLoader parentClassLoader = RunningJVM.class.getClassLoader();
 
     public static String initDefaultCompilerClasspath() {
         defaultCompilerClasspath = System.getProperty("java.class.path");
@@ -56,20 +56,12 @@ public class RunningJVM {
         RunningJVM.defaultCompilerClasspath = defaultCompilerClasspath;
     }
 
-    public static ClassLoader getParentClassLoader() {
-        return parentClassLoader;
-    }
-
-    public static void setParentClassLoader(ClassLoader defaultParentClassLoader) {
-        RunningJVM.parentClassLoader = defaultParentClassLoader;
-    }
-
     @AIToolMethod("Compiles the source code of a java class with whatever classpath is defined in RunningJVM.getDefaultCompilerClassPath")
     public static Class compileJava(
             @AIToolParam("The source code") String sourceCode,
             @AIToolParam("The class name") String className,
             @AIToolParam("Additional classpath entries (if required)") String extraClassPath,
-            @AIToolParam("Additional compiler options (if required)") String[] compilerOptions) 
+            @AIToolParam("Additional compiler options (if required)") String[] compilerOptions)
             throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 
@@ -116,7 +108,8 @@ public class RunningJVM {
 
         String classpath = defaultCompilerClasspath;
         if (extraClassPath != null && !extraClassPath.isEmpty()) {
-            classpath += File.pathSeparator + extraClassPath;
+            // CRITICAL FIX: Prepend extraClassPath to ensure hot-reloaded classes take precedence
+            classpath = extraClassPath + File.pathSeparator + classpath;
         }
 
         List<String> options = new ArrayList<>(Arrays.asList("-classpath", classpath));
@@ -147,19 +140,51 @@ public class RunningJVM {
         }
 
         Map<String, byte[]> compiledClasses = ((Map<String, byte[]>) fileManager.getClass().getMethod("getCompiledClasses").invoke(fileManager));
-        ClassLoader classLoader = new ClassLoader(parentClassLoader) {
-            @Override
-            protected Class<?> findClass(String name) throws ClassNotFoundException {
-                byte[] bytes = compiledClasses.get(name);
-                if (bytes != null) {
-                    return defineClass(name, bytes, 0, bytes.length);
+
+        List<URL> urlList = new ArrayList<>();
+        if (extraClassPath != null && !extraClassPath.isEmpty()) {
+            String[] pathElements = extraClassPath.split(File.pathSeparator);
+            for (String element : pathElements) {
+                try {
+                    urlList.add(new File(element).toURI().toURL());
+                } catch (Exception e) {
+                    log.warn("Invalid classpath entry: {}", element, e);
                 }
-                return super.findClass(name);
+            }
+        }
+
+        URLClassLoader reloadingClassLoader = new URLClassLoader(urlList.toArray(new URL[0]), Thread.currentThread().getContextClassLoader()) {
+            @Override
+            protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+                synchronized (getClassLoadingLock(name)) {
+                    // 1. Check if class is already loaded by this loader
+                    Class<?> c = findLoadedClass(name);
+                    if (c == null) {
+                        // 2. Check for our in-memory compiled class first (the "hot-reload" part for Anahata.java)
+                        byte[] bytes = compiledClasses.get(name);
+                        if (bytes != null) {
+                            log.info("Hot-reloading in-memory class: {}", name);
+                            c = defineClass(name, bytes, 0, bytes.length);
+                        } else {
+                            try {
+                                // 3. CHILD-FIRST: Try to find the class in our own URLs (e.g., target/classes)
+                                c = findClass(name);
+                                log.info("Loaded class from extraClassPath (Child-First): {}", name);
+                            } catch (ClassNotFoundException e) {
+                                // 4. PARENT-LAST: If not found, delegate to the parent classloader.
+                                c = super.loadClass(name, resolve);
+                            }
+                        }
+                    }
+                    if (resolve) {
+                        resolveClass(c);
+                    }
+                    return c;
+                }
             }
         };
 
-        Class dynamicClass = (Class) classLoader.loadClass(className);
-        return dynamicClass;
+        return reloadingClassLoader.loadClass(className);
     }
 
     @AIToolMethod(
@@ -171,21 +196,20 @@ public class RunningJVM {
             requiresApproval = true
     )
     public static Object compileAndExecuteJava(
-            @AIToolParam("Source code of a java class called 'Gemini' that implements java.util.concurrent.Callable") String sourceCode,
+            @AIToolParam("Source code of a java class called 'Anahata' that implements java.util.concurrent.Callable") String sourceCode,
             @AIToolParam("Compiler's additional classpath entries separated with File.pathSeparator. ") String extraClassPath,
             @AIToolParam("Compiler's additional options.") String[] compilerOptions) throws Exception {
 
-        
         log.info("executeJavaCode: \nsource={}", sourceCode);
         log.info("executeJavaCode: \nextraCompilerClassPath={}", extraClassPath);
 
-        Class c = compileJava(sourceCode, "Gemini", extraClassPath, compilerOptions);
-        Object o = c.newInstance();
+        Class c = compileJava(sourceCode, "Anahata", extraClassPath, compilerOptions);
+        Object o = c.getDeclaredConstructor().newInstance();
 
         if (o instanceof Callable) {
             log.info("Calling call() method");
-            Callable trueGeminiInstance = (Callable) o;
-            Object ret = ensureJsonSerializable(trueGeminiInstance.call());            
+            Callable trueAnahataInstance = (Callable) o;
+            Object ret = ensureJsonSerializable(trueAnahataInstance.call());
             log.info("call() method returned {}", ret);
             return ret;
         } else {
