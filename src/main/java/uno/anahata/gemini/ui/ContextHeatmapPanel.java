@@ -1,6 +1,5 @@
 package uno.anahata.gemini.ui;
 
-import com.google.genai.types.Content;
 import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.Part;
 import com.google.gson.Gson;
@@ -8,33 +7,45 @@ import com.google.gson.JsonElement;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Arc2D;
-import java.io.File;
+import java.awt.geom.Point2D;
 import java.lang.reflect.Method;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+import javax.swing.Timer;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableRowSorter;
 import lombok.Getter;
@@ -60,97 +71,201 @@ public class ContextHeatmapPanel extends JPanel {
     private FunctionManager functionManager;
     private SwingGeminiConfig.UITheme theme;
 
+    private JPopupMenu contentPopup;
+    private JTextArea popupTextArea;
+    private Timer showPopupTimer;
+    private Timer hidePopupTimer;
+    private int hoveredRow = -1;
+
     public ContextHeatmapPanel() {
         initComponents();
     }
 
     public void setFunctionManager(FunctionManager functionManager) {
         this.functionManager = functionManager;
-        this.theme = new SwingGeminiConfig.UITheme(); // Assuming a default theme
+        this.theme = new SwingGeminiConfig.UITheme();
     }
 
     private void initComponents() {
         setLayout(new BorderLayout());
         statusLabel = new JLabel("No context loaded.", SwingConstants.CENTER);
 
-        // Table
         tableModel = new PartTableModel();
-        partTable = new JTable(tableModel) {
-            @Override
-            public String getToolTipText(MouseEvent e) {
-                Point p = e.getPoint();
-                int viewRow = rowAtPoint(p);
-                if (viewRow >= 0) {
-                    int modelRow = convertRowIndexToModel(viewRow);
-                    return tableModel.getPartInfo(modelRow).getFullContentText();
-                }
-                return null;
-            }
-        };
+        partTable = new JTable(tableModel);
         partTable.setFillsViewportHeight(true);
-        partTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        
+        partTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+
         PartTableCellRenderer cellRenderer = new PartTableCellRenderer();
         partTable.setDefaultRenderer(Object.class, cellRenderer);
-        partTable.setDefaultRenderer(Number.class, cellRenderer); // Ensure numeric columns are also colored
-        
-        partTable.setRowSorter(new TableRowSorter<>(tableModel));
-        
-        setupTableColumnWidths();
+        partTable.setDefaultRenderer(Number.class, cellRenderer);
 
+        partTable.setRowSorter(new TableRowSorter<>(tableModel));
+        setupTableColumnWidths();
         JScrollPane tableScrollPane = new JScrollPane(partTable);
 
-        // Pie Chart
-        pieChartPanel = new PieChartPanel();
+        setupInteractivePopup();
 
-        // Split Pane
+        pieChartPanel = new PieChartPanel(partTable, tableModel);
+
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tableScrollPane, pieChartPanel);
         splitPane.setDividerLocation(0.7);
         splitPane.setResizeWeight(0.7);
 
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton pruneButton = new JButton("Prune Selected");
+        pruneButton.addActionListener(e -> onPruneSelected());
+        bottomPanel.add(pruneButton);
+
         add(splitPane, BorderLayout.CENTER);
         add(statusLabel, BorderLayout.NORTH);
+        add(bottomPanel, BorderLayout.SOUTH);
     }
-    
+
+    private void setupInteractivePopup() {
+        popupTextArea = new JTextArea();
+        popupTextArea.setEditable(false);
+        popupTextArea.setLineWrap(true);
+        popupTextArea.setWrapStyleWord(true);
+
+        JScrollPane scrollPane = new JScrollPane(popupTextArea);
+        scrollPane.setBorder(null);
+        scrollPane.setPreferredSize(new Dimension(400, 300));
+
+        contentPopup = new JPopupMenu();
+        contentPopup.setLayout(new BorderLayout());
+        contentPopup.add(scrollPane, BorderLayout.CENTER);
+
+        showPopupTimer = new Timer(750, e -> {
+            if (hoveredRow != -1) {
+                Point p = partTable.getMousePosition();
+                if (p != null) {
+                    int modelRow = partTable.convertRowIndexToModel(hoveredRow);
+                    String content = tableModel.getPartInfo(modelRow).getFullContentText();
+                    popupTextArea.setText(content);
+                    popupTextArea.setCaretPosition(0);
+                    contentPopup.show(partTable, p.x + 10, p.y + 10);
+                }
+            }
+        });
+        showPopupTimer.setRepeats(false);
+
+        hidePopupTimer = new Timer(500, e -> contentPopup.setVisible(false));
+        hidePopupTimer.setRepeats(false);
+
+        MouseAdapter tableMouseListener = new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int row = partTable.rowAtPoint(e.getPoint());
+                if (row != hoveredRow) {
+                    hoveredRow = row;
+                    contentPopup.setVisible(false);
+                    showPopupTimer.stop();
+                    if (hoveredRow != -1) {
+                        showPopupTimer.start();
+                    }
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (!isMouseOverPopup(e.getPoint())) {
+                    hidePopupTimer.start();
+                }
+            }
+        };
+        partTable.addMouseMotionListener(tableMouseListener);
+        partTable.addMouseListener(tableMouseListener);
+
+        MouseAdapter popupMouseListener = new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                hidePopupTimer.stop();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                Point p = SwingUtilities.convertPoint(contentPopup, e.getPoint(), partTable);
+                if (!partTable.getVisibleRect().contains(p)) {
+                    hidePopupTimer.start();
+                }
+            }
+        };
+        contentPopup.addMouseListener(popupMouseListener);
+        popupTextArea.addMouseListener(popupMouseListener);
+        scrollPane.addMouseListener(popupMouseListener);
+    }
+
+    private boolean isMouseOverPopup(Point tablePoint) {
+        if (!contentPopup.isVisible()) {
+            return false;
+        }
+        Point popupPoint = SwingUtilities.convertPoint(partTable, tablePoint, contentPopup);
+        return contentPopup.getBounds().contains(popupPoint);
+    }
+
+    private void onPruneSelected() {
+        int[] selectedRows = partTable.getSelectedRows();
+        if (selectedRows.length == 0) {
+            JOptionPane.showMessageDialog(this, "No parts selected to prune.", "Prune Parts", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int choice = JOptionPane.showConfirmDialog(
+            this,
+            "Prune " + selectedRows.length + " selected parts (and their dependencies) from the context?",
+            "Confirm Prune",
+            JOptionPane.YES_NO_OPTION
+        );
+
+        if (choice == JOptionPane.YES_OPTION) {
+            Map<String, List<Integer>> partsToPruneByMessage = new HashMap<>();
+            for (int viewRow : selectedRows) {
+                int modelRow = partTable.convertRowIndexToModel(viewRow);
+                PartInfo info = tableModel.getPartInfo(modelRow);
+                partsToPruneByMessage.computeIfAbsent(info.getMessageUuid(), k -> new ArrayList<>()).add(info.getPartIndex());
+            }
+
+            new SwingWorker<Void, Void>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    for (Map.Entry<String, List<Integer>> entry : partsToPruneByMessage.entrySet()) {
+                        List<Number> partIndices = new ArrayList<>(entry.getValue());
+                        functionManager.getChat().getContextManager().pruneParts(
+                            entry.getKey(),
+                            partIndices,
+                            "Pruned by user from Context Heatmap"
+                        );
+                    }
+                    return null;
+                }
+
+                @Override
+                protected void done() {
+                    try {
+                        get();
+                    } catch (Exception ex) {
+                        log.error("Error pruning parts", ex);
+                        JOptionPane.showMessageDialog(ContextHeatmapPanel.this,
+                            "Error during pruning: " + ex.getMessage(),
+                            "Prune Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }.execute();
+        }
+    }
+
     private void setupTableColumnWidths() {
         TableColumnModel columnModel = partTable.getColumnModel();
-        // Msg
-        TableColumn msgCol = columnModel.getColumn(0);
-        msgCol.setMinWidth(40);
-        msgCol.setMaxWidth(60);
-        msgCol.setPreferredWidth(40);
-        // Part
-        TableColumn partCol = columnModel.getColumn(1);
-        partCol.setMinWidth(40);
-        partCol.setMaxWidth(60);
-        partCol.setPreferredWidth(40);
-        // Role
-        TableColumn roleCol = columnModel.getColumn(2);
-        roleCol.setMinWidth(50);
-        roleCol.setMaxWidth(80);
-        roleCol.setPreferredWidth(60);
-        // Type
-        TableColumn typeCol = columnModel.getColumn(3);
-        typeCol.setMinWidth(80);
-        typeCol.setMaxWidth(150);
-        typeCol.setPreferredWidth(120);
-        // Size
-        TableColumn sizeCol = columnModel.getColumn(4);
-        sizeCol.setMinWidth(80);
-        sizeCol.setMaxWidth(120);
-        sizeCol.setPreferredWidth(100);
-        // Function
-        TableColumn funcCol = columnModel.getColumn(5);
-        funcCol.setPreferredWidth(150);
-        // Resource ID
-        TableColumn resourceCol = columnModel.getColumn(6);
-        resourceCol.setPreferredWidth(150); // Same as Function
-        // Status
-        TableColumn statusCol = columnModel.getColumn(7);
-        statusCol.setPreferredWidth(60); // Smaller
-        // Summary
-        TableColumn summaryCol = columnModel.getColumn(8);
-        summaryCol.setPreferredWidth(470); // Give it all the extra space
+        columnModel.getColumn(0).setPreferredWidth(40);
+        columnModel.getColumn(1).setPreferredWidth(40);
+        columnModel.getColumn(2).setPreferredWidth(60);
+        columnModel.getColumn(3).setPreferredWidth(120);
+        columnModel.getColumn(4).setPreferredWidth(100);
+        columnModel.getColumn(5).setPreferredWidth(150);
+        columnModel.getColumn(6).setPreferredWidth(150);
+        columnModel.getColumn(7).setPreferredWidth(80);
+        columnModel.getColumn(8).setPreferredWidth(450);
     }
 
     public void updateContext(List<ChatMessage> context) {
@@ -165,10 +280,7 @@ public class ContextHeatmapPanel extends JPanel {
         worker = new SwingWorker<List<PartInfo>, Void>() {
             @Override
             protected List<PartInfo> doInBackground() throws Exception {
-                if (context == null || context.isEmpty()) {
-                    return Collections.emptyList();
-                }
-                return buildPartInfoList(context);
+                return (context == null || context.isEmpty()) ? Collections.emptyList() : buildPartInfoList(context);
             }
 
             @Override
@@ -190,29 +302,25 @@ public class ContextHeatmapPanel extends JPanel {
     }
 
     private List<PartInfo> buildPartInfoList(List<ChatMessage> context) {
-        List<PartInfo> infos = new ArrayList<>();
-        
-        Map<String, ResourceStatus> statusMap = Collections.emptyMap();
-        if (functionManager != null && functionManager.getChat().getContextManager() != null) {
-            statusMap = functionManager.getChat().getContextManager().getResourceTracker().getStatefulResourcesOverview()
+        Map<String, ResourceStatus> statusMap = functionManager != null && functionManager.getChat().getContextManager() != null
+            ? functionManager.getChat().getContextManager().getResourceTracker().getStatefulResourcesOverview()
                 .stream()
-                .collect(Collectors.toMap(srs -> srs.resource.getResourceId(), srs -> srs.status));
-        }
+                .collect(Collectors.toMap(srs -> srs.resource.getResourceId(), srs -> srs.status))
+            : Collections.emptyMap();
 
+        List<PartInfo> infos = new ArrayList<>();
         for (int i = 0; i < context.size(); i++) {
             ChatMessage msg = context.get(i);
-            if (msg.getContent() == null || !msg.getContent().parts().isPresent()) {
-                continue;
-            }
-            List<Part> parts = msg.getContent().parts().get();
-            for (int j = 0; j < parts.size(); j++) {
-                infos.add(new PartInfo(i, j, msg, parts.get(j), functionManager, theme, statusMap));
+            if (msg.getContent() != null && msg.getContent().parts().isPresent()) {
+                List<Part> parts = msg.getContent().parts().get();
+                for (int j = 0; j < parts.size(); j++) {
+                    infos.add(new PartInfo(i, j, msg, parts.get(j), functionManager, theme, statusMap));
+                }
             }
         }
         return infos;
     }
 
-    // --- Inner Classes ---
     @Getter
     public static class PartInfo {
         private final int messageIndex;
@@ -223,6 +331,7 @@ public class ContextHeatmapPanel extends JPanel {
         private final long sizeInBytes;
         private final String functionName;
         private final String resourceId;
+        private final String resourceIdFilename;
         private final ResourceStatus resourceStatus;
         private final String contentSummary;
         private final String fullContentText;
@@ -235,43 +344,37 @@ public class ContextHeatmapPanel extends JPanel {
             this.messageUuid = msg.getId();
             this.role = msg.getContent().role().orElse("unknown");
             this.sizeInBytes = PartUtils.calculateSizeInBytes(part);
+            this.roleColor = getRoleColor(theme, this.role);
 
-            switch (this.role) {
-                case "user": this.roleColor = theme.getUserHeaderBg(); break;
-                case "model": this.roleColor = theme.getModelHeaderBg(); break;
-                case "tool": this.roleColor = theme.getToolHeaderBg(); break;
-                default: this.roleColor = theme.getDefaultHeaderBg(); break;
-            }
-
+            String tempPartType = "Unknown";
+            String tempFullContent = part.toString();
             String tempFuncName = "";
             String tempResourceId = "";
             ResourceStatus tempResourceStatus = null;
             boolean tempIsError = false;
 
             if (part.text().isPresent()) {
-                this.partType = "Text";
-                this.fullContentText = part.text().get();
+                tempPartType = "Text";
+                tempFullContent = part.text().get();
             } else if (part.functionCall().isPresent()) {
-                this.partType = "FunctionCall";
+                tempPartType = "FunctionCall";
                 tempFuncName = part.functionCall().get().name().orElse("");
-                this.fullContentText = "Call: " + tempFuncName + "\nArgs: " + part.functionCall().get().args();
+                tempFullContent = "Call: " + tempFuncName + "\nArgs: " + part.functionCall().get().args();
             } else if (part.functionResponse().isPresent()) {
-                this.partType = "FunctionResponse";
                 FunctionResponse fr = part.functionResponse().get();
+                tempPartType = "FunctionResponse";
                 tempFuncName = fr.name().orElse("");
                 Map<String, Object> respMap = (Map<String, Object>) fr.response().get();
-                this.fullContentText = "Response: " + tempFuncName + "\nContent: " + respMap;
-
-                if (respMap.containsKey("error") || respMap.containsKey("exception")) {
-                    tempIsError = true;
-                }
+                tempFullContent = "Response: " + tempFuncName + "\nContent: " + respMap;
+                tempIsError = respMap.containsKey("error") || respMap.containsKey("exception");
 
                 if (fm != null && fm.getContextBehavior(tempFuncName) == ContextBehavior.STATEFUL_REPLACE) {
                     Method toolMethod = fm.getToolMethod(tempFuncName);
                     if (toolMethod != null && StatefulResource.class.isAssignableFrom(toolMethod.getReturnType())) {
                         try {
                             JsonElement jsonTree = GSON.toJsonTree(fr.response().get());
-                            StatefulResource sr = (StatefulResource) GSON.fromJson(jsonTree, toolMethod.getReturnType());
+                            Class<? extends StatefulResource> statefulClass = toolMethod.getReturnType().asSubclass(StatefulResource.class);
+                            StatefulResource sr = GSON.fromJson(jsonTree, statefulClass);
                             tempResourceId = sr.getResourceId();
                             tempResourceStatus = statusMap.get(tempResourceId);
                         } catch (Exception e) {
@@ -280,18 +383,36 @@ public class ContextHeatmapPanel extends JPanel {
                     }
                 }
             } else if (part.inlineData().isPresent()) {
-                this.partType = "Blob";
-                this.fullContentText = "MIME Type: " + part.inlineData().get().mimeType().orElse("") + ", Size: " + sizeInBytes + " bytes";
-            } else {
-                this.partType = "Unknown";
-                this.fullContentText = part.toString();
+                tempPartType = "Blob";
+                tempFullContent = "MIME Type: " + part.inlineData().get().mimeType().orElse("") + ", Size: " + sizeInBytes + " bytes";
             }
 
+            this.partType = tempPartType;
+            this.fullContentText = tempFullContent;
             this.functionName = tempFuncName;
             this.resourceId = tempResourceId;
             this.resourceStatus = tempResourceStatus;
             this.isError = tempIsError;
             this.contentSummary = StringUtils.abbreviate(fullContentText.replace('\n', ' '), 100);
+            this.resourceIdFilename = extractFilename(tempResourceId);
+        }
+
+        private String extractFilename(String path) {
+            if (StringUtils.isBlank(path)) return "";
+            try {
+                return Paths.get(path).getFileName().toString();
+            } catch (InvalidPathException e) {
+                return path;
+            }
+        }
+
+        private Color getRoleColor(SwingGeminiConfig.UITheme theme, String role) {
+            switch (role) {
+                case "user": return theme.getUserHeaderBg();
+                case "model": return theme.getModelHeaderBg();
+                case "tool": return theme.getToolHeaderBg();
+                default: return theme.getDefaultHeaderBg();
+            }
         }
     }
 
@@ -313,26 +434,11 @@ public class ContextHeatmapPanel extends JPanel {
             return partInfos.get(rowIndex);
         }
 
-        @Override
-        public int getRowCount() {
-            return partInfos.size();
-        }
-
-        @Override
-        public int getColumnCount() {
-            return columnNames.length;
-        }
-
-        @Override
-        public String getColumnName(int column) {
-            return columnNames[column];
-        }
-
-        @Override
-        public Class<?> getColumnClass(int columnIndex) {
-            if (columnIndex == 4) return Long.class;
-            if (columnIndex == 0 || columnIndex == 1) return Integer.class;
-            return String.class;
+        @Override public int getRowCount() { return partInfos.size(); }
+        @Override public int getColumnCount() { return columnNames.length; }
+        @Override public String getColumnName(int column) { return columnNames[column]; }
+        @Override public Class<?> getColumnClass(int c) {
+            return (c == 4) ? Long.class : (c == 0 || c == 1) ? Integer.class : String.class;
         }
 
         @Override
@@ -345,7 +451,7 @@ public class ContextHeatmapPanel extends JPanel {
                 case 3: return info.getPartType();
                 case 4: return info.getSizeInBytes();
                 case 5: return info.getFunctionName();
-                case 6: return info.getResourceId();
+                case 6: return info.getResourceIdFilename();
                 case 7: return info.getResourceStatus() != null ? info.getResourceStatus().name() : "";
                 case 8: return info.getContentSummary();
                 default: return null;
@@ -357,13 +463,8 @@ public class ContextHeatmapPanel extends JPanel {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            
-            if (value instanceof Number) {
-                setHorizontalAlignment(SwingConstants.RIGHT);
-            } else {
-                setHorizontalAlignment(SwingConstants.LEFT);
-            }
-            
+            setHorizontalAlignment(value instanceof Number ? SwingConstants.RIGHT : SwingConstants.LEFT);
+
             if (!isSelected) {
                 int modelRow = table.convertRowIndexToModel(row);
                 PartInfo info = tableModel.getPartInfo(modelRow);
@@ -380,23 +481,78 @@ public class ContextHeatmapPanel extends JPanel {
     }
 
     private static class PieChartPanel extends JPanel {
-        private List<PartInfo> data;
-        private List<Slice> slices;
+        private List<Slice> slices = Collections.emptyList();
+        private final JTable table;
+        private final PartTableModel tableModel;
         private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("#.0%");
+        private static final Map<String, Color> PART_TYPE_COLORS = new HashMap<>();
 
-        public PieChartPanel() {
-            this.data = Collections.emptyList();
-            this.slices = Collections.emptyList();
+        static {
+            PART_TYPE_COLORS.put("Text", new Color(0, 120, 215));
+            PART_TYPE_COLORS.put("FunctionCall", new Color(216, 59, 1));
+            PART_TYPE_COLORS.put("FunctionResponse", new Color(0, 153, 188));
+            PART_TYPE_COLORS.put("Blob", new Color(104, 33, 122));
+            PART_TYPE_COLORS.put("Unknown", Color.GRAY);
+        }
+
+        public PieChartPanel(JTable table, PartTableModel tableModel) {
+            this.table = table;
+            this.tableModel = tableModel;
             setToolTipText("");
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    handleMouseClick(e.getPoint());
+                }
+            });
+        }
+
+        private void handleMouseClick(Point p) {
+            if (slices.isEmpty()) return;
+
+            Slice clickedSlice = findSliceForPoint(p);
+            if (clickedSlice != null) {
+                for (int i = 0; i < tableModel.getRowCount(); i++) {
+                    if (tableModel.getPartInfo(i) == clickedSlice.info) {
+                        int viewRow = table.convertRowIndexToView(i);
+                        if (viewRow != -1) {
+                            table.setRowSelectionInterval(viewRow, viewRow);
+                            table.scrollRectToVisible(table.getCellRect(viewRow, 0, true));
+                            table.requestFocusInWindow();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        private Slice findSliceForPoint(Point p) {
+            int diameter = Math.min(getWidth(), getHeight()) - 100;
+            int pieX = (getWidth() - diameter) / 2;
+            int pieY = (getHeight() - diameter) / 2;
+            double explodeOffset = diameter * 0.03;
+
+            for (Slice slice : slices) {
+                double midAngle = slice.startAngle + slice.angle / 2.0;
+                double midAngleRad = Math.toRadians(midAngle);
+                double offsetX = Math.cos(midAngleRad) * explodeOffset;
+                double offsetY = Math.sin(midAngleRad) * explodeOffset;
+                int arcY = pieY - (int)offsetY;
+
+                Arc2D arc = new Arc2D.Double(pieX + offsetX, arcY, diameter, diameter, slice.startAngle, slice.angle, Arc2D.PIE);
+                if (arc.contains(p)) {
+                    return slice;
+                }
+            }
+            return null;
         }
 
         public void setData(List<PartInfo> data) {
-            this.data = data;
-            processData();
+            processData(data);
             repaint();
         }
 
-        private void processData() {
+        private void processData(List<PartInfo> data) {
             if (data == null || data.isEmpty()) {
                 slices = Collections.emptyList();
                 return;
@@ -410,7 +566,8 @@ public class ContextHeatmapPanel extends JPanel {
             double currentAngle = 0;
             for (PartInfo info : data) {
                 double angle = (double) info.getSizeInBytes() / totalSize * 360.0;
-                newSlices.add(new Slice(currentAngle, angle, info.getRoleColor(), info, (double) info.getSizeInBytes() / totalSize));
+                Color color = PART_TYPE_COLORS.getOrDefault(info.getPartType(), Color.DARK_GRAY);
+                newSlices.add(new Slice(currentAngle, angle, color, info, (double) info.getSizeInBytes() / totalSize));
                 currentAngle += angle;
             }
             this.slices = newSlices;
@@ -425,58 +582,90 @@ public class ContextHeatmapPanel extends JPanel {
             }
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int diameter = Math.min(getWidth(), getHeight()) - 40;
-            int x = (getWidth() - diameter) / 2;
-            int y = (getHeight() - diameter) / 2;
 
+            int diameter = Math.min(getWidth(), getHeight()) - 100;
+            int pieX = (getWidth() - diameter) / 2;
+            int pieY = (getHeight() - diameter) / 2;
+            double explodeOffset = diameter * 0.03;
+
+            FontMetrics fm = g2d.getFontMetrics();
+            List<LabelInfo> labels = new ArrayList<>();
+
+            // First, draw the pie slices and calculate label positions
             for (Slice slice : slices) {
+                double midAngle = slice.startAngle + slice.angle / 2.0;
+                double midAngleRad = Math.toRadians(midAngle); // Correct angle in radians
+                
+                double offsetX = Math.cos(midAngleRad) * explodeOffset;
+                double offsetY = Math.sin(midAngleRad) * explodeOffset;
+
+                int arcX = pieX + (int)offsetX;
+                int arcY = pieY - (int)offsetY; // Invert Y for Swing coordinates
+
+                Arc2D arc = new Arc2D.Double(arcX, arcY, diameter, diameter, slice.startAngle, slice.angle, Arc2D.PIE);
                 g2d.setColor(slice.color);
-                g2d.fill(new Arc2D.Double(x, y, diameter, diameter, slice.startAngle, slice.angle, Arc2D.PIE));
-            }
-            
-            // Draw labels on top
-            for (Slice slice : slices) {
-                if (slice.percentage > 0.02 && StringUtils.isNotBlank(slice.info.getResourceId())) {
-                    drawLabel(g2d, slice, x, y, diameter);
+                g2d.fill(arc);
+                g2d.setColor(Color.WHITE);
+                g2d.draw(arc);
+
+                if (slice.percentage > 0.01) {
+                    double sliceCenterX = arcX + diameter / 2.0;
+                    double sliceCenterY = arcY + diameter / 2.0;
+                    labels.add(new LabelInfo(slice, midAngleRad, diameter, sliceCenterX, sliceCenterY));
                 }
             }
+
+            // Now, draw the labels with collision avoidance
+            drawLabels(g2d, labels, fm);
         }
-        
-        private void drawLabel(Graphics2D g2d, Slice slice, int x, int y, int diameter) {
-            FontMetrics fm = g2d.getFontMetrics();
-            double midAngle = Math.toRadians(slice.startAngle + slice.angle / 2);
-            int labelX = (int) (x + diameter / 2 + Math.cos(midAngle) * diameter / 3);
-            int labelY = (int) (y + diameter / 2 + Math.sin(midAngle) * diameter / 3);
 
-            String filename = new File(slice.info.getResourceId()).getName();
-            String label = String.format("%s (%s)", filename, PERCENT_FORMAT.format(slice.percentage));
-            
-            int textWidth = fm.stringWidth(label);
-            labelX -= textWidth / 2;
+        private void drawLabels(Graphics2D g2d, List<LabelInfo> labels, FontMetrics fm) {
+            // Separate labels for left and right sides of the pie
+            List<LabelInfo> rightLabels = labels.stream()
+                .filter(l -> Math.cos(l.midAngleRad) >= 0)
+                .sorted(Comparator.comparingDouble(l -> l.leaderLineEnd.getY()))
+                .collect(Collectors.toList());
 
-            // Choose text color for contrast
-            double luminance = (0.299 * slice.color.getRed() + 0.587 * slice.color.getGreen() + 0.114 * slice.color.getBlue()) / 255;
-            g2d.setColor(luminance > 0.5 ? Color.BLACK : Color.WHITE);
-            g2d.drawString(label, labelX, labelY);
+            List<LabelInfo> leftLabels = labels.stream()
+                .filter(l -> Math.cos(l.midAngleRad) < 0)
+                .sorted(Comparator.comparingDouble(l -> l.leaderLineEnd.getY()))
+                .collect(Collectors.toList());
+
+            // Adjust positions to avoid overlap
+            adjustLabelPositions(rightLabels, fm);
+            adjustLabelPositions(leftLabels, fm);
+
+            // Draw all labels and lines
+            g2d.setColor(Color.BLACK);
+            for (LabelInfo label : labels) {
+                g2d.drawLine((int) label.edgePoint.getX(), (int) label.edgePoint.getY(), (int) label.leaderLineEnd.getX(), (int) label.leaderLineEnd.getY());
+                g2d.drawLine((int) label.leaderLineEnd.getX(), (int) label.leaderLineEnd.getY(), (int) label.horizontalLineEnd.getX(), (int) label.horizontalLineEnd.getY());
+                g2d.drawString(label.text, (int) label.textStart.getX(), (int) label.textStart.getY());
+            }
+        }
+
+        private void adjustLabelPositions(List<LabelInfo> labels, FontMetrics fm) {
+            int labelHeight = fm.getHeight();
+            for (int i = 0; i < labels.size() - 1; i++) {
+                LabelInfo l1 = labels.get(i);
+                LabelInfo l2 = labels.get(i + 1);
+                double overlap = (l1.leaderLineEnd.getY() + labelHeight) - l2.leaderLineEnd.getY();
+                if (overlap > 0) {
+                    // Shift l2 and all subsequent labels down
+                    for (int j = i + 1; j < labels.size(); j++) {
+                        labels.get(j).adjustY(overlap);
+                    }
+                }
+            }
         }
 
         @Override
         public String getToolTipText(MouseEvent e) {
-            if (slices.isEmpty()) return null;
-            int centerX = getWidth() / 2;
-            int centerY = getHeight() / 2;
-            int dx = e.getX() - centerX;
-            int dy = e.getY() - centerY;
-            double angle = Math.toDegrees(Math.atan2(dy, dx));
-            if (angle < 0) angle += 360;
-
-            for (Slice slice : slices) {
-                double endAngle = slice.startAngle + slice.angle;
-                if (angle >= slice.startAngle && angle < endAngle) {
-                    PartInfo info = slice.info;
-                    return String.format("<html><b>%s</b> (Msg %d, Part %d)<br>Size: %d bytes (%.2f%%)<br>Type: %s<br>Summary: %s</html>",
-                        info.getRole(), info.getMessageIndex(), info.getPartIndex(), info.getSizeInBytes(), slice.percentage * 100, info.getPartType(), info.getContentSummary());
-                }
+            Slice slice = findSliceForPoint(e.getPoint());
+            if (slice != null) {
+                PartInfo info = slice.info;
+                return String.format("<html><b>%s</b> (Msg %d, Part %d)<br>Size: %d bytes (%.2f%%)<br>Type: %s<br>Summary: %s</html>",
+                    info.getRole(), info.getMessageIndex(), info.getPartIndex(), info.getSizeInBytes(), slice.percentage * 100, info.getPartType(), info.getContentSummary());
             }
             return null;
         }
@@ -485,13 +674,61 @@ public class ContextHeatmapPanel extends JPanel {
             final double startAngle, angle, percentage;
             final Color color;
             final PartInfo info;
+            Slice(double sa, double a, Color c, PartInfo i, double p) {
+                startAngle = sa; angle = a; color = c; info = i; percentage = p;
+            }
+        }
 
-            Slice(double startAngle, double angle, Color color, PartInfo info, double percentage) {
-                this.startAngle = startAngle;
-                this.angle = angle;
-                this.color = color;
-                this.info = info;
-                this.percentage = percentage;
+        private static class LabelInfo {
+            final String text;
+            final double midAngleRad;
+            Point2D edgePoint;
+            Point2D leaderLineEnd;
+            Point2D horizontalLineEnd;
+            Point2D textStart;
+
+            LabelInfo(Slice slice, double midAngleRad, int diameter, double sliceCenterX, double sliceCenterY) {
+                this.midAngleRad = midAngleRad;
+                this.text = String.format("%s (%s)",
+                    slice.info.getResourceIdFilename().isEmpty() ? slice.info.getPartType() : slice.info.getResourceIdFilename(),
+                    PERCENT_FORMAT.format(slice.percentage)
+                );
+
+                double radius = diameter / 2.0;
+                double labelRadius = radius + 15;
+                double horizontalLineLength = 20;
+
+                // Point on the edge of the exploded slice's arc
+                this.edgePoint = new Point2D.Double(
+                    sliceCenterX + Math.cos(midAngleRad) * radius,
+                    sliceCenterY - Math.sin(midAngleRad) * radius
+                );
+
+                // End of the radial part of the leader line
+                this.leaderLineEnd = new Point2D.Double(
+                    sliceCenterX + Math.cos(midAngleRad) * labelRadius,
+                    sliceCenterY - Math.sin(midAngleRad) * labelRadius
+                );
+
+                // End of the horizontal part of the leader line
+                this.horizontalLineEnd = new Point2D.Double(
+                    leaderLineEnd.getX() + (Math.cos(midAngleRad) >= 0 ? horizontalLineLength : -horizontalLineLength),
+                    leaderLineEnd.getY()
+                );
+
+                // Position the text
+                int textWidth = SwingUtilities.computeStringWidth(new JLabel().getFontMetrics(new JLabel().getFont()), text);
+                if (Math.cos(midAngleRad) >= 0) { // Right side
+                    this.textStart = new Point2D.Double(horizontalLineEnd.getX(), horizontalLineEnd.getY());
+                } else { // Left side
+                    this.textStart = new Point2D.Double(horizontalLineEnd.getX() - textWidth, horizontalLineEnd.getY());
+                }
+            }
+
+            void adjustY(double amount) {
+                this.leaderLineEnd.setLocation(this.leaderLineEnd.getX(), this.leaderLineEnd.getY() + amount);
+                this.horizontalLineEnd.setLocation(this.horizontalLineEnd.getX(), this.horizontalLineEnd.getY() + amount);
+                this.textStart.setLocation(this.textStart.getX(), this.textStart.getY() + amount);
             }
         }
     }
