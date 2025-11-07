@@ -296,6 +296,7 @@ public class GeminiChat {
     }
 
     private void recordLastApiError(Exception e, int attempts) {
+        log.warn("Api Error on attempt {}: {}", attempts, e.toString());
         this.lastApiError += "\nAttempt: " + attempts
                 + "\nTime: " + new Date()
                 + "\nError: " + ExceptionUtils.getStackTrace(e)
