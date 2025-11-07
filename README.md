@@ -1,34 +1,101 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
 
-# Gemini Java Client
+# 🚀 Gemini Java Client: The Enterprise-Grade AI Assistant Framework
 
-A pure Java client for Google's Gemini API, designed for deep integration into Java applications.
+**Go beyond simple API calls.** The `gemini-java-client` is a powerful, pure-Java framework designed to build sophisticated, context-aware AI assistants that can interact directly with your application's logic and the local environment. It's the foundation for the Anahata AI Assistant NetBeans Plugin, proving its capability for deep IDE and desktop integration.
 
-This library provides a robust and extensible foundation for interacting with Google's Gemini models. It's not just a simple API wrapper; it includes a powerful, annotation-driven system for creating and managing local tools (functions) that the Gemini model can invoke. This allows you to build AI assistants that can interact directly with your application's logic, the local file system, or any other resource accessible from the JVM.
+## ✨ Why Choose Gemini Java Client?
 
-The client also features a built-in Swing UI (`GeminiPanel`) that can be easily embedded into any desktop application, providing a complete chat interface out of the box.
+This is not just another wrapper. We provide a complete, production-ready architecture for building AI-powered features into any Java application.
 
-## Key Features
+### 1. Unmatched Local Tooling (Functions)
 
--   **Pure Java:** Ensures high portability across different environments.
--   **Embeddable Swing UI:** A complete, renderer-based UI (`uno.anahata.gemini.ui.GeminiPanel`) is provided for displaying complex chat interactions, including text, images, and interactive tool calls.
--   **Powerful Local Tool Framework:**
-    -   Define tools using simple Java methods annotated with `@AIToolMethod`.
-    -   Automatic generation of function declarations (JSON schema) for the Gemini API.
-    -   The model can call your local Java code, enabling deep application integration with tools like `LocalFiles`, `LocalShell`, and `RunningJVM`.
--   **Robust Session Management:** Includes context management with automatic pruning and session persistence using the Kryo serialization library.
--   **Dynamic System Instructions:** A provider-based system allows for dynamically injecting context-aware instructions into the model's prompt.
--   **Multimodality:** Send text, images, and other file types to the model.
+Our core innovation is the **annotation-driven local tool system**, which transforms your Java methods into powerful, AI-callable functions.
 
-## Architectural Documentation
+| Feature | Description | Benefit |
+| :--- | :--- | :--- |
+| **`@AIToolMethod`** | Define tools using simple Java annotations. | **Zero boilerplate** for API schema generation. |
+| **Dynamic Code Execution (`RunningJVM`)** | The AI can compile and execute arbitrary Java code directly within the host JVM. | Enables **hot-reload** development, complex calculations, and dynamic feature testing. |
+| **Context-Aware File I/O (`LocalFiles`)** | Tools for reading, writing, and managing files with built-in version and staleness checks. | Ensures the AI always works with **valid, up-to-date** local files. |
+| **Shell Access (`LocalShell`)** | Execute native shell commands (`bash -c`) and capture stdout/stderr. | Provides **full control** over the host operating system for complex tasks. |
+| **Interactive Confirmation** | A dedicated Swing UI prompts the user for approval before executing sensitive tools. | **Explicit consent** and security for all write/destructive operations. |
 
-For a detailed breakdown of the project's architecture, please refer to the `package-info.java` files located within each package. They serve as the definitive source for architectural documentation.
+### 2. Superior Context & Session Management
 
-## Getting Started
+We solve the token limit problem with intelligent, dependency-aware context management.
 
-The standalone client can be launched by running the `main` method in `uno.anahata.gemini.ui.Main.java`.
+| Feature | Description | Benefit |
+| :--- | :--- | :--- |
+| **Dependency-Aware Pruning** | Automatically removes old, ephemeral, or stale tool calls and their responses. | **Maximizes context window** efficiency and reduces API costs. |
+| **Stateful Resource Tracking** | Tracks resources (like file contents) loaded into context, marking them as `STALE` if the disk version changes. | **Prevents the AI from working with outdated information.** |
+| **Session Persistence (Kryo)** | Saves and loads the entire chat history, including all tool results and dependencies, using fast Kryo serialization. | **Instant session resume** across application restarts. |
+| **Dynamic System Instructions** | Context-aware providers inject real-time data (System Properties, Environment Variables, Project Status) into the system prompt. | **Dramatically improves AI relevance** and performance in complex environments. |
+| **Context Heatmap Visualization** | A Swing UI panel that visually breaks down the entire context by message, part type, and token size. | **Gives the user full control** and transparency over token usage and pruning decisions. |
 
-For programmatic use, here is a basic setup:
+### 3. Embeddable Swing UI (Out-of-the-Box)
+
+Integrate a rich, modern chat interface into any desktop application with a single component.
+
+| Feature | Description | Benefit |
+| :--- | :--- | :--- |
+| **Live Workspace Feature** | **The AI can see your application.** Automatically captures and sends screenshots of all application JFrames to the model on every turn. | Gives the AI **visual context** of the user's current task and application state. |
+| **`GeminiPanel`** | A self-contained Swing component ready for embedding. | **Fastest path** to a fully functional AI chat interface. |
+| **Renderer-Based Architecture** | Supports complex message parts: Markdown, Images, Interactive Function Calls, and Grounding Metadata. | Provides a **rich, modern user experience** that goes beyond plain text. |
+
+## 🛠️ Getting Started: A Comprehensive Example
+
+Integrating the client is straightforward. This example shows how to define a custom tool and integrate it into your application's configuration.
+
+### Step 1: Define a Custom Tool
+
+Create a simple POJO for the tool's return type and a static class for the tool itself.
+
+```java
+// 1. Tool Return POJO
+public class CustomToolResult {
+    public final String status;
+    public final int processedCount;
+    // Add @Schema annotations for better documentation
+}
+
+// 2. Custom Tool Class
+public class MyAppTools {
+    @AIToolMethod(value = "Processes a list of items and returns a summary.", requiresApproval = false)
+    public static CustomToolResult processItems(
+        @AIToolParam("The list of item IDs to process.") List<String> itemIds,
+        @AIToolParam("A flag to indicate if the operation should be verbose.") boolean verbose
+    ) {
+        // The model's List<String> argument is automatically converted from JSON to Java List<String>.
+        return new CustomToolResult("SUCCESS", itemIds.size());
+    }
+}
+```
+
+### Step 2: Create a Custom Configuration
+
+Extend `SwingGeminiConfig` to register your custom tool class.
+
+```java
+import uno.anahata.gemini.ui.SwingGeminiConfig;
+import java.util.List;
+import java.util.ArrayList;
+
+public class MyAppGeminiConfig extends SwingGeminiConfig {
+    @Override
+    public String getApplicationInstanceId() {
+        return "my-app-instance";
+    }
+
+    @Override
+    public List<Class<?>> getAutomaticFunctionClasses() {
+        List<Class<?>> classes = new ArrayList<>(super.getAutomaticFunctionClasses());
+        classes.add(MyAppTools.class); // Register your custom tool
+        return classes;
+    }
+}
+```
+
+### Step 3: Initialize and Run
 
 ```java
 import uno.anahata.gemini.GeminiChat;
@@ -37,28 +104,47 @@ import uno.anahata.gemini.ui.SwingFunctionPrompter;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
 import uno.anahata.gemini.functions.FunctionPrompter;
 
-// 1. Configure your API key and other settings
-//    (Ensure gemini-api-keys.txt is in your working directory)
-SwingGeminiConfig config = new SwingGeminiConfig();
+// Use your custom config
+MyAppGeminiConfig config = new MyAppGeminiConfig(); 
 
-// 2. Initialize the chat with a FunctionPrompter (e.g., a Swing one)
-//    Note: Tools are automatically discovered via the SPI and config.getAutomaticFunctionClasses()
+// Initialize the chat
 FunctionPrompter prompter = new SwingFunctionPrompter(null, new DefaultEditorKitProvider());
 GeminiChat chat = new GeminiChat(config, prompter);
 
-// 3. Start a conversation
-chat.sendText("Hello! Can you use your tools to tell me the current time?");
-// The response will be processed asynchronously and added to the chat context.
+// The AI can now call MyAppTools.processItems
+chat.sendText("Please process items ['A1', 'B2', 'C3'] verbosely.");
 ```
 
-## Support the Project
+## 💡 Advanced Features Showcase
+
+### Data Flow: Java POJO ↔ JSON ↔ Gemini Schema
+
+The framework automatically handles the complex data conversion required for function calling:
+
+1.  **Java to Schema:** The `GeminiSchemaGenerator` uses reflection on your `@AIToolMethod` and `@AIToolParam` annotations to generate the required JSON Schema for the Gemini API.
+2.  **JSON to Java (Function Call):** When the model calls your tool, the JSON arguments are automatically deserialized into the correct Java types (e.g., `List<String>`, `Map<String, Object>`, or custom POJOs) defined in your method signature.
+3.  **Java to JSON (Function Response):** Your tool's return value (e.g., `CustomToolResult`) is automatically serialized into a JSON object and sent back to the model as a `FunctionResponse` part.
+
+This seamless conversion allows you to focus purely on Java logic.
+
+### Adding Screenshots and Multi-Part Responses
+
+To send multiple non-text parts (like images) in a single user message, tools must return a `MultiPartResponse`.
+
+1.  **Tool Implementation:** A tool like `ScreenCapture.attachWindowCaptures()` uses the host application's UI utility (`UICapture`) to save screenshots to temporary files.
+2.  **Return Value:** It returns a `MultiPartResponse` containing the absolute paths of the saved image files.
+3.  **Automatic Context Augmentation:** The `FunctionManager` intercepts this `MultiPartResponse`, reads the files, converts them into `Part.inlineData(Blob)` objects, and automatically includes them in the subsequent user message sent to the model.
+
+This mechanism is how the "Live Workspace" feature works, giving the AI visual context of the application state.
+
+## 🤝 Support the Project
 
 This project is the result of countless hours of passion and dedication. If you find it valuable, please consider supporting its continued development.
 
 -   **[Sponsor on GitHub](https://github.com/sponsors/anahata-os):** The most direct way to support the project.
--   **Commercial Licensing:** If you're using this in a commercial product, this is the required path.
+-   **Commercial Licensing:** If you're using this in a proprietary product, this is the required path.
 
-## Licensing: Open Core Model
+## ⚖️ Licensing: Open Core Model
 
 `gemini-java-client` is available under a dual-license model to accommodate both open-source and commercial needs.
 

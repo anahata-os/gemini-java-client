@@ -2,24 +2,27 @@
 
 ## 1. High-Level Summary
 
-`gemini-java-client` is a comprehensive, pure-Java client framework for the Google Gemini API. It is designed to be more than a simple API wrapper, providing a full-featured, extensible chat application architecture with a focus on integrating powerful local tools (functions). The project includes a ready-to-use Swing UI implementation, making it suitable for both standalone desktop applications and for embedding into larger host applications.
+`gemini-java-client` is a **pure-Java, enterprise-grade client framework** for the Google Gemini API. It is architected as a powerful, extensible AI assistant platform, going far beyond a simple API wrapper. Its core strength is the **annotation-driven local tool (function) system**, which enables the AI to execute arbitrary Java code, interact with the local file system, and manage the application's state. The project includes a complete, embeddable **Swing UI** for a rich, interactive chat experience, making it ideal for integration into IDEs (like the NetBeans plugin) or standalone desktop applications.
 
 ## 2. Core Features
 
-- **Pure Java:** Ensures high portability across different environments.
-- **Embeddable Swing UI:** A complete, renderer-based UI (`uno.anahata.gemini.ui.GeminiPanel`) is provided for displaying complex chat interactions.
-- **Extensible Local Tools (SPI):** The framework's power lies in its Service Provider Interface for local functions, allowing the AI to interact directly with the user's machine via tools like `LocalFiles`, `LocalShell`, and `RunningJVM`.
-- **Robust Session Management:** Includes context management with automatic pruning and session persistence using the Kryo serialization library.
-- **Dynamic System Instructions:** A provider-based system allows for dynamically injecting context-aware instructions into the model's prompt.
+- **Pure Java & Portable:** Built entirely in Java, ensuring maximum compatibility and performance across different JVM environments.
+- **Deep Local Integration (Functions):** An annotation-driven Service Provider Interface (SPI) allows the AI to invoke local Java methods (`@AIToolMethod`), enabling direct interaction with the host machine via tools like `LocalFiles`, `LocalShell`, and dynamic code execution via `RunningJVM`.
+- **Embeddable Swing UI:** A complete, renderer-based UI (`uno.anahata.gemini.ui.GeminiPanel`) that supports complex parts (text, images, interactive tool calls, grounding metadata) and is designed for seamless embedding.
+- **Robust Context Management:** Features a sophisticated `ContextManager` with automatic, dependency-aware pruning to manage token limits and maintain conversation integrity.
+- **Stateful Resource Tracking:** Tracks local resources (e.g., files read into context) to detect and manage stale versions, ensuring the AI always works with the latest data.
+- **Dynamic System Instructions:** A provider-based system dynamically injects context-aware instructions (e.g., system properties, environment variables, project overview) into the model's prompt for superior performance and relevance.
+- **Session Persistence:** Uses Kryo serialization for fast and reliable saving and loading of entire chat sessions, including all context and stateful resources.
 
 ## 3. Architectural Overview
 
-The project is logically divided into four main layers. For a detailed breakdown of the classes and responsibilities within each package, please refer to the `package-info.java` files, which serve as the definitive source for architectural documentation.
+The project is logically divided into four main layers, designed for modularity and clear separation of concerns.
 
-- **Core Logic (`uno.anahata.gemini`):** Contains the central orchestrators like `GeminiChat` and `ContextManager`.
-- **Function System (`uno.anahata.gemini.functions`):** The framework for discovering, managing, and executing local tools.
-- **UI Layer (`uno.anahata.gemini.ui`):** The complete Swing-based user interface.
-- **Internal Utilities (`uno.anahata.gemini.internal`):** Helper classes for serialization and data conversion.
+- **Core Logic (`uno.anahata.gemini`):** Contains the central orchestrators, including `GeminiChat` (conversation loop, API retries) and `GeminiConfig` (host-specific configuration).
+- **Context System (`uno.anahata.gemini.context`):** Manages the conversation history, token limits, session persistence (`session`), resource tracking (`stateful`), and pruning logic (`pruning`).
+- **Function System (`uno.anahata.gemini.functions`):** The framework for discovering, generating schema for, and executing local tools, including the `FailureTracker` and `ContextBehavior` logic.
+- **UI Layer (`uno.anahata.gemini.ui`):** The complete Swing-based user interface, including renderers (`render`) and UI-specific tools (`functions.spi`).
+- **Internal Utilities (`uno.anahata.gemini.internal`):** Helper classes for serialization (Kryo, Gson), MIME type detection (Tika), and general Part/Content manipulation.
 
 ## 4. V1 Launch Goals (Status Update)
 
