@@ -44,7 +44,7 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
     private final UITheme theme;
 
     public GroundingMetadataRenderer(GroundingMetadata metadata, UITheme theme) {
-        log.info("Rendering GroundingMetadata in AI Studio style (Pure Swing): {}", metadata.toString());
+        log.debug("Rendering GroundingMetadata in AI Studio style (Pure Swing): {}", metadata.toString());
         this.theme = theme;
         setLayout(new BorderLayout());
         setOpaque(false);
