@@ -22,7 +22,7 @@ import uno.anahata.gemini.ui.instructions.ScreenInstructionsProvider;
 public class SwingGeminiConfig extends GeminiConfig {
     
     @Override
-    public String getApplicationInstanceId() {
+    public String getSessionId() {
         return "standalone";
     }
 
