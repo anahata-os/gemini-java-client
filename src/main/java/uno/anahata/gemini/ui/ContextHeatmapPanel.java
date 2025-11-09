@@ -34,7 +34,6 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
@@ -43,7 +42,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
-import javax.swing.Timer;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumnModel;
@@ -71,11 +69,7 @@ public class ContextHeatmapPanel extends JPanel {
     private FunctionManager functionManager;
     private SwingGeminiConfig.UITheme theme;
 
-    private JPopupMenu contentPopup;
-    private JTextArea popupTextArea;
-    private Timer showPopupTimer;
-    private Timer hidePopupTimer;
-    private int hoveredRow = -1;
+    private ScrollableTooltipPopup tooltipPopup;
 
     public ContextHeatmapPanel() {
         initComponents();
@@ -122,85 +116,30 @@ public class ContextHeatmapPanel extends JPanel {
     }
 
     private void setupInteractivePopup() {
-        popupTextArea = new JTextArea();
-        popupTextArea.setEditable(false);
-        popupTextArea.setLineWrap(true);
-        popupTextArea.setWrapStyleWord(true);
+        tooltipPopup = new ScrollableTooltipPopup();
+        tooltipPopup.attach(partTable);
 
-        JScrollPane scrollPane = new JScrollPane(popupTextArea);
-        scrollPane.setBorder(null);
-        scrollPane.setPreferredSize(new Dimension(400, 300));
-
-        contentPopup = new JPopupMenu();
-        contentPopup.setLayout(new BorderLayout());
-        contentPopup.add(scrollPane, BorderLayout.CENTER);
-
-        showPopupTimer = new Timer(750, e -> {
-            if (hoveredRow != -1) {
-                Point p = partTable.getMousePosition();
-                if (p != null) {
-                    int modelRow = partTable.convertRowIndexToModel(hoveredRow);
-                    String content = tableModel.getPartInfo(modelRow).getFullContentText();
-                    popupTextArea.setText(content);
-                    popupTextArea.setCaretPosition(0);
-                    contentPopup.show(partTable, p.x + 10, p.y + 10);
-                }
-            }
-        });
-        showPopupTimer.setRepeats(false);
-
-        hidePopupTimer = new Timer(500, e -> contentPopup.setVisible(false));
-        hidePopupTimer.setRepeats(false);
-
-        MouseAdapter tableMouseListener = new MouseAdapter() {
+        partTable.addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
                 int row = partTable.rowAtPoint(e.getPoint());
-                if (row != hoveredRow) {
-                    hoveredRow = row;
-                    contentPopup.setVisible(false);
-                    showPopupTimer.stop();
-                    if (hoveredRow != -1) {
-                        showPopupTimer.start();
-                    }
+                if (row != -1) {
+                    int modelRow = partTable.convertRowIndexToModel(row);
+                    String content = tableModel.getPartInfo(modelRow).getFullContentText();
+                    tooltipPopup.setContent(content);
+                } else {
+                    tooltipPopup.setContent(null);
+                    tooltipPopup.hide();
                 }
             }
-
+        });
+        
+        partTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseExited(MouseEvent e) {
-                if (!isMouseOverPopup(e.getPoint())) {
-                    hidePopupTimer.start();
-                }
+                // The ScrollableTooltipPopup handles the hide timer logic
             }
-        };
-        partTable.addMouseMotionListener(tableMouseListener);
-        partTable.addMouseListener(tableMouseListener);
-
-        MouseAdapter popupMouseListener = new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                hidePopupTimer.stop();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                Point p = SwingUtilities.convertPoint(contentPopup, e.getPoint(), partTable);
-                if (!partTable.getVisibleRect().contains(p)) {
-                    hidePopupTimer.start();
-                }
-            }
-        };
-        contentPopup.addMouseListener(popupMouseListener);
-        popupTextArea.addMouseListener(popupMouseListener);
-        scrollPane.addMouseListener(popupMouseListener);
-    }
-
-    private boolean isMouseOverPopup(Point tablePoint) {
-        if (!contentPopup.isVisible()) {
-            return false;
-        }
-        Point popupPoint = SwingUtilities.convertPoint(partTable, tablePoint, contentPopup);
-        return contentPopup.getBounds().contains(popupPoint);
+        });
     }
 
     private void onPruneSelected() {

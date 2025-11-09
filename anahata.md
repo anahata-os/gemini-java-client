@@ -31,9 +31,10 @@ The project is logically divided into four main layers, designed for modularity 
 -   [ ] **Performance Tuning:**
     -   Investigate and improve the initial startup time of the client, especially when embedded in a host application like NetBeans.
     -   *Status: **TODO**.*
+-   [ ] **Autobackups should load automatically on startup without the annonying popup:**
 -   [ ] **UI Enhancements:**
-    -   Add a real-time status indicator to `GeminiPanel` for API call latency and status (in-progress, retrying, failed).
-    -   *Status: **TODO**.*
+    -   Real-time status indicator to `GeminiPanel` for API call latency and status (in-progress, retrying, failed).
+    -   *Status: **Some progress**.* but we need to include latency, retry number and keep the last exception toString visible until a call succeeds, aslo sometimes the context usage is not visible, also need to incorporate the new ProgressBar
 
 ## 5. V2 Mega-Refactor Plan (Future Focus)
 

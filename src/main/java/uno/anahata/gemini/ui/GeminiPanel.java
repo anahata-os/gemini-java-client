@@ -4,9 +4,11 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.datatransfer.DataFlavor;
@@ -24,6 +26,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.ChatMessage;
+import uno.anahata.gemini.ChatStatus;
+import uno.anahata.gemini.StatusListener;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.context.ContextListener;
@@ -32,12 +36,12 @@ import uno.anahata.gemini.functions.spi.ContextWindow;
 
 @Slf4j
 @Getter
-public class GeminiPanel extends JPanel implements ContextListener {
+public class GeminiPanel extends JPanel implements ContextListener, StatusListener {
 
     private GeminiChat chat;
     private SwingGeminiConfig config;
 
-    private JLabel usageLabel;
+    // UI Components
     private JToolBar toolbar;
     private JButton clearButton;
     private JButton attachButton;
@@ -57,6 +61,12 @@ public class GeminiPanel extends JPanel implements ContextListener {
     private SystemInstructionsPanel systemInstructionsPanel;
     private GeminiKeysPanel geminiKeysPanel;
     private FunctionsPanel functionsPanel;
+    
+    // New Status Components
+    private JLabel usageLabel;
+    private StatusIndicator statusIndicator;
+    private JLabel errorLabel;
+    private ScrollableTooltipPopup errorTooltip;
 
     public GeminiPanel() {
         this(new DefaultEditorKitProvider());
@@ -73,6 +83,7 @@ public class GeminiPanel extends JPanel implements ContextListener {
         FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider, config);
         this.chat = new GeminiChat(config, prompter);
         this.chat.addContextListener(this);
+        this.chat.addStatusListener(this); // Register as StatusListener
     }
 
     private ImageIcon getIcon(String icon) {
@@ -130,10 +141,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
 
         add(toolbar, BorderLayout.WEST);
 
-        JPanel topPanel = new JPanel(new BorderLayout());
-        usageLabel = new JLabel("Usage: 0 / 1,000,000 Tokens");
-        topPanel.add(usageLabel, BorderLayout.WEST);
-
+        // --- NORTH Panel (Model ID only) ---
+        JPanel northPanel = new JPanel(new BorderLayout());
         modelIdComboBox = new JComboBox<>();
         if (config != null && config.getApi() != null) {
             for (String model : config.getApi().getAvailableModelIds()) {
@@ -156,10 +165,34 @@ public class GeminiPanel extends JPanel implements ContextListener {
         JPanel modelIdPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         modelIdPanel.add(new JLabel("Model:"));
         modelIdPanel.add(modelIdComboBox);
-        topPanel.add(modelIdPanel, BorderLayout.EAST);
+        northPanel.add(modelIdPanel, BorderLayout.EAST);
+        add(northPanel, BorderLayout.NORTH);
+        
+        // --- SOUTH Panel (Status and Usage) ---
+        JPanel southPanel = new JPanel(new BorderLayout(10, 0));
+        southPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        
+        // Left side: Status Indicator and Error Message
+        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        statusIndicator = new StatusIndicator(10);
+        errorLabel = new JLabel("Idle");
+        errorLabel.setForeground(Color.BLACK);
+        errorLabel.setToolTipText("API Status");
+        
+        errorTooltip = new ScrollableTooltipPopup();
+        errorTooltip.attach(errorLabel);
+        
+        statusPanel.add(statusIndicator);
+        statusPanel.add(errorLabel);
+        southPanel.add(statusPanel, BorderLayout.WEST);
+        
+        // Right side: Usage Label
+        usageLabel = new JLabel("Usage: 0 / 0 Tokens");
+        southPanel.add(usageLabel, BorderLayout.EAST);
+        
+        add(southPanel, BorderLayout.SOUTH);
 
-        add(topPanel, BorderLayout.NORTH);
-
+        // --- CENTER Panel (Tabs) ---
         chatPanel = new ChatPanel(chat, editorKitProvider, config);
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
@@ -372,6 +405,8 @@ public class GeminiPanel extends JPanel implements ContextListener {
             }
 
             usageLabel.setText(usageText);
+        } else {
+            usageLabel.setText("Usage: 0 / " + ContextWindow.getTokenThreshold() + " Tokens");
         }
     }
 
@@ -418,6 +453,65 @@ public class GeminiPanel extends JPanel implements ContextListener {
         } catch (IOException ex) {
             log.error("Failed to load session", ex);
             JOptionPane.showMessageDialog(this, "Error loading session: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    @Override
+    public void statusChanged(ChatStatus status, String lastExceptionToString) {
+        SwingUtilities.invokeLater(() -> {
+            statusIndicator.setColor(status.getColor());
+            
+            if (status == ChatStatus.API_ERROR_RETRYING) {
+                errorLabel.setText("API Error (Retrying)");
+                errorLabel.setForeground(status.getColor());
+                errorLabel.setToolTipText(lastExceptionToString);
+                errorTooltip.setContent(chat.getLastApiError());
+            } else if (status == ChatStatus.IDLE_WAITING_FOR_USER) {
+                errorLabel.setText("Idle");
+                errorLabel.setForeground(status.getColor());
+                errorLabel.setToolTipText("Ready for input.");
+                errorTooltip.setContent("");
+                errorTooltip.hide();
+            } else if (status == ChatStatus.API_CALL_IN_PROGRESS) {
+                errorLabel.setText("API Call in Progress...");
+                errorLabel.setForeground(status.getColor());
+                errorLabel.setToolTipText("Waiting for model response.");
+                errorTooltip.setContent("");
+                errorTooltip.hide();
+            } else if (status == ChatStatus.TOOL_EXECUTION_IN_PROGRESS) {
+                errorLabel.setText("Tool Execution in Progress...");
+                errorLabel.setForeground(status.getColor());
+                errorLabel.setToolTipText("Executing local function(s).");
+                errorTooltip.setContent("");
+                errorTooltip.hide();
+            }
+        });
+    }
+    
+    private static class StatusIndicator extends JPanel {
+        private Color color;
+        private final int size;
+
+        public StatusIndicator(int size) {
+            this.size = size;
+            this.color = ChatStatus.IDLE_WAITING_FOR_USER.getColor();
+            setPreferredSize(new Dimension(size, size));
+            setMinimumSize(new Dimension(size, size));
+            setMaximumSize(new Dimension(size, size));
+        }
+
+        public void setColor(Color color) {
+            this.color = color;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            g.setColor(color);
+            g.fillOval(0, 0, size, size);
+            g.setColor(Color.BLACK);
+            g.drawOval(0, 0, size, size);
         }
     }
 }

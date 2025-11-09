@@ -14,7 +14,7 @@ import java.util.concurrent.ThreadFactory;
 public class Executors {
     private static volatile int idx = 0;
     public static ExecutorService cachedThreadPool = java.util.concurrent.Executors.newCachedThreadPool((Runnable r) -> {
-        Thread t = new Thread (r, "GeminiClient-" + nextId());
+        Thread t = new Thread (r, "Anahata-" + nextId());
         t.setDaemon(false);
         return t;
     });

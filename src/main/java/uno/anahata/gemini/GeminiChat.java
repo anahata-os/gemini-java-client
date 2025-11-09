@@ -5,6 +5,7 @@ import com.google.genai.types.*;
 import com.google.gson.Gson;
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,6 +22,12 @@ import uno.anahata.gemini.functions.MultiPartResponse;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.systeminstructions.spi.ChatStatusProvider;
+import uno.anahata.gemini.systeminstructions.spi.ContextSummaryProvider;
+import uno.anahata.gemini.systeminstructions.spi.CoreSystemInstructionsMdFileProvider;
+import uno.anahata.gemini.systeminstructions.spi.EnvironmentVariablesProvider;
+import uno.anahata.gemini.systeminstructions.spi.StatefulResourcesProvider;
+import uno.anahata.gemini.systeminstructions.spi.SystemPropertiesProvider;
 
 @Slf4j
 @Getter
@@ -42,6 +49,9 @@ public class GeminiChat {
     private volatile boolean isProcessing = false;
     private Date startTime = new Date();
     private List<SystemInstructionProvider> systemInstructionProviders;
+    
+    private final List<StatusListener> statusListeners = new CopyOnWriteArrayList<>();
+    private volatile ChatStatus currentStatus = ChatStatus.IDLE_WAITING_FOR_USER;
 
     public GeminiChat(
             GeminiConfig config,
@@ -51,10 +61,26 @@ public class GeminiChat {
         this.contextManager = new ContextManager(this);
         // Initialize providers here to take a copy from config
         this.systemInstructionProviders = new ArrayList<>(config.getSystemInstructionProviders());
+        fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
     }
 
     public void addContextListener(ContextListener listener) {
         this.contextManager.addListener(listener);
+    }
+    
+    public void addStatusListener(StatusListener listener) {
+        statusListeners.add(listener);
+    }
+    
+    public void removeStatusListener(StatusListener listener) {
+        statusListeners.remove(listener);
+    }
+    
+    private void fireStatusChange(ChatStatus newStatus, String lastExceptionToString) {
+        this.currentStatus = newStatus;
+        for (StatusListener listener : statusListeners) {
+            listener.statusChanged(newStatus, lastExceptionToString);
+        }
     }
 
     public static GeminiChat getCallingInstance() {
@@ -105,10 +131,12 @@ public class GeminiChat {
             log.info("Sending one-time startup instructions to the model.");
             sendContent(startupContent);
         }
+        fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
     }
 
     public void clear() {
         contextManager.clear();
+        fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
     }
 
     public void sendText(String message) {
@@ -121,6 +149,7 @@ public class GeminiChat {
             return;
         }
         isProcessing = true;
+        fireStatusChange(ChatStatus.API_CALL_IN_PROGRESS, "");
         try {
             if (content != null) {
                 ChatMessage userMessage = ChatMessage.builder()
@@ -167,6 +196,7 @@ public class GeminiChat {
             }
         } finally {
             isProcessing = false;
+            fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
         }
     }
 
@@ -188,6 +218,8 @@ public class GeminiChat {
             sendContent(Content.builder().role("user").parts(Part.fromText(feedbackText)).build());
             return false;
         }
+        
+        fireStatusChange(ChatStatus.TOOL_EXECUTION_IN_PROGRESS, "");
 
         FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
         List<ExecutedToolCall> executedCalls = processingResult.getExecutedCalls();
@@ -310,6 +342,7 @@ public class GeminiChat {
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
+                fireStatusChange(ChatStatus.API_CALL_IN_PROGRESS, "");
                 GenerateContentConfig gcc = makeGenerateContentConfig();
 
                 List<Content> finalContext = context;
@@ -332,6 +365,8 @@ public class GeminiChat {
                 return ret;
             } catch (Exception e) {
                 recordLastApiError(e, attempt);
+                fireStatusChange(ChatStatus.API_ERROR_RETRYING, e.toString());
+                
                 if (e.toString().contains("429") || e.toString().contains("503") || e.toString().contains("500")) {
                     if (attempt == maxRetries - 1) {
                         log.error("Max retries reached. Aborting.", e);
