@@ -129,6 +129,26 @@ public class RunningJVM {
         if (compilerOptions != null) {
             options.addAll(Arrays.asList(compilerOptions));
         }
+        
+        // START of new code
+        boolean hasVersionFlag = false;
+        if (compilerOptions != null) {
+            for (String option : compilerOptions) {
+                if (option.equals("--release") || option.equals("-source") || option.equals("-target")) {
+                    hasVersionFlag = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasVersionFlag) {
+            String runtimeVersion = System.getProperty("java.specification.version");
+            log.info("No explicit Java version compiler flag found. Defaulting to --release {}.", runtimeVersion);
+            options.add("--release");
+            options.add(runtimeVersion);
+        }
+        // END of new code
+        
         if (!options.contains("-proc:none")) {
             options.add("-proc:none");
         }
