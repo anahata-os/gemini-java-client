@@ -1,11 +1,13 @@
 package uno.anahata.gemini.ui;
 
+import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.AbstractAction;
@@ -22,9 +24,10 @@ import javax.swing.SwingWorker;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.context.ContextListener;
+import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.ui.render.ContentRenderer;
-import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 @Slf4j
 public class ChatPanel extends JPanel implements ContextListener {

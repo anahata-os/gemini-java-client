@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.functions.spi.ContextWindow;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
 
 public class ContextSummaryProvider extends SystemInstructionProvider {
 
@@ -29,7 +29,7 @@ public class ContextSummaryProvider extends SystemInstructionProvider {
         contextStatusBlock.append("\nContext id:").append(chat.getContextManager().getContextId());
         contextStatusBlock.append(String.format("\nTotal Token Count: %d\nToken Threshold: %d\n",
                 chat.getContextManager().getTotalTokenCount(),
-                ContextWindow.getTokenThreshold()
+                chat.getContextManager().getTokenThreshold()
         ));
         contextStatusBlock.append("\n");
         contextStatusBlock.append(chat.getContextManager().getSessionManager().getSummaryAsString());

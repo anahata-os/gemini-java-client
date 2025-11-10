@@ -2,13 +2,10 @@ package uno.anahata.gemini.ui;
 
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
-import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.datatransfer.DataFlavor;
@@ -18,21 +15,17 @@ import java.awt.dnd.DropTargetAdapter;
 import java.awt.dnd.DropTargetDropEvent;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.ChatStatus;
-import uno.anahata.gemini.StatusListener;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.GeminiConfig;
 import uno.anahata.gemini.context.ContextListener;
 import uno.anahata.gemini.functions.FunctionPrompter;
-import uno.anahata.gemini.functions.spi.ContextWindow;
+import uno.anahata.gemini.status.ChatStatus;
+import uno.anahata.gemini.status.StatusListener;
 
 @Slf4j
 @Getter
@@ -61,12 +54,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
     private SystemInstructionsPanel systemInstructionsPanel;
     private GeminiKeysPanel geminiKeysPanel;
     private FunctionsPanel functionsPanel;
-    
-    // New Status Components
-    private JLabel usageLabel;
-    private StatusIndicator statusIndicator;
-    private JLabel errorLabel;
-    private ScrollableTooltipPopup errorTooltip;
+    private StatusPanel statusPanel;
 
     public GeminiPanel() {
         this(new DefaultEditorKitProvider());
@@ -83,7 +71,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider, config);
         this.chat = new GeminiChat(config, prompter);
         this.chat.addContextListener(this);
-        this.chat.addStatusListener(this); // Register as StatusListener
+        this.chat.addStatusListener(this);
     }
 
     private ImageIcon getIcon(String icon) {
@@ -169,28 +157,8 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         add(northPanel, BorderLayout.NORTH);
         
         // --- SOUTH Panel (Status and Usage) ---
-        JPanel southPanel = new JPanel(new BorderLayout(10, 0));
-        southPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        
-        // Left side: Status Indicator and Error Message
-        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        statusIndicator = new StatusIndicator(10);
-        errorLabel = new JLabel("Idle");
-        errorLabel.setForeground(Color.BLACK);
-        errorLabel.setToolTipText("API Status");
-        
-        errorTooltip = new ScrollableTooltipPopup();
-        errorTooltip.attach(errorLabel);
-        
-        statusPanel.add(statusIndicator);
-        statusPanel.add(errorLabel);
-        southPanel.add(statusPanel, BorderLayout.WEST);
-        
-        // Right side: Usage Label
-        usageLabel = new JLabel("Usage: 0 / 0 Tokens");
-        southPanel.add(usageLabel, BorderLayout.EAST);
-        
-        add(southPanel, BorderLayout.SOUTH);
+        statusPanel = new StatusPanel(this);
+        add(statusPanel, BorderLayout.SOUTH);
 
         // --- CENTER Panel (Tabs) ---
         chatPanel = new ChatPanel(chat, editorKitProvider, config);
@@ -210,9 +178,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         
         tabbedPane.addChangeListener(e -> {
             Component selected = tabbedPane.getSelectedComponent();
-            if (selected == chatPanel) {
-                chatPanel.redraw(); // Redraw the chat when its tab is selected
-            } else if (selected == heatmapPanel) {
+            if (selected == heatmapPanel) {
                 heatmapPanel.updateContext(chat.getContext()); // Update heatmap when selected
             } else if (selected == systemInstructionsPanel) {
                 systemInstructionsPanel.refresh();
@@ -228,6 +194,26 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         new DropTarget(chatPanel, fileDropListener);
 
         setVisible(true);
+    }
+
+    @Override
+    public void contextChanged(GeminiChat source) {
+        SwingUtilities.invokeLater(() -> {
+            if (tabbedPane.getSelectedComponent() == heatmapPanel) {
+                heatmapPanel.updateContext(chat.getContext());
+            }
+        });
+    }
+
+    @Override
+    public void contextCleared(GeminiChat source) {
+        // The ChatPanel already listens and clears itself.
+        // The heatmap will be cleared the next time it's selected.
+    }
+
+    @Override
+    public void statusChanged(ChatStatus status, String lastExceptionToString) {
+        SwingUtilities.invokeLater(() -> statusPanel.refresh());
     }
 
     public static class ScrollablePanel extends JPanel implements Scrollable {
@@ -307,7 +293,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
             @Override
             protected Void doInBackground() throws Exception {
                 try {
-                    String sessionName = "autobackup-" + config.getApplicationInstanceId();
+                    String sessionName = "autobackup-" + config.getSessionId();
                     chat.getContextManager().getSessionManager().loadSession(sessionName);
                 } catch (IOException e) {
                     log.error("Exception restoring " + config.getAutobackupFile(), e);
@@ -355,27 +341,6 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         }
     }
 
-    @Override
-    public void contextCleared(GeminiChat source) {
-        SwingUtilities.invokeLater(() -> {
-            updateUsageLabel(null);
-            heatmapPanel.updateContext(Collections.emptyList());
-            systemInstructionsPanel.refresh();
-            initFreshChatInSwingWorker();
-        });
-    }
-
-    @Override
-    public void contextChanged(GeminiChat source) {
-        SwingUtilities.invokeLater(() -> {
-            List<ChatMessage> currentContext = chat.getContext();
-            if (!currentContext.isEmpty()) {
-                updateUsageLabel(currentContext.get(currentContext.size() - 1).getUsageMetadata());
-            }
-            heatmapPanel.updateContext(currentContext);
-        });
-    }
-
     public void restartChat() {
         chat.clear();
     }
@@ -388,31 +353,9 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         chatPanel.getAttachmentsPanel().addAll(UICapture.screenshotAllJFrames());
     }
 
-    private void updateUsageLabel(GenerateContentResponseUsageMetadata usage) {
-        if (usage != null) {
-            int totalTokens = usage.totalTokenCount().orElse(0);
-            int maxTokens = ContextWindow.getTokenThreshold();
-            double percentage = ((double) totalTokens / maxTokens) * 100;
-            String prompt = "Prompt:" + usage.promptTokenCount().orElse(0);
-            String candidates = "Candidates:" + usage.candidatesTokenCount().orElse(0);
-            String cached = "Cached:" + usage.cachedContentTokenCount().orElse(0);
-            String thoughts = "Thoughts:" + usage.thoughtsTokenCount().orElse(0);
-            String usageText = String.format("Usage: %d / %d Tokens (%.2f%%) %s %s %s %s",
-                    totalTokens, maxTokens, percentage, prompt, candidates, cached, thoughts);
-            if (usage.trafficType().isPresent()) {
-                String trafficType = " Traffic:" + usage.trafficType().get().toString();
-                usageText += trafficType;
-            }
-
-            usageLabel.setText(usageText);
-        } else {
-            usageLabel.setText("Usage: 0 / " + ContextWindow.getTokenThreshold() + " Tokens");
-        }
-    }
-
     private void saveSession() {
         try {
-            File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
+            File sessionsDir = config.getWorkingFolder("sessions");
             JFileChooser fileChooser = new JFileChooser(sessionsDir);
             fileChooser.setDialogTitle("Save Session");
             fileChooser.setFileFilter(new FileNameExtensionFilter("Kryo Session Files", "kryo"));
@@ -437,7 +380,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
 
     private void loadSession() {
         try {
-            File sessionsDir = GeminiConfig.getWorkingFolder("sessions");
+            File sessionsDir = config.getWorkingFolder("sessions");
             JFileChooser fileChooser = new JFileChooser(sessionsDir);
             fileChooser.setDialogTitle("Load Session");
             fileChooser.setFileFilter(new FileNameExtensionFilter("Kryo Session Files", "kryo"));
@@ -453,65 +396,6 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         } catch (IOException ex) {
             log.error("Failed to load session", ex);
             JOptionPane.showMessageDialog(this, "Error loading session: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    @Override
-    public void statusChanged(ChatStatus status, String lastExceptionToString) {
-        SwingUtilities.invokeLater(() -> {
-            statusIndicator.setColor(status.getColor());
-            
-            if (status == ChatStatus.API_ERROR_RETRYING) {
-                errorLabel.setText("API Error (Retrying)");
-                errorLabel.setForeground(status.getColor());
-                errorLabel.setToolTipText(lastExceptionToString);
-                errorTooltip.setContent(chat.getLastApiError());
-            } else if (status == ChatStatus.IDLE_WAITING_FOR_USER) {
-                errorLabel.setText("Idle");
-                errorLabel.setForeground(status.getColor());
-                errorLabel.setToolTipText("Ready for input.");
-                errorTooltip.setContent("");
-                errorTooltip.hide();
-            } else if (status == ChatStatus.API_CALL_IN_PROGRESS) {
-                errorLabel.setText("API Call in Progress...");
-                errorLabel.setForeground(status.getColor());
-                errorLabel.setToolTipText("Waiting for model response.");
-                errorTooltip.setContent("");
-                errorTooltip.hide();
-            } else if (status == ChatStatus.TOOL_EXECUTION_IN_PROGRESS) {
-                errorLabel.setText("Tool Execution in Progress...");
-                errorLabel.setForeground(status.getColor());
-                errorLabel.setToolTipText("Executing local function(s).");
-                errorTooltip.setContent("");
-                errorTooltip.hide();
-            }
-        });
-    }
-    
-    private static class StatusIndicator extends JPanel {
-        private Color color;
-        private final int size;
-
-        public StatusIndicator(int size) {
-            this.size = size;
-            this.color = ChatStatus.IDLE_WAITING_FOR_USER.getColor();
-            setPreferredSize(new Dimension(size, size));
-            setMinimumSize(new Dimension(size, size));
-            setMaximumSize(new Dimension(size, size));
-        }
-
-        public void setColor(Color color) {
-            this.color = color;
-            repaint();
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
-            g.setColor(color);
-            g.fillOval(0, 0, size, size);
-            g.setColor(Color.BLACK);
-            g.drawOval(0, 0, size, size);
         }
     }
 }

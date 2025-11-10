@@ -9,17 +9,18 @@ import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.internal.PartUtils;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.status.ChatStatus;
 import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
-import uno.anahata.gemini.ui.instructions.ScreenInstructionsProvider;
+import uno.anahata.gemini.ui.config.systeminstructions.spi.ScreenInstructionsProvider;
 
 /**
- * A simple, concrete GeminiConfig for standalone Swing applications.
+ * A simple, concrete ChatConfig for standalone Swing applications.
  */
 @Slf4j
-public class SwingGeminiConfig extends GeminiConfig {
+public class SwingGeminiConfig extends ChatConfig {
     
     @Override
     public String getSessionId() {
@@ -63,6 +64,21 @@ public class SwingGeminiConfig extends GeminiConfig {
         } catch (Exception e) {
             log.error("Failed to capture workspace for live context", e);
             return Collections.singletonList(Part.fromText("Error capturing workspace: " + e.getMessage()));
+        }
+    }
+    
+    public Color getColor(ChatStatus status) {
+        switch (status) {
+            case API_CALL_IN_PROGRESS:
+                return new Color(0, 123, 255); // BLUE
+            case TOOL_EXECUTION_IN_PROGRESS:
+                return new Color(128, 0, 128); // PURPLE
+            case WAITING_WITH_BACKOFF:
+                return new Color(255, 0, 0); // RED
+            case IDLE_WAITING_FOR_USER:
+                return new Color(0, 128, 0); // GREEN
+            default:
+                return Color.BLACK;
         }
     }
     

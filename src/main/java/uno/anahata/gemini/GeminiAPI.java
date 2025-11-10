@@ -1,5 +1,6 @@
 package uno.anahata.gemini;
 
+import uno.anahata.gemini.config.ChatConfig;
 import com.google.genai.Client;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,7 +28,7 @@ public class GeminiAPI {
     private String[] keyPool;
     private int round = 0;
 
-    public GeminiAPI(GeminiConfig config) {
+    public GeminiAPI(ChatConfig config) {
         loadApiKeys(config);
         if (keyPool.length > 0) {
             round = new Random().nextInt(keyPool.length);
@@ -36,8 +37,8 @@ public class GeminiAPI {
         }
     }
 
-    private void loadApiKeys(GeminiConfig config) {
-        Path keysFilePath = GeminiConfig.getWorkingFolder().toPath().resolve(config.getApiKeyFileName());
+    private void loadApiKeys(ChatConfig config) {
+        Path keysFilePath = config.getWorkingFolder().toPath().resolve(config.getApiKeyFileName());
         List<String> keys = new ArrayList<>();
         try {
             keys = Files.lines(keysFilePath)

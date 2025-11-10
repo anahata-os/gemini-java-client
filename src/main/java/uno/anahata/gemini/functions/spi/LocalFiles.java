@@ -7,10 +7,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.context.stateful.ResourceTracker;
 import uno.anahata.gemini.functions.ContextBehavior;
 
 /**
@@ -106,10 +108,11 @@ public class LocalFiles {
             throw new IOException("File not found: " + path);
         }
         Files.delete(filePath);
+        GeminiChat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(path));
         return "Successfully deleted file: " + path;
     }
 
-    @AIToolMethod(value = "Moves or renames a file. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Moves or renames a file, creating parent directories for the destination if they don't exist. The operation will fail if the target file already exists. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo moveFile(
             @AIToolParam("The absolute path of the file to move.") String sourcePath,
             @AIToolParam("The absolute path of the destination.") String targetPath
@@ -119,11 +122,15 @@ public class LocalFiles {
             throw new IOException("Source file not found: " + sourcePath);
         }
         Path target = Paths.get(targetPath);
-        Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+        if (target.getParent() != null) {
+            Files.createDirectories(target.getParent());
+        }
+        Files.move(source, target);
+        GeminiChat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(sourcePath));
         return readFile(targetPath);
     }
 
-    @AIToolMethod(value = "Copies a file from a source path to a destination path. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Copies a file from a source path to a destination path, creating parent directories for the destination if they don't exist. The operation will fail if the target file already exists. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo copyFile(
             @AIToolParam("The absolute path of the source file.") String sourcePath,
             @AIToolParam("The absolute path of the destination file.") String destinationPath
@@ -133,7 +140,10 @@ public class LocalFiles {
             throw new IOException("Source file not found: " + sourcePath);
         }
         Path destination = Paths.get(destinationPath);
-        Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+        if (destination.getParent() != null) {
+            Files.createDirectories(destination.getParent());
+        }
+        Files.copy(source, destination);
         return readFile(destinationPath);
     }
 
@@ -152,7 +162,8 @@ public class LocalFiles {
     ) {
         return Files.exists(Paths.get(path));
     }
-
+    //Commeting until we find a proper FileSystemEntry implementation.
+/*
     @AIToolMethod(value = "Lists the contents (files and subdirectories) of a given directory.", requiresApproval = false)
     public static List<String> listDirectory(
             @AIToolParam("The absolute path of the directory to list.") String path
@@ -165,4 +176,5 @@ public class LocalFiles {
             return stream.map(Path::toString).collect(Collectors.toList());
         }
     }
+*/
 }

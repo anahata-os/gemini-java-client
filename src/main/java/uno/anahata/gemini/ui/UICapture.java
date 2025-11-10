@@ -20,7 +20,8 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.AnahataConfig;
+import uno.anahata.gemini.config.ChatConfig;
 
 /**
  *
@@ -31,7 +32,7 @@ public class UICapture {
 
     public static final SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat("yyyyMMdd-HHmmss");
     
-    public static final File SCREENSHOTS_DIR = GeminiConfig.getWorkingFolder("screenshots");
+    public static final File SCREENSHOTS_DIR = AnahataConfig.getWorkingFolder("screenshots");
     
     public static List<File> screenshotAllScreenDevices() {
         List<File> ret = new ArrayList<>();

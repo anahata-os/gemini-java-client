@@ -5,10 +5,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.context.pruning.ContextPruner;
 import uno.anahata.gemini.context.session.SessionManager;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
@@ -22,10 +23,13 @@ public class ContextManager {
 
     private List<ChatMessage> context = new ArrayList<>();
     private final GeminiChat chat;
-    private final GeminiConfig config;
+    private final ChatConfig config;
     private final List<ContextListener> listeners = new CopyOnWriteArrayList<>();
     private final FunctionManager functionManager;
     private int totalTokenCount = 0;
+    @Getter
+    @Setter
+    private int tokenThreshold = 125_000;
 
     // Delegated classes
     private final SessionManager sessionManager;

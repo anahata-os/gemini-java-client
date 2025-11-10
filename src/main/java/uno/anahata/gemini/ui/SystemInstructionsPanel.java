@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.internal.PartUtils;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
@@ -158,7 +158,7 @@ public class SystemInstructionsPanel extends JPanel {
             @Override
             protected List<ProviderInfo> doInBackground() throws Exception {
                 log.info("--- Starting parallel refresh of all providers ---");
-                List<ProviderInfo> results = chat.getSystemInstructionProviders().parallelStream()
+                List<ProviderInfo> results = chat.getConfig().getSystemInstructionProviders().parallelStream()
                     .map(provider -> {
                         long startTime = System.currentTimeMillis();
                         long size = 0;

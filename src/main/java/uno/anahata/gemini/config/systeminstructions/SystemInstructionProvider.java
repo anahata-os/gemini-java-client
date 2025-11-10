@@ -1,4 +1,4 @@
-package uno.anahata.gemini.systeminstructions;
+package uno.anahata.gemini.config.systeminstructions;
 
 import com.google.genai.types.Part;
 import java.util.List;

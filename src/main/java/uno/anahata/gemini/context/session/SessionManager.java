@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.KryoUtils;

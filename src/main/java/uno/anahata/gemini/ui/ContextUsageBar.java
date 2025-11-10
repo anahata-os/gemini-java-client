@@ -9,55 +9,63 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import javax.swing.JPanel;
-import uno.anahata.gemini.functions.spi.ContextWindow;
+import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.context.ContextManager;
+import uno.anahata.gemini.status.ChatStatus;
+import uno.anahata.gemini.status.StatusManager;
 
 /**
- * A custom JPanel that renders a progress bar for context window usage,
- * changing color based on the percentage (Green -> Yellow -> Red).
+ * A custom JPanel that renders a progress bar for context window usage.
  */
 public class ContextUsageBar extends JPanel {
 
-    private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("#.00%");
+    private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("0%");
+    private static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance();
     private static final int BAR_HEIGHT = 20;
-    private static final int MIN_WIDTH = 300;
+    private static final int MIN_WIDTH = 250;
 
+    private final GeminiPanel parentPanel;
+    
+    // State fields, updated in refresh()
     private int totalTokens = 0;
-    private int maxTokens = ContextWindow.TOKEN_THRESHOLD;
+    private int maxTokens;
     private double percentage = 0.0;
-    private String usageText = "Usage: 0 / " + ContextWindow.TOKEN_THRESHOLD + " Tokens";
+    private String usageText = "0% (0 / 0)";
+    private ChatStatus status = ChatStatus.IDLE_WAITING_FOR_USER;
 
-    public ContextUsageBar() {
+    public ContextUsageBar(GeminiPanel parentPanel) {
+        this.parentPanel = parentPanel;
+        this.maxTokens = parentPanel.getChat().getContextManager().getTokenThreshold();
         setPreferredSize(new Dimension(MIN_WIDTH, BAR_HEIGHT));
         setMinimumSize(new Dimension(MIN_WIDTH, BAR_HEIGHT));
         setFont(new Font("SansSerif", Font.BOLD, 12));
+        refresh(); // Initial update
     }
-
-    public void updateUsage(GenerateContentResponseUsageMetadata usage) {
+    
+    public void refresh() {
+        StatusManager statusManager = parentPanel.getChat().getStatusManager();
+        ContextManager contextManager = parentPanel.getChat().getContextManager();
+        
+        this.status = statusManager.getCurrentStatus();
+        GenerateContentResponseUsageMetadata usage = statusManager.getLastUsage();
+        
         if (usage != null) {
             this.totalTokens = usage.totalTokenCount().orElse(0);
-            this.maxTokens = ContextWindow.getTokenThreshold();
-            this.percentage = (double) totalTokens / maxTokens;
-
-            String prompt = "Prompt:" + usage.promptTokenCount().orElse(0);
-            String candidates = "Candidates:" + usage.candidatesTokenCount().orElse(0);
-            String cached = "Cached:" + usage.cachedContentTokenCount().orElse(0);
-            String thoughts = "Thoughts:" + usage.thoughtsTokenCount().orElse(0);
-            
-            String percentStr = PERCENT_FORMAT.format(percentage);
-            
-            this.usageText = String.format("Usage: %d / %d Tokens (%s) %s %s %s %s",
-                    totalTokens, maxTokens, percentStr, prompt, candidates, cached, thoughts);
-            
-            if (usage.trafficType().isPresent()) {
-                this.usageText += " Traffic:" + usage.trafficType().get().toString();
-            }
         } else {
-            this.totalTokens = 0;
-            this.maxTokens = ContextWindow.TOKEN_THRESHOLD;
-            this.percentage = 0.0;
-            this.usageText = "Usage: 0 / " + ContextWindow.TOKEN_THRESHOLD + " Tokens";
+            this.totalTokens = contextManager.getTotalTokenCount();
         }
+        
+        this.maxTokens = contextManager.getTokenThreshold();
+        this.percentage = (maxTokens == 0) ? 0.0 : (double) totalTokens / maxTokens;
+        
+        String percentStr = PERCENT_FORMAT.format(percentage);
+        String totalStr = NUMBER_FORMAT.format(totalTokens);
+        String maxStr = NUMBER_FORMAT.format(maxTokens);
+        
+        this.usageText = String.format("%s (%s / %s)", percentStr, totalStr, maxStr);
+        
         repaint();
     }
 
@@ -70,44 +78,37 @@ public class ContextUsageBar extends JPanel {
         int width = getWidth();
         int height = getHeight();
         
-        // 1. Determine Colors
+        // Determine Colors
         Color barColor;
         Color textColor;
         
-        if (percentage > 1.0) {
-            // Over 100%
+        if (status == ChatStatus.WAITING_WITH_BACKOFF) {
+            barColor = parentPanel.getConfig().getColor(status);
+            textColor = Color.WHITE;
+        } else if (percentage > 1.0) {
             barColor = new Color(150, 0, 0); // Dark Red
             textColor = Color.WHITE;
         } else if (percentage > 0.9) {
-            // 90% to 100%
             barColor = new Color(255, 50, 50); // Red
             textColor = Color.WHITE;
         } else if (percentage > 0.7) {
-            // 70% to 90%
             barColor = new Color(255, 193, 7); // Yellow/Amber
             textColor = Color.BLACK;
         } else {
-            // 0% to 70%
             barColor = new Color(40, 167, 69); // Green
             textColor = Color.WHITE;
         }
         
-        // 2. Draw Background (for over 100% or just a subtle background)
-        g2d.setColor(Color.LIGHT_GRAY);
+        // Draw Background
+        g2d.setColor(getBackground().darker());
         g2d.fillRect(0, 0, width, height);
 
-        // 3. Draw Progress Bar
+        // Draw Progress Bar
         int barWidth = (int) (width * Math.min(1.0, percentage));
         g2d.setColor(barColor);
         g2d.fillRect(0, 0, barWidth, height);
         
-        // If over 100%, draw a warning indicator
-        if (percentage > 1.0) {
-            g2d.setColor(Color.RED);
-            g2d.fillRect(0, 0, width, height);
-        }
-
-        // 4. Draw Text Overlay
+        // Draw Text Overlay
         g2d.setColor(textColor);
         g2d.setFont(getFont());
         FontMetrics fm = g2d.getFontMetrics();

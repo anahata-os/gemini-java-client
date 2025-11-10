@@ -1,4 +1,4 @@
-package uno.anahata.gemini;
+package uno.anahata.gemini.config;
 
 import com.google.genai.Client;
 import com.google.genai.types.Content;
@@ -14,8 +14,10 @@ import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.prefs.Preferences;
 import lombok.extern.slf4j.Slf4j;
+import uno.anahata.gemini.AnahataConfig;
+import uno.anahata.gemini.GeminiAPI;
 import uno.anahata.gemini.functions.FunctionConfirmation;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.systeminstructions.spi.ChatStatusProvider;
 import uno.anahata.gemini.systeminstructions.spi.ContextSummaryProvider;
 import uno.anahata.gemini.systeminstructions.spi.CoreSystemInstructionsMdFileProvider;
@@ -24,21 +26,13 @@ import uno.anahata.gemini.systeminstructions.spi.StatefulResourcesProvider;
 import uno.anahata.gemini.systeminstructions.spi.SystemPropertiesProvider;
 
 @Slf4j
-public abstract class GeminiConfig {
+public abstract class ChatConfig {
 
     private final GeminiAPI api = new GeminiAPI(this);
 
-    private final transient Preferences prefs = Preferences.userNodeForPackage(GeminiConfig.class);
+    private final transient Preferences prefs = Preferences.userNodeForPackage(ChatConfig.class);
 
-    static {
-        File workDir = getWorkingFolder();
-        if (!workDir.exists()) {
-            workDir.mkdirs();
-        } else if (!workDir.isDirectory()) {
-            throw new RuntimeException("work.dir is not a directory: " + workDir);
-        }
-    }
-
+    
     public GeminiAPI getApi() {
         return api;
     }
@@ -97,21 +91,15 @@ public abstract class GeminiConfig {
     public List<Class<?>> getAutomaticFunctionClasses() {
         return Collections.emptyList();
     }
-
-    public static File getWorkingFolder(String name) {
-        File f = new File(getWorkingFolder(), name);
-        if (!f.exists()) {
-            f.mkdirs();
-        }
-        return f;
+    
+    @Deprecated
+    public File getWorkingFolder(String name) {
+        return AnahataConfig.getWorkingFolder(name);
     }
-
-    public static File getWorkingFolder() {
-        File f = new File(System.getProperty("user.home") + File.separator + ".anahata" + File.separator + "ai-assistant");
-        if (!f.exists()) {
-            f.mkdirs();
-        }
-        return f;
+    
+    @Deprecated
+    public File getWorkingFolder() {
+        return AnahataConfig.getWorkingFolder();
     }
 
     // --- Preference Management ---

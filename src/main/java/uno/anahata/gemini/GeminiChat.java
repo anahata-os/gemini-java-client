@@ -5,15 +5,16 @@ import com.google.genai.types.*;
 import com.google.gson.Gson;
 import java.io.File;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import uno.anahata.gemini.context.ContextManager;
+import org.apache.commons.lang3.StringUtils;
+import uno.anahata.gemini.config.ChatConfig;
+import uno.anahata.gemini.config.ConfigManager;
 import uno.anahata.gemini.context.ContextListener;
+import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.functions.FunctionManager.ExecutedToolCall;
 import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
@@ -24,7 +25,7 @@ import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.status.ChatStatus;
 import uno.anahata.gemini.status.StatusListener;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.status.StatusManager;
 
 @Slf4j
 @Getter
@@ -34,37 +35,36 @@ public class GeminiChat {
     public static final ThreadLocal<GeminiChat> callingInstance = new ThreadLocal<>();
 
     private final FunctionManager functionManager;
-    private final GeminiConfig config;
+    private final ChatConfig config;
     private final ContextManager contextManager;
+    @Getter
+    private final ConfigManager configManager;
+    @Getter
+    private final StatusManager statusManager;
     private final ExecutorService executor;
-    
+
     private long latency = -1;
     @Setter
     private boolean functionsEnabled = true;
     @Getter
     @Setter
     private volatile boolean liveWorkspaceEnabled = true;
-    private String lastApiError = "";
     private volatile boolean isProcessing = false;
     private volatile boolean shutdown = false;
     private Date startTime = new Date();
-    private List<SystemInstructionProvider> systemInstructionProviders;
-
-    private final List<StatusListener> statusListeners = new CopyOnWriteArrayList<>();
-    private volatile ChatStatus currentStatus = ChatStatus.IDLE_WAITING_FOR_USER;
 
     public GeminiChat(
-            GeminiConfig config,
+            ChatConfig config,
             FunctionPrompter prompter) {
         this.config = config;
         this.executor = AnahataExecutors.newChatExecutor(config.getSessionId());
         this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager = new ContextManager(this);
-        // Initialize providers here to take a copy from config
-        this.systemInstructionProviders = new ArrayList<>(config.getSystemInstructionProviders());
-        fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
+        this.configManager = new ConfigManager(this);
+        this.statusManager = new StatusManager(this);
+        statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
-    
+
     public void shutdown() {
         log.info("Shutting down GeminiChat for session {}", config.getSessionId());
         this.shutdown = true;
@@ -78,59 +78,15 @@ public class GeminiChat {
     }
 
     public void addStatusListener(StatusListener listener) {
-        statusListeners.add(listener);
+        statusManager.addListener(listener);
     }
 
     public void removeStatusListener(StatusListener listener) {
-        statusListeners.remove(listener);
-    }
-
-    private void fireStatusChange(ChatStatus newStatus, String lastExceptionToString) {
-        this.currentStatus = newStatus;
-        for (StatusListener listener : statusListeners) {
-            listener.statusChanged(newStatus, lastExceptionToString);
-        }
+        statusManager.removeListener(listener);
     }
 
     public static GeminiChat getCallingInstance() {
         return callingInstance.get();
-    }
-
-    private Content buildSystemInstructions() {
-        List<Part> parts = new ArrayList<>();
-
-        for (SystemInstructionProvider provider : getSystemInstructionProviders()) {
-            if (provider.isEnabled()) {
-                try {
-
-                    List<Part> generated = provider.getInstructionParts(this);
-                    parts.add(Part.fromText("Instruction Provider: " + provider.getDisplayName() + " (id: " + provider.getId() + "): (" + generated.size() + " parts)"));
-                    parts.addAll(generated);
-                } catch (Exception e) {
-                    log.warn("SystemInstructionProvider " + provider.getId() + " threw an exception", e);
-                    parts.add(Part.fromText("Error in " + provider.getDisplayName() + ": " + e.getMessage()));
-                }
-            }
-        }
-
-        return Content.builder().parts(parts).build();
-    }
-
-    private GenerateContentConfig makeGenerateContentConfig() {
-        GenerateContentConfig.Builder builder = GenerateContentConfig.builder()
-                .systemInstruction(buildSystemInstructions())
-                .temperature(0f);
-
-        if (functionsEnabled) {
-            builder
-                    .tools(functionManager.getFunctionTool())
-                    .toolConfig(functionManager.getToolConfig());
-        } else {
-            Tool googleTools = Tool.builder().googleSearch(GoogleSearch.builder().build()).build();
-            builder.tools(googleTools);
-        }
-
-        return builder.build();
     }
 
     public void init() {
@@ -140,12 +96,12 @@ public class GeminiChat {
             log.info("Sending one-time startup instructions to the model.");
             sendContent(startupContent);
         }
-        fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
+        statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
 
     public void clear() {
         contextManager.clear();
-        fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
+        statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
 
     public void sendText(String message) {
@@ -158,19 +114,20 @@ public class GeminiChat {
             return;
         }
         isProcessing = true;
-        fireStatusChange(ChatStatus.API_CALL_IN_PROGRESS, "");
+        statusManager.recordUserInputTime();
+        statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
         try {
-            
-                ChatMessage userMessage = ChatMessage.builder()
-                        .modelId(config.getApi().getModelId())
-                        .content(content)
-                        .build();
-                contextManager.add(userMessage);
-            
+
+            ChatMessage userMessage = ChatMessage.builder()
+                    .modelId(config.getApi().getModelId())
+                    .content(content)
+                    .build();
+            contextManager.add(userMessage);
+
             processModelResponseLoop();
         } finally {
             isProcessing = false;
-            fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
+            statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
         }
     }
 
@@ -180,7 +137,7 @@ public class GeminiChat {
                 log.info("Shutdown flag detected. Breaking processing loop for session {}.", config.getSessionId());
                 break;
             }
-            
+
             List<Content> apiContext = buildApiContext(contextManager.getContext());
             GenerateContentResponse resp = sendToModelWithRetry(apiContext);
 
@@ -236,7 +193,7 @@ public class GeminiChat {
             return false;
         }
 
-        fireStatusChange(ChatStatus.TOOL_EXECUTION_IN_PROGRESS, "");
+        statusManager.setStatus(ChatStatus.TOOL_EXECUTION_IN_PROGRESS);
 
         FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
         List<ExecutedToolCall> executedCalls = processingResult.getExecutedCalls();
@@ -344,23 +301,18 @@ public class GeminiChat {
         return !executedCalls.isEmpty() || hasDeniedCalls;
     }
 
-    private void recordLastApiError(Exception e, int attempts) {
-        log.warn("Api Error on attempt {}: {}", attempts, e.toString());
-        this.lastApiError += "\nAttempt: " + attempts
-                + "\nTime: " + new Date()
-                + "\nError: " + ExceptionUtils.getStackTrace(e)
-                + "\n-----------------------------------";
-    }
-
     private GenerateContentResponse sendToModelWithRetry(List<Content> context) {
         int maxRetries = config.getApiMaxRetries();
         long initialDelayMillis = config.getApiInitialDelayMillis();
         long maxDelayMillis = config.getApiMaxDelayMillis();
+        long backoffAmount = 0;
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
+            // Get a new client for each attempt to ensure key rotation.
+            Client client = getGoogleGenAIClient();
             try {
-                fireStatusChange(ChatStatus.API_CALL_IN_PROGRESS, "");
-                GenerateContentConfig gcc = makeGenerateContentConfig();
+                statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
+                GenerateContentConfig gcc = configManager.makeGenerateContentConfig();
 
                 List<Content> finalContext = context;
                 if (liveWorkspaceEnabled) {
@@ -375,14 +327,21 @@ public class GeminiChat {
 
                 log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + finalContext.size() + " content elements. Functions enabled: " + functionsEnabled);
                 long ts = System.currentTimeMillis();
-                GenerateContentResponse ret = getGoogleGenAIClient().models.generateContent(config.getApi().getModelId(), finalContext, gcc);
-                lastApiError = "";
+                GenerateContentResponse ret = client.models.generateContent(config.getApi().getModelId(), finalContext, gcc);
                 latency = System.currentTimeMillis() - ts;
                 log.info(latency + " ms. Received response from model for " + finalContext.size() + " content elements.");
+                
+                // On success, clear errors and cache the usage metadata
+                statusManager.clearApiErrors();
+                statusManager.setLastUsage(ret.usageMetadata().orElse(null));
+                
                 return ret;
             } catch (Exception e) {
-                recordLastApiError(e, attempt);
-                fireStatusChange(ChatStatus.API_ERROR_RETRYING, e.toString());
+                log.warn("Api Error on attempt {}: {}", attempt, e.toString());
+                // Capture the key from the client instance that was used for the failed call.
+                String apiKey = client.apiKey();
+                String apiKeyLast5 = StringUtils.right(apiKey, 5);
+                statusManager.recordApiError(config.getApi().getModelId(), apiKeyLast5, attempt, backoffAmount, e);
 
                 if (e.toString().contains("429") || e.toString().contains("503") || e.toString().contains("500")) {
                     if (attempt == maxRetries - 1) {
@@ -392,8 +351,9 @@ public class GeminiChat {
                     long delayMillis = (long) (initialDelayMillis * Math.pow(2, attempt));
                     delayMillis = Math.min(delayMillis, maxDelayMillis);
                     long jitter = (long) (Math.random() * 500);
+                    backoffAmount = delayMillis + jitter;
                     try {
-                        Thread.sleep(delayMillis + jitter);
+                        Thread.sleep(backoffAmount);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         throw new RuntimeException("Chat was interrupted during retry delay.", ie);

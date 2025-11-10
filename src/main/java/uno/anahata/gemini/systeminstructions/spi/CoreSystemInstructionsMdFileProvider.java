@@ -9,8 +9,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.GeminiConfig;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.ChatConfig;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
 
 public class CoreSystemInstructionsMdFileProvider extends SystemInstructionProvider {
     private static final String SYSTEM_INSTRUCTIONS;
@@ -35,12 +35,12 @@ public class CoreSystemInstructionsMdFileProvider extends SystemInstructionProvi
             return Collections.emptyList();
         }
         String processedManual = SYSTEM_INSTRUCTIONS
-                .replace("${work.dir}", GeminiConfig.getWorkingFolder().getAbsolutePath());
+                .replace("${work.dir}", chat.getConfig().getWorkingFolder().getAbsolutePath());
         return Collections.singletonList(Part.fromText(processedManual));
     }
     
     private static String loadManual(String resourceName) {
-        try (InputStream is = GeminiConfig.class.getResourceAsStream(resourceName)) {
+        try (InputStream is = ChatConfig.class.getResourceAsStream(resourceName)) {
             if (is == null) {
                 return "Error: Could not find resource " + resourceName;
             }

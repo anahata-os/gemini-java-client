@@ -1,31 +1,29 @@
 package uno.anahata.gemini.status;
 
-import java.awt.Color;
+import lombok.Getter;
 
 /**
  * Defines the possible operational states of the GeminiChat, primarily for UI feedback.
- * The colors are suggestions for a "traffic light" status indicator.
  */
+@Getter
 public enum ChatStatus {
     /** A normal API call is in progress (e.g., waiting for a model response). */
-    API_CALL_IN_PROGRESS(new Color(0, 123, 255)), // BLUE
+    API_CALL_IN_PROGRESS("API Call in Progress...", "Waiting for a response from the model."), 
     
     /** Local tool (function) execution is in progress. */
-    TOOL_EXECUTION_IN_PROGRESS(new Color(128, 0, 128)), // PURPLE
+    TOOL_EXECUTION_IN_PROGRESS("Tool Execution...", "Executing local Java tools (functions)."), 
     
-    /** An API error occurred, and the system is in retry mode. */
-    API_ERROR_RETRYING(new Color(255, 0, 0)), // RED
+    /** An API error occurred, and the system is in retry mode with exponential backoff. */
+    WAITING_WITH_BACKOFF("Waiting with Backoff...", "An API error occurred. Retrying with exponential backoff."), 
     
     /** The model has finished processing and is waiting for the user's next input. */
-    IDLE_WAITING_FOR_USER(new Color(0, 128, 0)); // GREEN
+    IDLE_WAITING_FOR_USER("Idle", "Waiting for user input.");
 
-    private final Color color;
+    private final String displayName;
+    private final String description;
 
-    ChatStatus(Color color) {
-        this.color = color;
-    }
-
-    public Color getColor() {
-        return color;
+    ChatStatus(String displayName, String description) {
+        this.displayName = displayName;
+        this.description = description;
     }
 }

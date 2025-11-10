@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.config.ChatConfig;
 
 public class FailureTracker {
 
@@ -15,7 +15,7 @@ public class FailureTracker {
     private final long timeWindowMs;
     private final Map<String, List<FailureRecord>> failureLog = new ConcurrentHashMap<>();
 
-    public FailureTracker(GeminiConfig config) {
+    public FailureTracker(ChatConfig config) {
         this.maxFailures = config.getFailureTrackerMaxFailures();
         this.timeWindowMs = config.getFailureTrackerTimeWindowMs();
     }

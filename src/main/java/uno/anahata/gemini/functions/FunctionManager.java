@@ -8,7 +8,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.*;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.functions.spi.*;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.lang.reflect.Modifier;
@@ -76,7 +76,7 @@ public class FunctionManager {
         public final String userComment;
     }
     
-    public FunctionManager(GeminiChat chat, GeminiConfig config, FunctionPrompter prompter) {
+    public FunctionManager(GeminiChat chat, ChatConfig config, FunctionPrompter prompter) {
         this.chat = chat;
         this.prompter = prompter;
         this.failureTracker = new FailureTracker(config);
@@ -134,7 +134,7 @@ public class FunctionManager {
         
         List<FunctionCall> allProposedCalls = new ArrayList<>(callToPartMap.keySet());
         
-        GeminiConfig config = chat.getContextManager().getConfig();
+        ChatConfig config = chat.getContextManager().getConfig();
         boolean allAlwaysApproved = true;
         for (FunctionCall fc : allProposedCalls) {
             if (config.getFunctionConfirmation(fc) != FunctionConfirmation.ALWAYS) {

@@ -29,7 +29,7 @@ import javax.swing.border.TitledBorder;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.ui.SwingGeminiConfig.UITheme;
@@ -152,7 +152,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
-    private void collectResultsFromInteractiveRenderers(GeminiConfig config) {
+    private void collectResultsFromInteractiveRenderers(ChatConfig config) {
         for (InteractiveFunctionCallRenderer renderer : interactiveRenderers) {
             FunctionCall functionCall = renderer.getFunctionCall();
             FunctionConfirmation state = renderer.getSelectedState();

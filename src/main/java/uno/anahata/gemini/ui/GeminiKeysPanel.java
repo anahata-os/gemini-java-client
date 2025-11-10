@@ -12,16 +12,16 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiConfig;
+import uno.anahata.gemini.config.ChatConfig;
 
 @Slf4j
 public class GeminiKeysPanel extends JPanel {
     private final JTextArea keysTextArea;
     private final File keysFile;
 
-    public GeminiKeysPanel(GeminiConfig config) {
+    public GeminiKeysPanel(ChatConfig config) {
         super(new BorderLayout(10, 10));
-        this.keysFile = new File(GeminiConfig.getWorkingFolder(), config.getApiKeyFileName());
+        this.keysFile = new File(config.getWorkingFolder(), config.getApiKeyFileName());
         
         keysTextArea = new JTextArea();
         if (config instanceof SwingGeminiConfig) {

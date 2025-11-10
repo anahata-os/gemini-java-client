@@ -2,10 +2,11 @@ package uno.anahata.gemini.systeminstructions.spi;
 
 import com.google.genai.types.Part;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.status.ApiExceptionRecord;
 
 public class ChatStatusProvider extends SystemInstructionProvider {
 
@@ -24,7 +25,7 @@ public class ChatStatusProvider extends SystemInstructionProvider {
         if (!isEnabled()) {
             return Collections.emptyList();
         }
-        
+
         StringBuilder chatStatusBlock = new StringBuilder();
         chatStatusBlock.append("- Chat: ").append(chat).append("\n");
         chatStatusBlock.append("- Model Id: ").append(chat.getConfig().getApi().getModelId()).append("\n");
@@ -37,10 +38,18 @@ public class ChatStatusProvider extends SystemInstructionProvider {
         if (chat.getLatency() > 0) {
             chatStatusBlock.append("- Latency (last successfull user/model round trip): ").append(chat.getLatency()).append(" ms.\n");
         }
-        if (chat.getLastApiError() != null) {
-            chatStatusBlock.append("- Last API Error: \n").append(chat.getLastApiError()).append("\n");
+
+        List<ApiExceptionRecord> errors = chat.getStatusManager().getApiErrors();
+        if (!errors.isEmpty()) {
+            chatStatusBlock.append("- Last API Error(s): \n");
+            for (int i = 0; i < errors.size(); i++) {
+                ApiExceptionRecord error = errors.get(i);
+                chatStatusBlock.append("  --- Error ").append(i + 1).append(" ---\n");
+                chatStatusBlock.append(ExceptionUtils.getStackTrace(error.getException()));
+                chatStatusBlock.append("\n");
+            }
         }
-        
+
         return Collections.singletonList(Part.fromText(chatStatusBlock.toString()));
     }
 }

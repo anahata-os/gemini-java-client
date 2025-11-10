@@ -6,7 +6,7 @@ import java.util.List;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.context.stateful.StatefulResourceStatus;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
 
 public class StatefulResourcesProvider extends SystemInstructionProvider {
 

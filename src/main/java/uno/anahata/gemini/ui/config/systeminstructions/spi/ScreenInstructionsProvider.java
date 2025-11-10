@@ -1,4 +1,4 @@
-package uno.anahata.gemini.ui.instructions;
+package uno.anahata.gemini.ui.config.systeminstructions.spi;
 
 import com.google.genai.types.Part;
 import java.io.File;
@@ -8,7 +8,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.internal.PartUtils;
-import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
 import uno.anahata.gemini.ui.UICapture;
 
 /**

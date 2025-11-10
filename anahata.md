@@ -34,6 +34,8 @@ The project is logically divided into four main layers, designed for modularity 
 ## 5. V1 Launch Goals (Immediate Focus)
 
 ### Phase 1: Core Lifecycle & Concurrency
+-   [ ] **"Tool call execution does not follow the same sequence as the received FunctionCalls:** Sometimes the model provides two tool calls but in the tool output they show as if they were executed in different order.
+-   [ ] **"Tool call execution**. FunctionPrompting should be embedded in the main chat window, not in a popup, When the model proposes 3 tool calls, the user should be able to execute an individual tool with a click and possibly re-run it later as many times as he wants. There should still be a runAll at the bottom that runs all the tools marked as Yes" currently if the model wants to do two operations and one depends on the oter
 -   [ ] **"Ghost Chat" Prevention:** Tightly couple the `AnahataTopComponent` lifecycle (in `anahata-netbeans-ai`) to the `GeminiChat` instance. When the UI component is closed, it must signal the chat to terminate all background processes.
 -   [ ] **Cancellation Framework:** Implement a robust cancellation mechanism (`ExecutorService`/`Future`) to allow interrupting:
     -   In-flight API calls.
@@ -63,10 +65,16 @@ The project is logically divided into four main layers, designed for modularity 
 
 This is the long-term architectural plan to be executed after the V1 launch.
 
+-   [ ] **Project Modularity:** Split the project into three modules: `anahata-ai-core` (interfaces), `anahata-ai-gemini` (Gemini implementation), and `anahata-ai-swing` (reusable UI).
+-   [ ] **Multi-Model Abstraction:**
+    -   Create a generic `ChatModel` interface to allow plugging in other providers (OpenAI, Claude, etc.).
+    -   **`ContentProducer` Interface:** Abstract all model-specific content creation (`Content`, `Part` objects) into a provider-agnostic interface. This is critical for decoupling the core logic from the Gemini API and will handle the creation of all messages (tool responses, user feedback, errors, etc.).
+-   [ ] **Decoupled Status Management:** Move the `ChatStatus` enum and its listener mechanism out of `GeminiChat` into a dedicated `StatusManager` class to further slim down the core orchestrator.
 -   [ ] **Per-Chat Permissions:** Refactor the function permission model to be session-specific instead of global.
 -   [ ] **Asynchronous Input:** Implement the ability for the user to queue a message while a tool loop is running, which will be sent with the next API call.
--   [ ] **Project Modularity:** Split the project into three modules: `anahata-ai-core` (interfaces), `anahata-ai-gemini` (Gemini implementation), and `anahata-ai-swing` (reusable UI).
--   [ ] **Multi-Model Abstraction:** Create a generic interface for chat models to allow plugging in other providers (OpenAI, Claude, etc.).
 -   [ ] **Instance-Based Tooling:** Refactor the tool system from static methods to an instance-based model to improve testability and state management.
--   [ ] **Active Workspace:** Implement the "Active Workspace" concept where stateful resources are managed separately and injected into the user prompt, similar to how "Live Workspace" screenshots are handled. This will eliminate the current context bloat where `writeFile` or `proposeChange` keeps the file content twice in the context (FunctionCall and FunctionResponse) and provides a cleaner, more explicit context. This approach is favored over automatically reloading stale resources.
+-   [ ] **Active Workspace & Providers:**
+    -   Implement a `WorkspaceProvider` system to abstract the provision of contextual data (like screenshots, file contents, etc.).
+    -   Transition to an "Active Workspace" model where stateful resources are managed by these providers and injected into the prompt, rather than being fished from the chat history. This will eliminate context bloat and is the preferred strategy over auto-reloading stale resources.
 -   [ ] **Embeddings for Notes:** Convert the personal notes system from a simple folder of markdown files into a searchable knowledge base using embeddings for context augmentation.
+-   [ ] **Code Health:** Investigate why `buildApiContext` needs to filter for null `Content` objects, as this may be hiding an upstream bug.
