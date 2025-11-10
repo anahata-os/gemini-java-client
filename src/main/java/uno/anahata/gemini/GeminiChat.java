@@ -6,6 +6,7 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,13 +22,9 @@ import uno.anahata.gemini.functions.JobInfo;
 import uno.anahata.gemini.functions.MultiPartResponse;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
+import uno.anahata.gemini.status.ChatStatus;
+import uno.anahata.gemini.status.StatusListener;
 import uno.anahata.gemini.systeminstructions.SystemInstructionProvider;
-import uno.anahata.gemini.systeminstructions.spi.ChatStatusProvider;
-import uno.anahata.gemini.systeminstructions.spi.ContextSummaryProvider;
-import uno.anahata.gemini.systeminstructions.spi.CoreSystemInstructionsMdFileProvider;
-import uno.anahata.gemini.systeminstructions.spi.EnvironmentVariablesProvider;
-import uno.anahata.gemini.systeminstructions.spi.StatefulResourcesProvider;
-import uno.anahata.gemini.systeminstructions.spi.SystemPropertiesProvider;
 
 @Slf4j
 @Getter
@@ -39,6 +36,8 @@ public class GeminiChat {
     private final FunctionManager functionManager;
     private final GeminiConfig config;
     private final ContextManager contextManager;
+    private final ExecutorService executor;
+    
     private long latency = -1;
     @Setter
     private boolean functionsEnabled = true;
@@ -47,9 +46,10 @@ public class GeminiChat {
     private volatile boolean liveWorkspaceEnabled = true;
     private String lastApiError = "";
     private volatile boolean isProcessing = false;
+    private volatile boolean shutdown = false;
     private Date startTime = new Date();
     private List<SystemInstructionProvider> systemInstructionProviders;
-    
+
     private final List<StatusListener> statusListeners = new CopyOnWriteArrayList<>();
     private volatile ChatStatus currentStatus = ChatStatus.IDLE_WAITING_FOR_USER;
 
@@ -57,25 +57,34 @@ public class GeminiChat {
             GeminiConfig config,
             FunctionPrompter prompter) {
         this.config = config;
+        this.executor = AnahataExecutors.newChatExecutor(config.getSessionId());
         this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager = new ContextManager(this);
         // Initialize providers here to take a copy from config
         this.systemInstructionProviders = new ArrayList<>(config.getSystemInstructionProviders());
         fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
     }
+    
+    public void shutdown() {
+        log.info("Shutting down GeminiChat for session {}", config.getSessionId());
+        this.shutdown = true;
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+        }
+    }
 
     public void addContextListener(ContextListener listener) {
         this.contextManager.addListener(listener);
     }
-    
+
     public void addStatusListener(StatusListener listener) {
         statusListeners.add(listener);
     }
-    
+
     public void removeStatusListener(StatusListener listener) {
         statusListeners.remove(listener);
     }
-    
+
     private void fireStatusChange(ChatStatus newStatus, String lastExceptionToString) {
         this.currentStatus = newStatus;
         for (StatusListener listener : statusListeners) {
@@ -151,52 +160,60 @@ public class GeminiChat {
         isProcessing = true;
         fireStatusChange(ChatStatus.API_CALL_IN_PROGRESS, "");
         try {
-            if (content != null) {
+            
                 ChatMessage userMessage = ChatMessage.builder()
                         .modelId(config.getApi().getModelId())
                         .content(content)
                         .build();
                 contextManager.add(userMessage);
-            }
-
-            while (true) {
-                List<Content> apiContext = buildApiContext(contextManager.getContext());
-                GenerateContentResponse resp = sendToModelWithRetry(apiContext);
-
-                if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
-                    log.warn("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
-                    Content emptyContent = Content.builder().role("model").parts(Part.fromText("[No response from model]")).build();
-                    ChatMessage emptyModelMessage = ChatMessage.builder()
-                            .modelId(config.getApi().getModelId())
-                            .content(emptyContent)
-                            .usageMetadata(resp.usageMetadata().orElse(null))
-                            .build();
-                    contextManager.add(emptyModelMessage);
-                    break;
-                }
-
-                Candidate cand = resp.candidates().get().get(0);
-                if (cand.content() == null || !cand.content().isPresent()) {
-                    log.warn("Received candidate with no content. Breaking loop.");
-                    break;
-                }
-
-                Content modelResponseContent = cand.content().get();
-                ChatMessage modelMessage = ChatMessage.builder()
-                        .modelId(config.getApi().getModelId())
-                        .content(modelResponseContent)
-                        .usageMetadata(resp.usageMetadata().orElse(null))
-                        .groundingMetadata(cand.groundingMetadata().orElse(null))
-                        .build();
-                contextManager.add(modelMessage);
-
-                if (!processAndReloopForFunctionCalls(modelMessage)) {
-                    break;
-                }
-            }
+            
+            processModelResponseLoop();
         } finally {
             isProcessing = false;
             fireStatusChange(ChatStatus.IDLE_WAITING_FOR_USER, "");
+        }
+    }
+
+    private void processModelResponseLoop() {
+        while (true) {
+            if (shutdown) {
+                log.info("Shutdown flag detected. Breaking processing loop for session {}.", config.getSessionId());
+                break;
+            }
+            
+            List<Content> apiContext = buildApiContext(contextManager.getContext());
+            GenerateContentResponse resp = sendToModelWithRetry(apiContext);
+
+            if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
+                log.warn("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
+                Content emptyContent = Content.builder().role("model").parts(Part.fromText("[No response from model]")).build();
+                ChatMessage emptyModelMessage = ChatMessage.builder()
+                        .modelId(config.getApi().getModelId())
+                        .content(emptyContent)
+                        .usageMetadata(resp.usageMetadata().orElse(null))
+                        .build();
+                contextManager.add(emptyModelMessage);
+                break;
+            }
+
+            Candidate cand = resp.candidates().get().get(0);
+            if (cand.content() == null || !cand.content().isPresent()) {
+                log.warn("Received candidate with no content. Breaking loop.");
+                break;
+            }
+
+            Content modelResponseContent = cand.content().get();
+            ChatMessage modelMessage = ChatMessage.builder()
+                    .modelId(config.getApi().getModelId())
+                    .content(modelResponseContent)
+                    .usageMetadata(resp.usageMetadata().orElse(null))
+                    .groundingMetadata(cand.groundingMetadata().orElse(null))
+                    .build();
+            contextManager.add(modelMessage);
+
+            if (!processAndReloopForFunctionCalls(modelMessage)) {
+                break;
+            }
         }
     }
 
@@ -218,7 +235,7 @@ public class GeminiChat {
             sendContent(Content.builder().role("user").parts(Part.fromText(feedbackText)).build());
             return false;
         }
-        
+
         fireStatusChange(ChatStatus.TOOL_EXECUTION_IN_PROGRESS, "");
 
         FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
@@ -366,7 +383,7 @@ public class GeminiChat {
             } catch (Exception e) {
                 recordLastApiError(e, attempt);
                 fireStatusChange(ChatStatus.API_ERROR_RETRYING, e.toString());
-                
+
                 if (e.toString().contains("429") || e.toString().contains("503") || e.toString().contains("500")) {
                     if (attempt == maxRetries - 1) {
                         log.error("Max retries reached. Aborting.", e);
