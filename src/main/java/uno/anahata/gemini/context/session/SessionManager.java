@@ -130,7 +130,7 @@ public class SessionManager {
                 name = msg.getModelId();
                 break;
             case "tool":
-                name = contextManager.getConfig().getApplicationInstanceId();
+                name = contextManager.getConfig().getSessionId();
                 break;
             case "user":
             default:
