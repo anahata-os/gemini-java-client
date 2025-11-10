@@ -183,6 +183,9 @@ public class FunctionManager {
                 boolean isAsync = asyncFlag instanceof Boolean && (Boolean) asyncFlag;
 
                 Object rawResult;
+                
+                // Set the executing tool name in the status manager
+                chat.getStatusManager().setExecutingToolName(toolName);
 
                 if (isAsync) {
                     final String jobId = UUID.randomUUID().toString();

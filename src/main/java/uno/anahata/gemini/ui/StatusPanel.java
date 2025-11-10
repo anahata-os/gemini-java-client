@@ -17,6 +17,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.Timer;
+import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.status.ApiExceptionRecord;
 import uno.anahata.gemini.status.ChatStatus;
@@ -100,9 +101,14 @@ public class StatusPanel extends JPanel {
         statusLabel.setForeground(statusColor);
         statusLabel.setToolTipText(status.getDescription());
         
+        String statusText = status.getDisplayName();
+        if (status == ChatStatus.TOOL_EXECUTION_IN_PROGRESS && StringUtils.isNotBlank(statusManager.getExecutingToolName())) {
+            statusText = String.format("%s (%s)", status.getDisplayName(), statusManager.getExecutingToolName());
+        }
+        
         if (status != ChatStatus.IDLE_WAITING_FOR_USER) {
             long duration = now - statusManager.getStatusChangeTime();
-            statusLabel.setText(String.format("%s (%s)", status.getDisplayName(), TimeUtils.formatMillisConcise(duration)));
+            statusLabel.setText(String.format("%s... (%s)", statusText, TimeUtils.formatMillisConcise(duration)));
         } else {
             long lastDuration = statusManager.getLastOperationDuration();
             if (lastDuration > 0) {

@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.Getter;
+import lombok.Setter;
 import uno.anahata.gemini.GeminiChat;
 
 /**
@@ -26,6 +27,10 @@ public class StatusManager {
 
     // Usage metadata field
     private GenerateContentResponseUsageMetadata lastUsage;
+    
+    // Currently executing tool
+    @Setter
+    private volatile String executingToolName;
 
     public StatusManager(GeminiChat chat) {
         this.chat = chat;
@@ -57,6 +62,12 @@ public class StatusManager {
             }
             this.currentStatus = newStatus;
             this.statusChangeTime = System.currentTimeMillis();
+            
+            // Clear the executing tool name if we are no longer executing tools
+            if (newStatus != ChatStatus.TOOL_EXECUTION_IN_PROGRESS) {
+                this.executingToolName = null;
+            }
+            
             fireStatusChanged(newStatus);
         }
     }
@@ -78,6 +89,7 @@ public class StatusManager {
         clearApiErrors();
         this.lastUsage = null;
         this.lastOperationDuration = -1;
+        this.executingToolName = null;
         resetTimers();
         setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
