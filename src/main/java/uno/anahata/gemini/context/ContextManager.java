@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.GeminiConfig;
-import uno.anahata.gemini.context.history.HistoryLogger;
 import uno.anahata.gemini.context.pruning.ContextPruner;
 import uno.anahata.gemini.context.session.SessionManager;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
@@ -30,7 +29,6 @@ public class ContextManager {
 
     // Delegated classes
     private final SessionManager sessionManager;
-    private final HistoryLogger historyLogger;
     private final ResourceTracker resourceTracker;
     private final ContextPruner contextPruner;
 
@@ -40,7 +38,6 @@ public class ContextManager {
         this.functionManager = chat.getFunctionManager();
         
         this.sessionManager = new SessionManager(this);
-        this.historyLogger = new HistoryLogger(this);
         this.resourceTracker = new ResourceTracker(this);
         this.contextPruner = new ContextPruner(this);
     }
@@ -70,7 +67,6 @@ public class ContextManager {
     public synchronized void add(ChatMessage message) {
         resourceTracker.handleStatefulReplace(message, functionManager);
         context.add(message);
-        historyLogger.logEntryToFile(message);
 
         if (message.getUsageMetadata() != null) {
             this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
@@ -128,7 +124,7 @@ public class ContextManager {
     }
     
     public String getContextId() {
-        return config.getApplicationInstanceId() + "-" + System.identityHashCode(this);
+        return config.getSessionId() + "-" + System.identityHashCode(this);
     }
     
     private boolean isUserMessage(ChatMessage message) {
