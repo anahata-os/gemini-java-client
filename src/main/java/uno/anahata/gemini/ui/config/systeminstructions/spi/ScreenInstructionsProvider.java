@@ -13,6 +13,7 @@ import uno.anahata.gemini.ui.UICapture;
 
 /**
  * A SystemInstructionProvider that captures the screen and provides it as image parts.
+ * Currently not supported by gemini or the genai-sdk.
  */
 @Slf4j
 public class ScreenInstructionsProvider extends SystemInstructionProvider {

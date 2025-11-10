@@ -10,10 +10,7 @@ import lombok.Getter;
 import uno.anahata.gemini.GeminiChat;
 
 /**
- * Manages the status of a GeminiChat session, including the current state,
- * a history of API errors, and listener notification.
- *
- * @author AI
+ * Manages the status of a GeminiChat session.
  */
 @Getter
 public class StatusManager {
@@ -25,13 +22,17 @@ public class StatusManager {
     // Time tracking fields
     private long lastUserInputTime;
     private long statusChangeTime;
-    private long lastOperationDuration = -1; // Duration of the last send/process loop
+    private long lastOperationDuration = -1;
 
     // Usage metadata field
     private GenerateContentResponseUsageMetadata lastUsage;
 
     public StatusManager(GeminiChat chat) {
         this.chat = chat;
+        resetTimers();
+    }
+    
+    private void resetTimers() {
         this.statusChangeTime = System.currentTimeMillis();
         this.lastUserInputTime = System.currentTimeMillis();
     }
@@ -44,89 +45,63 @@ public class StatusManager {
         listeners.remove(listener);
     }
 
-    /**
-     * Records the timestamp of the last user input action.
-     */
     public void recordUserInputTime() {
         this.lastUserInputTime = System.currentTimeMillis();
-        this.lastOperationDuration = -1; // Reset duration on new input
+        this.lastOperationDuration = -1;
     }
 
-    /**
-     * Sets the new status and notifies all registered listeners.
-     * The status change time is only updated if the status actually changes.
-     *
-     * @param newStatus The new status to set.
-     */
     public void setStatus(ChatStatus newStatus) {
         if (this.currentStatus != newStatus) {
-            // If transitioning TO idle, calculate the total operation duration.
-            if (newStatus == ChatStatus.IDLE_WAITING_FOR_USER) {
+            if (newStatus == ChatStatus.IDLE_WAITING_FOR_USER && this.currentStatus != ChatStatus.IDLE_WAITING_FOR_USER) {
                 this.lastOperationDuration = System.currentTimeMillis() - this.lastUserInputTime;
             }
-            
             this.currentStatus = newStatus;
             this.statusChangeTime = System.currentTimeMillis();
             fireStatusChanged(newStatus);
         }
     }
-    
-    /**
-     * Caches the latest usage metadata from a successful API response.
-     * @param lastUsage The usage metadata to cache.
-     */
+
     public void setLastUsage(GenerateContentResponseUsageMetadata lastUsage) {
         this.lastUsage = lastUsage;
     }
-    
-    /**
-     * Clears the history of API errors. This should be called after a successful API call.
-     */
+
     public void clearApiErrors() {
         if (!apiErrors.isEmpty()) {
             apiErrors.clear();
         }
+    }
+    
+    /**
+     * Resets the status manager to its initial state.
+     */
+    public void reset() {
+        clearApiErrors();
         this.lastUsage = null;
         this.lastOperationDuration = -1;
+        resetTimers();
+        setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
 
-    /**
-     * Records a new API error with detailed context.
-     *
-     * @param modelId The ID of the model being called.
-     * @param apiKey The last 5 digits of the API key used.
-     * @param retryAttempt The attempt number (0-based).
-     * @param backoffAmount The backoff delay waited before this attempt.
-     * @param throwable The exception that occurred.
-     */
     public void recordApiError(String modelId, String apiKey, int retryAttempt, long backoffAmount, Throwable throwable) {
         ApiExceptionRecord record = new ApiExceptionRecord(modelId, apiKey, new Date(), retryAttempt, backoffAmount, throwable);
         apiErrors.add(record);
         setStatus(ChatStatus.WAITING_WITH_BACKOFF);
     }
 
-    /**
-     * Gets an unmodifiable view of the API error history.
-     * @return A list of API exception records.
-     */
     public List<ApiExceptionRecord> getApiErrors() {
         return Collections.unmodifiableList(apiErrors);
     }
-    
-    /**
-     * Gets the most recent API error, or null if there are none.
-     * @return The last recorded ApiExceptionRecord.
-     */
+
     public ApiExceptionRecord getLastApiError() {
         return apiErrors.isEmpty() ? null : apiErrors.get(apiErrors.size() - 1);
     }
 
     private void fireStatusChanged(ChatStatus newStatus) {
+        String exceptionString = getLastApiError() != null ? getLastApiError().getException().toString() : null;
         for (StatusListener listener : listeners) {
             try {
-                listener.statusChanged(newStatus, getLastApiError() != null ? getLastApiError().getException().toString() : null);
+                listener.statusChanged(newStatus, exceptionString);
             } catch (Exception e) {
-                // Don't let a faulty listener stop the notification chain
                 System.err.println("StatusListener " + listener.getClass().getName() + " threw an exception: " + e.getMessage());
             }
         }

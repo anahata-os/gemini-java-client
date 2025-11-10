@@ -101,7 +101,7 @@ public class GeminiChat {
 
     public void clear() {
         contextManager.clear();
-        statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
+        statusManager.reset();
     }
 
     public void sendText(String message) {

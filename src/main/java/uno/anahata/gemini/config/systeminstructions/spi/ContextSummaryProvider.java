@@ -1,4 +1,4 @@
-package uno.anahata.gemini.systeminstructions.spi;
+package uno.anahata.gemini.config.systeminstructions.spi;
 
 import com.google.genai.types.Part;
 import java.util.Collections;

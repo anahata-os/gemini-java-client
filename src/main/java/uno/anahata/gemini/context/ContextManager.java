@@ -29,7 +29,7 @@ public class ContextManager {
     private int totalTokenCount = 0;
     @Getter
     @Setter
-    private int tokenThreshold = 125_000;
+    private int tokenThreshold = 108_000;
 
     // Delegated classes
     private final SessionManager sessionManager;
@@ -100,13 +100,27 @@ public class ContextManager {
 
     public synchronized void setContext(List<ChatMessage> newContext) {
         this.context = new ArrayList<>(newContext);
-        // Recalculate token count based on the new context
-        this.totalTokenCount = newContext.stream()
-            .map(ChatMessage::getUsageMetadata)
-            .filter(Objects::nonNull)
-            .map(usage -> usage.totalTokenCount().orElse(0))
-            .reduce(0, Integer::sum);
-        log.info("Context set. New token count: {}", this.totalTokenCount);
+
+        // Correctly set the token count and usage metadata from the *last* available record.
+        GenerateContentResponseUsageMetadata lastUsage = null;
+        for (int i = newContext.size() - 1; i >= 0; i--) {
+            ChatMessage msg = newContext.get(i);
+            if (msg.getUsageMetadata() != null) {
+                lastUsage = msg.getUsageMetadata();
+                break;
+            }
+        }
+
+        if (lastUsage != null) {
+            this.totalTokenCount = lastUsage.totalTokenCount().orElse(0);
+            chat.getStatusManager().setLastUsage(lastUsage);
+            log.info("Context restored. Last usage metadata found. Token count set to: {}", this.totalTokenCount);
+        } else {
+            this.totalTokenCount = 0;
+            chat.getStatusManager().setLastUsage(null);
+            log.info("Context restored. No usage metadata found. Token count reset to 0.");
+        }
+        
         notifyHistoryChange();
     }
 

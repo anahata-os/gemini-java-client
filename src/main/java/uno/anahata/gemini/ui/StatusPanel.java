@@ -3,12 +3,17 @@ package uno.anahata.gemini.ui;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
+import java.awt.RenderingHints;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import javax.swing.BorderFactory;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -25,13 +30,11 @@ public class StatusPanel extends JPanel {
     private final Timer refreshTimer;
 
     // UI Components
+    private StatusIndicator statusIndicator;
     private JLabel statusLabel;
     private ContextUsageBar contextUsageBar;
     private JPanel detailsPanel;
-    private JLabel promptTokensLabel;
-    private JLabel candidatesTokensLabel;
-    private JLabel cachedTokensLabel;
-    private JLabel thoughtsTokensLabel;
+    private JLabel tokenDetailsLabel;
 
     public StatusPanel(GeminiPanel parentPanel) {
         super(new BorderLayout(10, 2));
@@ -56,20 +59,25 @@ public class StatusPanel extends JPanel {
     private void initComponents() {
         setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
 
-        JPanel topPanel = new JPanel(new BorderLayout());
+        JPanel topPanel = new JPanel(new BorderLayout(10, 0));
+        JPanel statusDisplayPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        
+        statusIndicator = new StatusIndicator();
         statusLabel = new JLabel("Initializing...");
+        
+        statusDisplayPanel.add(statusIndicator);
+        statusDisplayPanel.add(statusLabel);
+        
         contextUsageBar = new ContextUsageBar(parentPanel);
         
-        topPanel.add(statusLabel, BorderLayout.WEST);
+        topPanel.add(statusDisplayPanel, BorderLayout.WEST);
         topPanel.add(contextUsageBar, BorderLayout.EAST);
         
-        detailsPanel = new JPanel();
+        detailsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         detailsPanel.setVisible(false);
         
-        promptTokensLabel = new JLabel();
-        candidatesTokensLabel = new JLabel();
-        cachedTokensLabel = new JLabel();
-        thoughtsTokensLabel = new JLabel();
+        tokenDetailsLabel = new JLabel();
+        detailsPanel.add(tokenDetailsLabel);
 
         add(topPanel, BorderLayout.NORTH);
         add(detailsPanel, BorderLayout.CENTER);
@@ -85,9 +93,11 @@ public class StatusPanel extends JPanel {
         StatusManager statusManager = chat.getStatusManager();
         ChatStatus status = statusManager.getCurrentStatus();
         long now = System.currentTimeMillis();
+        Color statusColor = parentPanel.getConfig().getColor(status);
 
-        // 1. Update Status Label
-        statusLabel.setForeground(parentPanel.getConfig().getColor(status));
+        // 1. Update Status Indicator and Label
+        statusIndicator.setColor(statusColor);
+        statusLabel.setForeground(statusColor);
         statusLabel.setToolTipText(status.getDescription());
         
         if (status != ChatStatus.IDLE_WAITING_FOR_USER) {
@@ -106,13 +116,13 @@ public class StatusPanel extends JPanel {
         contextUsageBar.refresh();
 
         // 3. Update Details Panel
-        detailsPanel.removeAll();
         List<ApiExceptionRecord> errors = statusManager.getApiErrors();
         GenerateContentResponseUsageMetadata usage = statusManager.getLastUsage();
         boolean isRetrying = !errors.isEmpty() && (status == ChatStatus.WAITING_WITH_BACKOFF || status == ChatStatus.API_CALL_IN_PROGRESS);
 
         if (isRetrying) {
-            detailsPanel.setLayout(new GridLayout(0, 1)); // Vertical layout for errors
+            detailsPanel.removeAll();
+            detailsPanel.setLayout(new GridLayout(0, 1)); // Vertical for errors
             ApiExceptionRecord lastError = errors.get(errors.size() - 1);
             long totalErrorTime = now - errors.get(0).getTimestamp().getTime();
             String headerText = String.format("Retrying... Total Time: %s | Attempt: %d | Next Backoff: %dms",
@@ -133,16 +143,16 @@ public class StatusPanel extends JPanel {
             detailsPanel.setVisible(true);
             
         } else if (usage != null) {
-            detailsPanel.setLayout(new GridLayout(0, 1)); // Vertical layout for token details
-            promptTokensLabel.setText("Prompt Tokens: " + NUMBER_FORMAT.format(usage.promptTokenCount().orElse(0)));
-            candidatesTokensLabel.setText("Candidates Tokens: " + NUMBER_FORMAT.format(usage.candidatesTokenCount().orElse(0)));
-            cachedTokensLabel.setText("Cached Content Tokens: " + NUMBER_FORMAT.format(usage.cachedContentTokenCount().orElse(0)));
-            thoughtsTokensLabel.setText("Thoughts Tokens: " + NUMBER_FORMAT.format(usage.thoughtsTokenCount().orElse(0)));
+            detailsPanel.removeAll();
+            detailsPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 10, 0));
             
-            detailsPanel.add(promptTokensLabel);
-            detailsPanel.add(candidatesTokensLabel);
-            detailsPanel.add(cachedTokensLabel);
-            detailsPanel.add(thoughtsTokensLabel);
+            String prompt = "Prompt: " + NUMBER_FORMAT.format(usage.promptTokenCount().orElse(0));
+            String candidates = "Candidates: " + NUMBER_FORMAT.format(usage.candidatesTokenCount().orElse(0));
+            String cached = "Cached: " + NUMBER_FORMAT.format(usage.cachedContentTokenCount().orElse(0));
+            String thoughts = "Thoughts: " + NUMBER_FORMAT.format(usage.thoughtsTokenCount().orElse(0));
+            
+            tokenDetailsLabel.setText(String.join(" | ", prompt, candidates, cached, thoughts));
+            detailsPanel.add(tokenDetailsLabel);
             detailsPanel.setVisible(true);
             
         } else {
@@ -151,5 +161,31 @@ public class StatusPanel extends JPanel {
         
         revalidate();
         repaint();
+    }
+    
+    /**
+     * A simple component that paints a colored circle.
+     */
+    private static class StatusIndicator extends JComponent {
+        private Color color = Color.GRAY;
+
+        public StatusIndicator() {
+            setPreferredSize(new Dimension(16, 16));
+        }
+
+        public void setColor(Color color) {
+            this.color = color;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g.create();
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setColor(color);
+            g2d.fillOval(2, 2, getWidth() - 4, getHeight() - 4);
+            g2d.dispose();
+        }
     }
 }

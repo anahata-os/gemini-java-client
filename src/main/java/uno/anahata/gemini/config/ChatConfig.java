@@ -18,12 +18,12 @@ import uno.anahata.gemini.AnahataConfig;
 import uno.anahata.gemini.GeminiAPI;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
-import uno.anahata.gemini.systeminstructions.spi.ChatStatusProvider;
-import uno.anahata.gemini.systeminstructions.spi.ContextSummaryProvider;
-import uno.anahata.gemini.systeminstructions.spi.CoreSystemInstructionsMdFileProvider;
-import uno.anahata.gemini.systeminstructions.spi.EnvironmentVariablesProvider;
-import uno.anahata.gemini.systeminstructions.spi.StatefulResourcesProvider;
-import uno.anahata.gemini.systeminstructions.spi.SystemPropertiesProvider;
+import uno.anahata.gemini.config.systeminstructions.spi.ChatStatusProvider;
+import uno.anahata.gemini.config.systeminstructions.spi.ContextSummaryProvider;
+import uno.anahata.gemini.config.systeminstructions.spi.CoreSystemInstructionsMdFileProvider;
+import uno.anahata.gemini.config.systeminstructions.spi.EnvironmentVariablesProvider;
+import uno.anahata.gemini.config.systeminstructions.spi.StatefulResourcesProvider;
+import uno.anahata.gemini.config.systeminstructions.spi.SystemPropertiesProvider;
 
 @Slf4j
 public abstract class ChatConfig {
