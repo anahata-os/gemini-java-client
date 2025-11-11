@@ -45,8 +45,8 @@ public class LocalFiles {
         String content = Files.readString(filePath);
         long lastModified = Files.getLastModifiedTime(filePath).toMillis();
         long size = Files.size(filePath);
-
-        return new FileInfo(path, content, lastModified, size);
+        long contentLines = content.lines().count();
+        return new FileInfo(path, content, contentLines, lastModified, size);
     }
 
     @AIToolMethod(value = "Writes content to an existing file, but only if the file exists and has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object. Don not use this to create new files unse LocalFiles.createFile instead", behavior = ContextBehavior.STATEFUL_REPLACE)
