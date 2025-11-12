@@ -7,11 +7,42 @@ import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 
 /**
- * A JPanel that implements the Scrollable interface. This is useful for
- * panels that are placed in a JScrollPane, as it allows for better control
- * over the scrolling behavior.
+ * A flexible JPanel that implements the Scrollable interface, allowing for
+ * configurable scrolling behavior. This is useful for panels placed in a
+ * JScrollPane.
  */
 public class ScrollablePanel extends JPanel implements Scrollable {
+
+    private boolean scrollableTracksViewportWidth = true;
+    private boolean scrollableTracksViewportHeight = false;
+
+    /**
+     * Default constructor. Initializes the panel for vertical scrolling,
+     * which is the most common use case.
+     */
+    public ScrollablePanel() {
+        this(SwingConstants.VERTICAL);
+    }
+    
+    /**
+     * Creates a new ScrollablePanel with a specific scrolling orientation.
+     *
+     * @param orientation The scrolling orientation, either SwingConstants.VERTICAL or SwingConstants.HORIZONTAL.
+     */
+    public ScrollablePanel(int orientation) {
+        switch (orientation) {
+            case SwingConstants.VERTICAL:
+                this.scrollableTracksViewportWidth = true;
+                this.scrollableTracksViewportHeight = false;
+                break;
+            case SwingConstants.HORIZONTAL:
+                this.scrollableTracksViewportWidth = false;
+                this.scrollableTracksViewportHeight = true;
+                break;
+            default:
+                throw new IllegalArgumentException("Orientation must be either SwingConstants.VERTICAL or SwingConstants.HORIZONTAL");
+        }
+    }
 
     @Override
     public Dimension getPreferredScrollableViewportSize() {
@@ -30,11 +61,19 @@ public class ScrollablePanel extends JPanel implements Scrollable {
 
     @Override
     public boolean getScrollableTracksViewportWidth() {
-        return true;
+        return scrollableTracksViewportWidth;
     }
 
     @Override
     public boolean getScrollableTracksViewportHeight() {
-        return false;
+        return scrollableTracksViewportHeight;
+    }
+
+    public void setScrollableTracksViewportWidth(boolean scrollableTracksViewportWidth) {
+        this.scrollableTracksViewportWidth = scrollableTracksViewportWidth;
+    }
+
+    public void setScrollableTracksViewportHeight(boolean scrollableTracksViewportHeight) {
+        this.scrollableTracksViewportHeight = scrollableTracksViewportHeight;
     }
 }
