@@ -171,7 +171,7 @@ public class InputPanel extends JPanel {
                             JOptionPane.showMessageDialog(InputPanel.this, "Error during recording:\n" + error.getMessage(), "Recording Error", JOptionPane.ERROR_MESSAGE);
                         } else if (audioFile != null) {
                             attachmentsPanel.addStagedFile(audioFile);
-                            inputTextArea.setText("Transcribe the attached audio file.");
+                            inputTextArea.setText(""); // Send no text, the audio is the message
                             sendMessage();
                         }
                     } catch (Exception e) {

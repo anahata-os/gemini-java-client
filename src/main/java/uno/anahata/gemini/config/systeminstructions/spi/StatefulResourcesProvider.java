@@ -35,7 +35,7 @@ public class StatefulResourcesProvider extends SystemInstructionProvider {
 
         StringBuilder sb = new StringBuilder();
         sb.append("# Stateful Resources in Context\n");
-        sb.append("The following stateful resources are tracked in the chat context. 'Status' indicates if the file on disk matches the version in context.\n **You should Prune or reload any resources not market as VALID. **\n\n"); 
+        sb.append("The following stateful resources are tracked in the chat context. 'Status' indicates if the file on disk matches the version in context.\n **Consider either pruning or reloading any resources not market as VALID. **\n\n"); 
         sb.append("| Resource ID | Ctx Last Mod | Ctx Size | Disk Last Mod | Disk Size | Status |\n");
         sb.append("| :--- | ---: | ---: | ---: | ---: | :--- |\n");
 

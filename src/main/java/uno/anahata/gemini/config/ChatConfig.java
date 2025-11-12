@@ -54,14 +54,9 @@ public abstract class ChatConfig {
         providers.add(new EnvironmentVariablesProvider());
         providers.add(new StatefulResourcesProvider());
         
-        // Application Specific Providers
-        providers.addAll(getApplicationSpecificInstructionProviders());
         return providers;
     }
 
-    public List<SystemInstructionProvider> getApplicationSpecificInstructionProviders() {
-        return Collections.emptyList();
-    }
     
     public Content getStartupContent() {
         List<Part> parts = getStartupParts();

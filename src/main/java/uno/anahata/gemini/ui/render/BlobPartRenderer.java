@@ -18,9 +18,12 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import uno.anahata.gemini.ui.actions.AudioPlayer;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class BlobPartRenderer implements PartRenderer {
@@ -46,8 +49,21 @@ public class BlobPartRenderer implements PartRenderer {
         panel.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
         panel.setOpaque(false);
 
-        // Attempt to create and add a thumbnail if it's an image
-        if (mimeType.startsWith("image/")) {
+        // Handle Audio Blobs
+        if (mimeType.startsWith("audio/")) {
+            JButton playButton = new JButton("▶ Play Audio");
+            playButton.addActionListener(e -> {
+                playButton.setEnabled(false);
+                playButton.setText("Playing...");
+                AudioPlayer.play(data);
+                // A more robust solution would listen for playback to finish
+                // and re-enable the button. For now, we just prevent re-clicks.
+                // A listener on the audio clip could re-enable it via SwingUtilities.invokeLater.
+            });
+            panel.add(playButton, BorderLayout.CENTER);
+        } 
+        // Handle Image Blobs
+        else if (mimeType.startsWith("image/")) {
             try {
                 BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(data));
                 if (originalImage != null) {
@@ -62,7 +78,7 @@ public class BlobPartRenderer implements PartRenderer {
             }
         }
 
-        // Info Panel for mimeType and size
+        // Info Panel for mimeType and size (for all blob types)
         JPanel infoPanel = new JPanel();
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
         infoPanel.setOpaque(false);

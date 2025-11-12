@@ -3,7 +3,6 @@ package uno.anahata.gemini.ui;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Image;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,8 +14,8 @@ import javax.swing.table.TableColumn;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
@@ -32,7 +31,6 @@ public class SystemInstructionsPanel extends JPanel {
     private JPanel rightPanel;
     private JLabel rightPanelStatusLabel;
     private SwingWorker<List<Part>, Void> contentDisplayWorker;
-    private SwingWorker<List<ProviderInfo>, Void> refreshWorker;
 
     public SystemInstructionsPanel(GeminiChat chat, EditorKitProvider editorKitProvider, SwingGeminiConfig config) {
         this.chat = chat;
@@ -149,48 +147,74 @@ public class SystemInstructionsPanel extends JPanel {
         contentDisplayWorker.execute();
     }
 
-    public void refresh() {
-        if (refreshWorker != null && !refreshWorker.isDone()) {
-            refreshWorker.cancel(true);
+    public final void refresh() {
+        // Store the selected provider ID to restore selection later
+        int selectedRow = providerTable.getSelectedRow();
+        String selectedProviderId = null;
+        if (selectedRow != -1) {
+            selectedProviderId = tableModel.getProviderInfo(selectedRow).provider.getId();
         }
 
-        refreshWorker = new SwingWorker<List<ProviderInfo>, Void>() {
+        // Initial population of the table with provider names
+        List<ProviderInfo> initialProviders = chat.getConfig().getSystemInstructionProviders().stream()
+            .map(p -> new ProviderInfo(p, -1, -1)) // Use negative values to indicate "loading"
+            .collect(Collectors.toList());
+        tableModel.setProviders(initialProviders);
+
+        // Restore selection after the table model has been updated
+        if (selectedProviderId != null) {
+            final String finalSelectedProviderId = selectedProviderId;
+            SwingUtilities.invokeLater(() -> {
+                for (int i = 0; i < tableModel.getRowCount(); i++) {
+                    if (tableModel.getProviderInfo(i).provider.getId().equals(finalSelectedProviderId)) {
+                        providerTable.setRowSelectionInterval(i, i);
+                        // Optional: scroll to the selected row if it's not visible
+                        // providerTable.scrollRectToVisible(providerTable.getCellRect(i, 0, true));
+                        break;
+                    }
+                }
+            });
+        }
+
+        // Now, refresh each one in its own worker thread
+        for (ProviderInfo info : initialProviders) {
+            refreshProvider(info);
+        }
+    }
+
+    private void refreshProvider(ProviderInfo info) {
+        new SwingWorker<ProviderInfo, Void>() {
             @Override
-            protected List<ProviderInfo> doInBackground() throws Exception {
-                log.info("--- Starting parallel refresh of all providers ---");
-                List<ProviderInfo> results = chat.getConfig().getSystemInstructionProviders().parallelStream()
-                    .map(provider -> {
-                        long startTime = System.currentTimeMillis();
-                        long size = 0;
-                        try {
-                            if (provider.isEnabled()) {
-                                List<Part> parts = provider.getInstructionParts(chat);
-                                size = parts.stream().mapToLong(PartUtils::calculateSizeInBytes).sum();
-                            }
-                        } catch (Exception e) {
-                            log.warn("Exception during parallel refresh of provider '{}'", provider.getId(), e);
-                        } finally {
-                            long duration = System.currentTimeMillis() - startTime;
-                            log.info("Provider '{}' took {}ms in parallel refresh.", provider.getId(), duration);
-                            return new ProviderInfo(provider, size, duration);
-                        }
-                    })
-                    .collect(Collectors.toList());
-                log.info("--- Parallel refresh finished ---");
-                return results;
+            protected ProviderInfo doInBackground() throws Exception {
+                return calculateProviderInfo(info.provider);
             }
 
             @Override
             protected void done() {
                 if (isCancelled()) return;
                 try {
-                    tableModel.setProviders(get());
+                    tableModel.updateProvider(get());
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Failed to refresh provider list", e);
+                    log.error("Failed to refresh provider {}", info.provider.getId(), e);
                 }
             }
-        };
-        refreshWorker.execute();
+        }.execute();
+    }
+
+    private ProviderInfo calculateProviderInfo(SystemInstructionProvider provider) {
+        long startTime = System.currentTimeMillis();
+        long size = 0;
+        try {
+            if (provider.isEnabled()) {
+                List<Part> parts = provider.getInstructionParts(chat);
+                size = parts.stream().mapToLong(PartUtils::calculateSizeInBytes).sum();
+            }
+        } catch (Exception e) {
+            log.warn("Exception during refresh of provider '{}'", provider.getId(), e);
+        }
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("Provider '{}' took {}ms to refresh.", provider.getId(), duration);
+        return new ProviderInfo(provider, size, duration);
     }
 
     private ImageIcon getIcon(String icon) {
@@ -224,6 +248,16 @@ public class SystemInstructionsPanel extends JPanel {
         public void setProviders(List<ProviderInfo> providers) {
             this.providers = providers;
             fireTableDataChanged();
+        }
+
+        public void updateProvider(ProviderInfo newInfo) {
+            for (int i = 0; i < providers.size(); i++) {
+                if (providers.get(i).provider.getId().equals(newInfo.provider.getId())) {
+                    providers.set(i, newInfo);
+                    fireTableRowsUpdated(i, i);
+                    return;
+                }
+            }
         }
 
         public ProviderInfo getProviderInfo(int rowIndex) {
@@ -264,11 +298,17 @@ public class SystemInstructionsPanel extends JPanel {
         @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             ProviderInfo info = providers.get(rowIndex);
+            if (columnIndex == 0) {
+                boolean enabled = info.provider.isEnabled();
+                log.info("getValueAt RENDER: row {}, provider '{}', isEnabled: {}", rowIndex, info.provider.getId(), enabled);
+                return enabled;
+            }
+            
             switch (columnIndex) {
-                case 0: return info.provider.isEnabled();
+                //case 0: return info.provider.isEnabled();
                 case 1: return info.provider.getDisplayName();
-                case 2: return info.sizeInBytes;
-                case 3: return info.timeInMillis;
+                case 2: return info.sizeInBytes < 0 ? "..." : info.sizeInBytes;
+                case 3: return info.timeInMillis < 0 ? "..." : info.timeInMillis;
                 default: return null;
             }
         }
@@ -277,15 +317,17 @@ public class SystemInstructionsPanel extends JPanel {
         public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
             if (columnIndex == 0 && aValue instanceof Boolean) {
                 ProviderInfo info = providers.get(rowIndex);
-                info.provider.setEnabled((Boolean) aValue);
+                boolean enabled = (Boolean) aValue;
+                log.info("setValueAt ACTION: row {}, provider '{}', setting enabled to: {}", rowIndex, info.provider.getId(), enabled);
+                info.provider.setEnabled(enabled);
                 fireTableCellUpdated(rowIndex, columnIndex);
-                
+
                 // If the currently selected row was just toggled, refresh the content view
                 if (providerTable.getSelectedRow() == rowIndex) {
                     displayProviderContent(info.provider);
                 }
                 // Also refresh the data for the row
-                refresh();
+                refreshProvider(info);
             }
         }
     }

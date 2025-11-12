@@ -10,18 +10,18 @@ import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 public final class AnahataExecutors {
 
     /**
-     * Creates a new single-threaded executor specifically for managing the lifecycle of a single chat session.
+     * Creates a new cached thread pool specifically for managing the lifecycle of a single chat session.
      * Threads created by this executor are daemon threads to prevent them from blocking application shutdown.
      *
-     * @param sessionId The unique identifier for the chat session, used in the thread name.
-     * @return A new single-thread ExecutorService.
+     * @param threadPreffix The unique identifier for the chat session, used in the thread name.
+     * @return A new cached thread pool ExecutorService.
      */
-    public static ExecutorService newChatExecutor(String sessionId) {
+    public static ExecutorService newCachedThreadPoolExecutor(String threadPreffix) {
         BasicThreadFactory factory = new BasicThreadFactory.Builder()
-                .namingPattern("anahata-chat-" + sessionId + "-thread-%d")
+                .namingPattern("anahata-chat-" + threadPreffix + "-thread-%d")
                 .daemon(true)
                 .priority(Thread.NORM_PRIORITY)
                 .build();
-        return Executors.newSingleThreadExecutor(factory);
+        return Executors.newCachedThreadPool(factory);
     }
 }

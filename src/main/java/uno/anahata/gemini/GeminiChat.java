@@ -48,7 +48,7 @@ public class GeminiChat {
     private boolean functionsEnabled = true;
     @Getter
     @Setter
-    private volatile boolean liveWorkspaceEnabled = true;
+    private volatile boolean liveWorkspaceEnabled = false;
     private volatile boolean isProcessing = false;
     private volatile boolean shutdown = false;
     private Date startTime = new Date();
@@ -57,7 +57,7 @@ public class GeminiChat {
             ChatConfig config,
             FunctionPrompter prompter) {
         this.config = config;
-        this.executor = AnahataExecutors.newChatExecutor(config.getSessionId());
+        this.executor = AnahataExecutors.newCachedThreadPoolExecutor(config.getSessionId());
         this.functionManager = new FunctionManager(this, config, prompter);
         this.contextManager = new ContextManager(this);
         this.configManager = new ConfigManager(this);

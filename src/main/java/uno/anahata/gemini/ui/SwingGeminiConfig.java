@@ -36,13 +36,7 @@ public class SwingGeminiConfig extends ChatConfig {
         return ret;
     }
 
-    @Override
-    public List<SystemInstructionProvider> getApplicationSpecificInstructionProviders() {
-        List<SystemInstructionProvider> providers = new ArrayList<>();
-        //providers.add(new ScreenInstructionsProvider());
-        return providers;
-    }
-
+    
     @Override
     public List<Part> getLiveWorkspaceParts() {
         try {
