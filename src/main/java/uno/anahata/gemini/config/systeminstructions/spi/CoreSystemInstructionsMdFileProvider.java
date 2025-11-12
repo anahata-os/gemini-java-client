@@ -16,7 +16,7 @@ public class CoreSystemInstructionsMdFileProvider extends SystemInstructionProvi
     private static final String SYSTEM_INSTRUCTIONS;
 
     static {
-        SYSTEM_INSTRUCTIONS = loadManual("system-instructions.md");
+        SYSTEM_INSTRUCTIONS = loadManual("/uno/anahata/gemini/system-instructions.md");
     }
     
     @Override
@@ -40,7 +40,7 @@ public class CoreSystemInstructionsMdFileProvider extends SystemInstructionProvi
     }
     
     private static String loadManual(String resourceName) {
-        try (InputStream is = ChatConfig.class.getResourceAsStream(resourceName)) {
+        try (InputStream is = CoreSystemInstructionsMdFileProvider.class.getResourceAsStream(resourceName)) {
             if (is == null) {
                 return "Error: Could not find resource " + resourceName;
             }
