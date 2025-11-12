@@ -20,7 +20,7 @@ public class GeminiAPI {
             "gemini-pro-latest",
             "gemini-flash-latest",            
             "gemini-flash-lite-latest",            
-            "learnlm-2.0-flash-experimental"
+            "gemini-2.5-flash-image"
     );
 
     private String modelId = AVAILABLE_MODEL_IDS.getFirst();

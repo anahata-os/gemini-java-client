@@ -38,7 +38,7 @@ public class Images {
                 .responseModalities("IMAGE")
                 .build();
 
-            String modelName = "gemini-2.5-flash-image-preview"; 
+            String modelName = "gemini-2.5-flash-image"; 
 
             GenerateContentResponse response = client.models.generateContent(modelName, prompt, config);
 

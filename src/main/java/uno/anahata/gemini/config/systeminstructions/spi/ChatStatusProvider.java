@@ -28,24 +28,30 @@ public class ChatStatusProvider extends SystemInstructionProvider {
 
         StringBuilder chatStatusBlock = new StringBuilder();
         chatStatusBlock.append("- Chat: ").append(chat).append("\n");
+        chatStatusBlock.append("- ChatConfig: ").append(chat.getConfig()).append("\n");
+        chatStatusBlock.append("- Session Id: ").append(chat.getConfig().getSessionId()).append("\n");
         chatStatusBlock.append("- Model Id: ").append(chat.getConfig().getApi().getModelId()).append("\n");
         chatStatusBlock.append("- ContextManager: ").append(chat.getContextManager()).append("\n");
         chatStatusBlock.append("- FunctionManager: ").append(chat.getFunctionManager()).append("\n");
+        chatStatusBlock.append("- ConfigManager: ").append(chat.getConfigManager()).append("\n");
+        chatStatusBlock.append("- StatusManager: ").append(chat.getStatusManager()).append("\n");
         chatStatusBlock.append("- Session Start time: ").append(chat.getStartTime()).append("\n");
-        chatStatusBlock.append("- Live Workspace (auto attaches screen captures on every call) Enabled: ").append(chat.isLiveWorkspaceEnabled()).append("\n");
-        chatStatusBlock.append("- Local Functions Enabled: ").append(chat.isFunctionsEnabled()).append("\n");
+        chatStatusBlock.append("- Live Workspace (auto attaches screen captures on every call) Enabled: ").append(chat.isLiveWorkspaceEnabled()).append("\n");        
         chatStatusBlock.append("- Server Side Tools (like google search) Enabled: ").append(!chat.isFunctionsEnabled()).append("\n");
+        chatStatusBlock.append("- Local @AiToolMethod Tools (e.g. LocalFiles) Enabled: ").append(chat.isFunctionsEnabled()).append("\n");
         if (chat.getLatency() > 0) {
             chatStatusBlock.append("- Latency (last successfull user/model round trip): ").append(chat.getLatency()).append(" ms.\n");
         }
 
         List<ApiExceptionRecord> errors = chat.getStatusManager().getApiErrors();
         if (!errors.isEmpty()) {
-            chatStatusBlock.append("- Last API Error(s): \n");
+            chatStatusBlock.append("- Recent API Error(s): \n");
             for (int i = 0; i < errors.size(); i++) {
                 ApiExceptionRecord error = errors.get(i);
                 chatStatusBlock.append("  --- Error ").append(i + 1).append(" ---\n");
-                chatStatusBlock.append(ExceptionUtils.getStackTrace(error.getException()));
+                //chatStatusBlock.append(ExceptionUtils.getStackTrace(error.getException()));
+                //trying just with the error
+                chatStatusBlock.append(error);
                 chatStatusBlock.append("\n");
             }
         }

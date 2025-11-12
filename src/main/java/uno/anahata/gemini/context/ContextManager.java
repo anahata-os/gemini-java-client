@@ -140,10 +140,10 @@ public class ContextManager {
         listeners.forEach(l -> l.contextChanged(chat));
         sessionManager.triggerAutobackup();
     }
-    
+    /*
     public String getContextId() {
         return config.getSessionId() + "-" + System.identityHashCode(this);
-    }
+    }*/
     
     private boolean isUserMessage(ChatMessage message) {
         return message.getContent() != null && "user".equals(message.getContent().role().orElse(null));

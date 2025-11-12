@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.GeminiChat;
 import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.internal.PartUtils;
 
 /**
  * Manages configuration-related tasks for a GeminiChat session, including the
@@ -60,17 +61,28 @@ public class ConfigManager {
      */
     private Content buildSystemInstructions() {
         List<Part> parts = new ArrayList<>();
-
+        parts.add(Part.fromText("**Instructions Providers**: (enabled ones are included on every turn and run 'after' tool execution)**"));                
         for (SystemInstructionProvider provider : getSystemInstructionProviders()) {
             if (provider.isEnabled()) {
-                try {
+                try {                    
+                    long ts = System.currentTimeMillis();
                     List<Part> generated = provider.getInstructionParts(chat);
-                    parts.add(Part.fromText("Instruction Provider: " + provider.getDisplayName() + " (id: " + provider.getId() + "): (" + generated.size() + " parts)"));
-                    parts.addAll(generated);
+                    ts = System.currentTimeMillis() - ts;
+                    long totalSize = parts.stream().mapToLong(PartUtils::calculateSizeInBytes).sum();
+                    parts.add(Part.fromText("**Enabled** Instruction Provider: **" + provider.getDisplayName() + "** (id: **" + provider.getId() + "**): " + generated.size() + " parts, total size: " + totalSize + " took " + ts + " ms."));
+                    int idx = 0;
+                    for (Part part : generated) {
+                        long partSize = PartUtils.calculateSizeInBytes(part);
+                        parts.add(Part.fromText("**"+ provider.getId() + ": Part " + idx + " (/" + generated.size() + ") size=" + partSize + "**)"));
+                        
+                    }
+                    //parts.addAll(generated);
                 } catch (Exception e) {
                     log.warn("SystemInstructionProvider " + provider.getId() + " threw an exception", e);
                     parts.add(Part.fromText("Error in " + provider.getDisplayName() + ": " + e.getMessage()));
                 }
+            } else {
+                parts.add(Part.fromText("**Disabled** Instruction Provider: **" + provider.getDisplayName() + "** (id: **" + provider.getId() + "**): "));
             }
         }
 

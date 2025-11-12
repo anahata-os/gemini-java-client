@@ -4,10 +4,7 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Image;
-import java.awt.Rectangle;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DropTarget;
@@ -37,10 +34,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
     // UI Components
     private JToolBar toolbar;
     private JButton clearButton;
-    private JButton attachButton;
-    private JButton screenshotButton;
     private JToggleButton liveWorkspaceButton;
-    private JButton captureFramesButton;
     private JButton saveSessionButton;
     private JButton loadSessionButton;
     private JToggleButton functionsButton;
@@ -74,55 +68,35 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         this.chat.addStatusListener(this);
     }
 
-    private ImageIcon getIcon(String icon) {
-        ImageIcon originalIcon = new ImageIcon(getClass().getResource("/icons/" + icon));
-        Image scaledImage = originalIcon.getImage().getScaledInstance(24, 24, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaledImage);
-    }
-
     public void initComponents() {
         setLayout(new BorderLayout(5, 5));
 
         toolbar = new JToolBar(JToolBar.VERTICAL);
         toolbar.setFloatable(false);
 
-        clearButton = new JButton(getIcon("restart.png"));
+        clearButton = new JButton(IconUtils.getIcon("restart.png"));
         clearButton.setToolTipText("Restart Chat");
         clearButton.addActionListener(e -> restartChat());
-        functionsButton = new JToggleButton(getIcon("functions.png"), true);
+        
+        functionsButton = new JToggleButton(IconUtils.getIcon("functions.png"), true);
         functionsButton.setToolTipText("Enable / Disable Functions");
         functionsButton.addActionListener(e -> chat.setFunctionsEnabled(functionsButton.isSelected()));
 
-        attachButton = new JButton(getIcon("attach.png"));
-        attachButton.setToolTipText("Attach Files");
-        attachButton.addActionListener(e -> chatPanel.getAttachmentsPanel().showFileChooser());
-
-        screenshotButton = new JButton(getIcon("desktop_screenshot.png"));
-        screenshotButton.setToolTipText("Attach Desktop Screenshot");
-        screenshotButton.addActionListener(e -> attachScreenshot());
-
-        liveWorkspaceButton = new JToggleButton(getIcon("compress.png"), chat.isLiveWorkspaceEnabled());
+        liveWorkspaceButton = new JToggleButton(IconUtils.getIcon("compress.png"), chat.isLiveWorkspaceEnabled());
         liveWorkspaceButton.setToolTipText("Toggle Live Workspace View");
         liveWorkspaceButton.addActionListener(e -> chat.setLiveWorkspaceEnabled(liveWorkspaceButton.isSelected()));
         
-        captureFramesButton = new JButton(getIcon("capture_frames.png"));
-        captureFramesButton.setToolTipText("Attach Application Frames");
-        captureFramesButton.addActionListener(e -> attachFrameCaptures());
-
-        saveSessionButton = new JButton(getIcon("save.png"));
+        saveSessionButton = new JButton(IconUtils.getIcon("save.png"));
         saveSessionButton.setToolTipText("Save Session");
         saveSessionButton.addActionListener(e -> saveSession());
 
-        loadSessionButton = new JButton(getIcon("load.png"));
+        loadSessionButton = new JButton(IconUtils.getIcon("load.png"));
         loadSessionButton.setToolTipText("Load Session");
         loadSessionButton.addActionListener(e -> loadSession());
 
         toolbar.add(clearButton);
         toolbar.add(functionsButton);
-        toolbar.add(attachButton);
-        toolbar.add(screenshotButton);
         toolbar.add(liveWorkspaceButton);
-        toolbar.add(captureFramesButton);
         toolbar.add(new JToolBar.Separator());
         toolbar.add(saveSessionButton);
         toolbar.add(loadSessionButton);
@@ -161,7 +135,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         add(statusPanel, BorderLayout.SOUTH);
 
         // --- CENTER Panel (Tabs) ---
-        chatPanel = new ChatPanel(chat, editorKitProvider, config);
+        chatPanel = new ChatPanel(this);
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
         
@@ -216,34 +190,6 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         SwingUtilities.invokeLater(() -> statusPanel.refresh());
     }
 
-    public static class ScrollablePanel extends JPanel implements Scrollable {
-
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
-            return 24; // Increased for faster scrolling
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
-            return visibleRect.height;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
-    }
-
     private class FileDropListener extends DropTargetAdapter {
 
         @Override
@@ -252,7 +198,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
                 dtde.acceptDrop(DnDConstants.ACTION_COPY);
                 List<File> droppedFiles = (List<File>) dtde.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
                 for (File file : droppedFiles) {
-                    chatPanel.getAttachmentsPanel().addStagedFile(file);
+                    chatPanel.getInputPanel().getAttachmentsPanel().addStagedFile(file);
                 }
             } catch (Exception ex) {
                 log.warn("Drag and drop failed", ex);
@@ -343,14 +289,6 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
 
     public void restartChat() {
         chat.clear();
-    }
-
-    private void attachScreenshot() {
-        chatPanel.getAttachmentsPanel().addAll(UICapture.screenshotAllScreenDevices());
-    }
-
-    private void attachFrameCaptures() {
-        chatPanel.getAttachmentsPanel().addAll(UICapture.screenshotAllJFrames());
     }
 
     private void saveSession() {

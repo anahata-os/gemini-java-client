@@ -10,18 +10,19 @@ import java.util.List;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.config.ChatConfig;
-import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.functions.spi.Audio;
+import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.status.ChatStatus;
-import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
 import uno.anahata.gemini.ui.config.systeminstructions.spi.ScreenInstructionsProvider;
+import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
 
 /**
  * A simple, concrete ChatConfig for standalone Swing applications.
  */
 @Slf4j
 public class SwingGeminiConfig extends ChatConfig {
-    
+
     @Override
     public String getSessionId() {
         return "standalone";
@@ -31,16 +32,17 @@ public class SwingGeminiConfig extends ChatConfig {
     public List<Class<?>> getAutomaticFunctionClasses() {
         List<Class<?>> ret = new ArrayList<>();
         ret.add(ScreenCapture.class);
+        ret.add(Audio.class);
         return ret;
     }
-    
+
     @Override
     public List<SystemInstructionProvider> getApplicationSpecificInstructionProviders() {
         List<SystemInstructionProvider> providers = new ArrayList<>();
         //providers.add(new ScreenInstructionsProvider());
         return providers;
     }
-    
+
     @Override
     public List<Part> getLiveWorkspaceParts() {
         try {
@@ -48,10 +50,10 @@ public class SwingGeminiConfig extends ChatConfig {
             if (captures.isEmpty()) {
                 return Collections.emptyList();
             }
-            
+
             List<Part> workspaceParts = new ArrayList<>();
             workspaceParts.add(Part.fromText("Live Workspace Screenshot (just-in-time): " + captures.size() + " parts"));
-            
+
             for (File capture : captures) {
                 try {
                     workspaceParts.add(PartUtils.toPart(capture));
@@ -66,7 +68,7 @@ public class SwingGeminiConfig extends ChatConfig {
             return Collections.singletonList(Part.fromText("Error capturing workspace: " + e.getMessage()));
         }
     }
-    
+
     public Color getColor(ChatStatus status) {
         switch (status) {
             case API_CALL_IN_PROGRESS:
@@ -81,7 +83,7 @@ public class SwingGeminiConfig extends ChatConfig {
                 return Color.BLACK;
         }
     }
-    
+
     public UITheme getTheme() {
         return new UITheme();
     }
@@ -107,7 +109,7 @@ public class SwingGeminiConfig extends ChatConfig {
         private final Color toolContentBg = new Color(250, 248, 252);
         private final Color toolHeaderFg = new Color(80, 60, 100);
         private final Color toolBorder = new Color(200, 180, 220); // Restored Purple/Violet Border
-        
+
         private final Color defaultHeaderBg = Color.WHITE;
         private final Color defaultContentBg = new Color(248, 249, 250);
         private final Color defaultBorder = Color.LIGHT_GRAY;
@@ -119,16 +121,16 @@ public class SwingGeminiConfig extends ChatConfig {
         private final Color functionResponseFg = new Color(0, 255, 0);
         private final Color functionErrorBg = new Color(51, 28, 28);
         private final Color functionErrorFg = new Color(255, 80, 80); // Brighter Red for better visibility
-        
+
         // Grounding Metadata (Outer Block)
         private final Color groundingHeaderBg = new Color(200, 230, 201); // #D4EDDA - Aligned with userHeaderBg
         private final Color groundingContentBg = new Color(233, 247, 239); // #E9F7EF - Aligned with userContentBg
-        
+
         // Grounding Details (Inner Sections: Supporting Text, Sources, Search Suggestions)
         private final Color groundingDetailsHeaderBg = new Color(212, 237, 218); // #C8E6C9 - Aligned with chipBackground
         private final Color groundingDetailsContentBg = new Color(233, 247, 239); // #E9F7EF - Aligned with userContentBg
         private final Color groundingDetailsHeaderColor = Color.BLACK;
-        
+
         // Grounding Chips (Keeping existing for now as requested)
         private final Color chipBackground = new Color(200, 230, 201); // #C8E6C9 - Anahata Green
         private final Color chipBorder = new Color(210, 210, 210);
