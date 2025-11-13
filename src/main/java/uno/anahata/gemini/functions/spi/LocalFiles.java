@@ -11,7 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
 import uno.anahata.gemini.functions.ContextBehavior;
 
@@ -108,7 +108,7 @@ public class LocalFiles {
             throw new IOException("File not found: " + path);
         }
         Files.delete(filePath);
-        GeminiChat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(path));
+        Chat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(path));
         return "Successfully deleted file: " + path;
     }
 
@@ -126,7 +126,7 @@ public class LocalFiles {
             Files.createDirectories(target.getParent());
         }
         Files.move(source, target);
-        GeminiChat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(sourcePath));
+        Chat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(sourcePath));
         return readFile(targetPath);
     }
 

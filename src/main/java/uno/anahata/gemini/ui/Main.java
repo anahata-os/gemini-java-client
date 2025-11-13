@@ -25,7 +25,7 @@ public class Main {
             frame.setPreferredSize(new Dimension(800, 600));
 
             // Use the new config and panel
-            SwingGeminiConfig config = new SwingGeminiConfig();
+            SwingChatConfig config = new SwingChatConfig();
             GeminiPanel geminiPanel = new GeminiPanel(new DefaultEditorKitProvider());
             geminiPanel.init(config);
             frame.add(geminiPanel);

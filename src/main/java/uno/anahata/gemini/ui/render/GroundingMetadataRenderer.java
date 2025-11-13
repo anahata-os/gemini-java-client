@@ -35,7 +35,7 @@ import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.ui.SwingGeminiConfig.UITheme;
+import uno.anahata.gemini.ui.SwingChatConfig.UITheme;
 import uno.anahata.gemini.ui.WrapLayout;
 
 @Slf4j

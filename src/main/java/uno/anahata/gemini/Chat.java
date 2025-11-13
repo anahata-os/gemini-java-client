@@ -15,6 +15,8 @@ import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.config.ConfigManager;
 import uno.anahata.gemini.context.ContextListener;
 import uno.anahata.gemini.context.ContextManager;
+import uno.anahata.gemini.content.ContentFactory;
+import uno.anahata.gemini.content.ContextPosition;
 import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.functions.FunctionManager.ExecutedToolCall;
 import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
@@ -29,10 +31,10 @@ import uno.anahata.gemini.status.StatusManager;
 
 @Slf4j
 @Getter
-public class GeminiChat {
+public class Chat {
 
     private static final Gson GSON = GsonUtils.getGson();
-    public static final ThreadLocal<GeminiChat> callingInstance = new ThreadLocal<>();
+    public static final ThreadLocal<Chat> callingInstance = new ThreadLocal<>();
 
     private final FunctionManager functionManager;
     private final ChatConfig config;
@@ -40,27 +42,32 @@ public class GeminiChat {
     @Getter
     private final ConfigManager configManager;
     @Getter
+    private final ContentFactory contentFactory;
+    @Getter
     private final StatusManager statusManager;
+    
+    /**
+     * Thread pool for the chat.
+     */
+    @Getter
     private final ExecutorService executor;
 
     private long latency = -1;
     @Setter
     private boolean functionsEnabled = true;
-    @Getter
-    @Setter
-    private volatile boolean liveWorkspaceEnabled = false;
     private volatile boolean isProcessing = false;
     private volatile boolean shutdown = false;
     private Date startTime = new Date();
 
-    public GeminiChat(
+    public Chat(
             ChatConfig config,
             FunctionPrompter prompter) {
         this.config = config;
         this.executor = AnahataExecutors.newCachedThreadPoolExecutor(config.getSessionId());
-        this.functionManager = new FunctionManager(this, config, prompter);
+        this.functionManager = new FunctionManager(this, prompter);
         this.contextManager = new ContextManager(this);
         this.configManager = new ConfigManager(this);
+        this.contentFactory = new ContentFactory(this);
         this.statusManager = new StatusManager(this);
         statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
@@ -85,7 +92,7 @@ public class GeminiChat {
         statusManager.removeListener(listener);
     }
 
-    public static GeminiChat getCallingInstance() {
+    public static Chat getCallingInstance() {
         return callingInstance.get();
     }
 
@@ -313,17 +320,21 @@ public class GeminiChat {
             try {
                 statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
                 GenerateContentConfig gcc = configManager.makeGenerateContentConfig();
+                
+                List<Content> finalContext = new ArrayList<>(context);
 
-                List<Content> finalContext = context;
-                if (liveWorkspaceEnabled) {
-                    log.info("Live Workspace is enabled. Augmenting context.");
-                    List<Part> workspaceParts = config.getLiveWorkspaceParts();
-                    if (!workspaceParts.isEmpty()) {
-                        List<Content> augmentedContext = new ArrayList<>(context);
-                        augmentedContext.add(Content.builder().role("user").parts(workspaceParts).build());
-                        finalContext = augmentedContext;
-                    }
+                // --- AUGMENTED WORKSPACE ---
+                List<Part> workspaceParts = contentFactory.produceParts(ContextPosition.AUGMENTED_WORKSPACE);
+                if (!workspaceParts.isEmpty()) {
+                    log.info("Augmenting context with {} parts from workspace providers.", workspaceParts.size());
+                    List<Part> augmentedMessageParts = new ArrayList<>();
+                    augmentedMessageParts.add(Part.fromText("--- Augmented Workspace Context ---\n"
+                            + "The following is high-salience, just-in-time context provided by the host environment for this turn. "
+                            + "It is not part of the permanent conversation history.\n"));
+                    augmentedMessageParts.addAll(workspaceParts);
+                    finalContext.add(Content.builder().role("user").parts(augmentedMessageParts).build());
                 }
+                // --- END AUGMENTED WORKSPACE ---
 
                 log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + finalContext.size() + " content elements. Functions enabled: " + functionsEnabled);
                 long ts = System.currentTimeMillis();

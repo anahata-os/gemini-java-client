@@ -7,14 +7,16 @@ import com.google.genai.types.Part;
 import com.google.genai.types.Tool;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.Chat;
+import uno.anahata.gemini.content.ContextProvider;
+import uno.anahata.gemini.content.ContextPosition;
 import uno.anahata.gemini.internal.PartUtils;
 
 /**
- * Manages configuration-related tasks for a GeminiChat session, including the
+ * Manages configuration-related tasks for a Chat session, including the
  * aggregation of system instructions and the construction of the final
  * GenerateContentConfig for API calls.
  */
@@ -22,13 +24,26 @@ import uno.anahata.gemini.internal.PartUtils;
 @Getter
 public class ConfigManager {
 
-    private final GeminiChat chat;
-    private final List<SystemInstructionProvider> systemInstructionProviders;
+    private final Chat chat;
+    private final List<ContextProvider> contextProviders;
 
-    public ConfigManager(GeminiChat chat) {
+    public ConfigManager(Chat chat) {
         this.chat = chat;
-        // Take a defensive copy of the providers from the main config
-        this.systemInstructionProviders = new ArrayList<>(chat.getConfig().getSystemInstructionProviders());
+        // Get the single, authoritative list of providers from the config.
+        this.contextProviders = chat.getConfig().getContextProviders();
+    }
+
+    /**
+     * Gets a list of all enabled context providers that match the given
+     * position.
+     *
+     * @param position The desired context position.
+     * @return A list of matching enabled providers.
+     */
+    public List<ContextProvider> getContextProviders(ContextPosition position, boolean enabled) {
+        return contextProviders.stream()
+                .filter(p -> p.isEnabled() && p.getPosition() == position)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -61,31 +76,22 @@ public class ConfigManager {
      */
     private Content buildSystemInstructions() {
         List<Part> parts = new ArrayList<>();
-        parts.add(Part.fromText("**Instructions Providers**: (enabled ones are included on every turn and run 'after' tool execution)**"));                
-        for (SystemInstructionProvider provider : getSystemInstructionProviders()) {
-            if (provider.isEnabled()) {
-                try {                    
-                    long ts = System.currentTimeMillis();
-                    List<Part> generated = provider.getInstructionParts(chat);
-                    ts = System.currentTimeMillis() - ts;
-                    long totalSize = parts.stream().mapToLong(PartUtils::calculateSizeInBytes).sum();
-                    parts.add(Part.fromText("**Enabled** Instruction Provider: **" + provider.getDisplayName() + "** (id: **" + provider.getId() + "**): " + generated.size() + " parts, total size: " + totalSize + " took " + ts + " ms."));
-                    int idx = 0;
-                    for (Part part : generated) {
-                        long partSize = PartUtils.calculateSizeInBytes(part);
-                        parts.add(Part.fromText("**"+ provider.getId() + ": Part " + idx + " (/" + generated.size() + ") size=" + partSize + "**)"));
-                        
-                    }
-                    //parts.addAll(generated);
-                } catch (Exception e) {
-                    log.warn("SystemInstructionProvider " + provider.getId() + " threw an exception", e);
-                    parts.add(Part.fromText("Error in " + provider.getDisplayName() + ": " + e.getMessage()));
-                }
-            } else {
-                parts.add(Part.fromText("**Disabled** Instruction Provider: **" + provider.getDisplayName() + "** (id: **" + provider.getId() + "**): "));
-            }
-        }
+        parts.add(Part.fromText("These are your system instructions in order of "
+                + "importance, you must follow the instructions given by each "
+                + "provider in the priority given by the order in which they are listed. "
+                + "You must Alert the user of any anomalies in context "
+                + "window usage or performance. All enabled instructions providers "
+                + "run after tool execution and refresh their data on every turn. The information"
+                + "contained in this instructions is dynamic. Do not assume that because a conversation is long the data "
+                + "in the following providers is stale. "
+                + "Ask the user to enable any disabled "
+                + "instruction providers that could give you additional context and help you accomplish tasks."));
+        parts.add(Part.fromText("**Instructions Providers**: (enabled ones are included on every turn and run 'after' tool execution)**"));
 
-        return Content.builder().parts(parts).build();
+        //List<ContextProvider> systemInstructionProviders = getContextProviders(ContextPosition.SYSTEM_INSTRUCTIONS, true);
+
+        parts.addAll(chat.getContentFactory().produceParts(ContextPosition.SYSTEM_INSTRUCTIONS));
+
+        return Content.builder().role("system").parts(parts).build();
     }
 }

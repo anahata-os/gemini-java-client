@@ -18,7 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 import org.apache.commons.lang3.StringUtils;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.status.ApiExceptionRecord;
 import uno.anahata.gemini.status.ChatStatus;
 import uno.anahata.gemini.status.StatusManager;
@@ -85,7 +85,7 @@ public class StatusPanel extends JPanel {
     }
 
     public void refresh() {
-        GeminiChat chat = parentPanel.getChat();
+        Chat chat = parentPanel.getChat();
         if (chat.isShutdown()) {
             if (refreshTimer.isRunning()) refreshTimer.stop();
             return;

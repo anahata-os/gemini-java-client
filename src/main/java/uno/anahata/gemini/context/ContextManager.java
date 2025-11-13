@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.context.pruning.ContextPruner;
 import uno.anahata.gemini.context.session.SessionManager;
@@ -22,7 +22,7 @@ import uno.anahata.gemini.internal.PartUtils;
 public class ContextManager {
 
     private List<ChatMessage> context = new ArrayList<>();
-    private final GeminiChat chat;
+    private final Chat chat;
     private final ChatConfig config;
     private final List<ContextListener> listeners = new CopyOnWriteArrayList<>();
     private final FunctionManager functionManager;
@@ -35,8 +35,8 @@ public class ContextManager {
     private final SessionManager sessionManager;
     private final ResourceTracker resourceTracker;
     private final ContextPruner contextPruner;
-
-    public ContextManager(GeminiChat chat) {
+    
+    public ContextManager(Chat chat) {
         this.chat = chat;
         this.config = chat.getConfig();
         this.functionManager = chat.getFunctionManager();
@@ -53,7 +53,7 @@ public class ContextManager {
      * @throws IllegalStateException if not called from a tool execution thread.
      */
     public static ContextManager getCallingInstance() {
-        GeminiChat chat = GeminiChat.getCallingInstance();
+        Chat chat = Chat.getCallingInstance();
         if (chat == null) {
             throw new IllegalStateException("ContextManager.getCurrentInstance() can only be called from a thread where a tool is being executed by the model.");
         }

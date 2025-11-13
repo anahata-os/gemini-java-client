@@ -10,18 +10,18 @@ import java.util.List;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.config.ChatConfig;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.content.ContextProvider;
 import uno.anahata.gemini.functions.spi.Audio;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.status.ChatStatus;
-import uno.anahata.gemini.ui.config.systeminstructions.spi.ScreenInstructionsProvider;
+import uno.anahata.gemini.ui.config.systeminstructions.spi.ApplicationFramesContextProvider;
 import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
 
 /**
  * A simple, concrete ChatConfig for standalone Swing applications.
  */
 @Slf4j
-public class SwingGeminiConfig extends ChatConfig {
+public class SwingChatConfig extends ChatConfig {
 
     @Override
     public String getSessionId() {

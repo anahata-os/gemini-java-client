@@ -29,7 +29,7 @@ import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.spi.Audio;
 
 @Slf4j
@@ -37,7 +37,7 @@ import uno.anahata.gemini.functions.spi.Audio;
 public class InputPanel extends JPanel {
 
     private final GeminiPanel parentPanel;
-    private final GeminiChat chat;
+    private final Chat chat;
 
     // UI Components
     private JTextArea inputTextArea;

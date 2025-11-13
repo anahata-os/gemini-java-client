@@ -7,17 +7,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import uno.anahata.gemini.config.ChatConfig;
+import uno.anahata.gemini.Chat;
 
 public class FailureTracker {
 
-    private final int maxFailures;
-    private final long timeWindowMs;
     private final Map<String, List<FailureRecord>> failureLog = new ConcurrentHashMap<>();
+    private final Chat chat;
 
-    public FailureTracker(ChatConfig config) {
-        this.maxFailures = config.getFailureTrackerMaxFailures();
-        this.timeWindowMs = config.getFailureTrackerTimeWindowMs();
+    public FailureTracker(Chat chat) {
+        this.chat = chat;
     }
 
     public void recordFailure(FunctionCall functionCall, Exception e) {
@@ -35,9 +33,9 @@ public class FailureTracker {
         }
 
         long currentTime = System.currentTimeMillis();
-        failures.removeIf(record -> (currentTime - record.timestamp) > timeWindowMs);
+        failures.removeIf(record -> (currentTime - record.timestamp) > chat.getConfig().getFailureTrackerTimeWindowMs());
 
-        return failures.size() >= maxFailures;
+        return failures.size() >= chat.getConfig().getFailureTrackerMaxFailures();
     }
 
     private String generateKey(FunctionCall functionCall) {

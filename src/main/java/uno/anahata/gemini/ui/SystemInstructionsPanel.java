@@ -13,8 +13,9 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableColumn;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.Chat;
+import uno.anahata.gemini.content.ContextPosition;
+import uno.anahata.gemini.content.ContextProvider;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
@@ -22,9 +23,9 @@ import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 @Slf4j
 public class SystemInstructionsPanel extends JPanel {
 
-    private final GeminiChat chat;
+    private final Chat chat;
     private final EditorKitProvider editorKitProvider;
-    private final SwingGeminiConfig config;
+    private final SwingChatConfig config;
 
     private JTable providerTable;
     private ProviderTableModel tableModel;
@@ -32,7 +33,7 @@ public class SystemInstructionsPanel extends JPanel {
     private JLabel rightPanelStatusLabel;
     private SwingWorker<List<Part>, Void> contentDisplayWorker;
 
-    public SystemInstructionsPanel(GeminiChat chat, EditorKitProvider editorKitProvider, SwingGeminiConfig config) {
+    public SystemInstructionsPanel(Chat chat, EditorKitProvider editorKitProvider, SwingChatConfig config) {
         this.chat = chat;
         this.editorKitProvider = editorKitProvider;
         this.config = config;
@@ -92,7 +93,7 @@ public class SystemInstructionsPanel extends JPanel {
         add(splitPane, BorderLayout.CENTER);
     }
 
-    private void displayProviderContent(SystemInstructionProvider provider) {
+    private void displayProviderContent(ContextProvider provider) {
         if (contentDisplayWorker != null && !contentDisplayWorker.isDone()) {
             contentDisplayWorker.cancel(true);
         }
@@ -113,7 +114,7 @@ public class SystemInstructionsPanel extends JPanel {
         contentDisplayWorker = new SwingWorker<List<Part>, Void>() {
             @Override
             protected List<Part> doInBackground() throws Exception {
-                return provider.getInstructionParts(chat);
+                return provider.getParts(chat);
             }
 
             @Override
@@ -127,7 +128,7 @@ public class SystemInstructionsPanel extends JPanel {
                         rightPanel.add(rightPanelStatusLabel, BorderLayout.CENTER);
                     } else {
                         ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
-                        Content content = Content.builder().role("tool").parts(parts).build();
+                        Content content = Content.builder().role(provider.getPosition() == ContextPosition.AUGMENTED_WORKSPACE ? "USER" : "SYSTEM").parts(parts).build();
                         ChatMessage fakeMessage = ChatMessage.builder().content(content).build();
                         JComponent renderedContent = renderer.render(fakeMessage, -1, chat.getContextManager());
                         JScrollPane scrollPane = new JScrollPane(renderedContent);
@@ -156,7 +157,7 @@ public class SystemInstructionsPanel extends JPanel {
         }
 
         // Initial population of the table with provider names
-        List<ProviderInfo> initialProviders = chat.getConfig().getSystemInstructionProviders().stream()
+        List<ProviderInfo> initialProviders = chat.getConfigManager().getContextProviders().stream()
             .map(p -> new ProviderInfo(p, -1, -1)) // Use negative values to indicate "loading"
             .collect(Collectors.toList());
         tableModel.setProviders(initialProviders);
@@ -201,12 +202,12 @@ public class SystemInstructionsPanel extends JPanel {
         }.execute();
     }
 
-    private ProviderInfo calculateProviderInfo(SystemInstructionProvider provider) {
+    private ProviderInfo calculateProviderInfo(ContextProvider provider) {
         long startTime = System.currentTimeMillis();
         long size = 0;
         try {
             if (provider.isEnabled()) {
-                List<Part> parts = provider.getInstructionParts(chat);
+                List<Part> parts = provider.getParts(chat);
                 size = parts.stream().mapToLong(PartUtils::calculateSizeInBytes).sum();
             }
         } catch (Exception e) {
@@ -230,11 +231,11 @@ public class SystemInstructionsPanel extends JPanel {
 
     // --- Inner Classes for JTable ---
     private static class ProviderInfo {
-        final SystemInstructionProvider provider;
+        final ContextProvider provider;
         long sizeInBytes;
         long timeInMillis;
 
-        ProviderInfo(SystemInstructionProvider provider, long sizeInBytes, long timeInMillis) {
+        ProviderInfo(ContextProvider provider, long sizeInBytes, long timeInMillis) {
             this.provider = provider;
             this.sizeInBytes = sizeInBytes;
             this.timeInMillis = timeInMillis;
@@ -300,7 +301,7 @@ public class SystemInstructionsPanel extends JPanel {
             ProviderInfo info = providers.get(rowIndex);
             if (columnIndex == 0) {
                 boolean enabled = info.provider.isEnabled();
-                log.info("getValueAt RENDER: row {}, provider '{}', isEnabled: {}", rowIndex, info.provider.getId(), enabled);
+                //log.info("getValueAt RENDER: row {}, provider '{}', isEnabled: {}", rowIndex, info.provider.getId(), enabled);
                 return enabled;
             }
             

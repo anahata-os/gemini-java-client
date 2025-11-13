@@ -8,17 +8,17 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import uno.anahata.gemini.functions.FunctionConfirmation;
-import uno.anahata.gemini.ui.SwingGeminiConfig;
+import uno.anahata.gemini.ui.SwingChatConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class InteractiveFunctionCallRenderer implements PartRenderer {
 
     private final FunctionCall functionCall;
-    private final SwingGeminiConfig.UITheme theme;
+    private final SwingChatConfig.UITheme theme;
     private FunctionConfirmation selectedState;
     private final JToggleButton yesButton, noButton, alwaysButton, neverButton;
 
-    public InteractiveFunctionCallRenderer(FunctionCall functionCall, FunctionConfirmation preference, SwingGeminiConfig.UITheme theme) {
+    public InteractiveFunctionCallRenderer(FunctionCall functionCall, FunctionConfirmation preference, SwingChatConfig.UITheme theme) {
         this.functionCall = functionCall;
         this.theme = theme;
         this.selectedState = (preference != null) ? preference : FunctionConfirmation.YES;

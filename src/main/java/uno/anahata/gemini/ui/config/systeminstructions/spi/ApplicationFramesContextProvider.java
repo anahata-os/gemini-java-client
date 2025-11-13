@@ -6,17 +6,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.internal.PartUtils;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.content.ContextProvider;
 import uno.anahata.gemini.ui.UICapture;
 
 /**
- * A SystemInstructionProvider that captures the screen and provides it as image parts.
+ * A ContextProvider that captures the screen and provides it as image parts.
  * Currently not supported by gemini or the genai-sdk.
  */
 @Slf4j
-public class ScreenInstructionsProvider extends SystemInstructionProvider {
+public class ApplicationFramesContextProvider extends ContextProvider {
 
     @Override
     public String getId() {
@@ -29,7 +29,7 @@ public class ScreenInstructionsProvider extends SystemInstructionProvider {
     }
 
     @Override
-    public List<Part> getInstructionParts(GeminiChat chat) {
+    public List<Part> getParts(Chat chat) {
         if (!isEnabled()) {
             return Collections.emptyList();
         }

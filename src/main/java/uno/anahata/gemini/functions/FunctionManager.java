@@ -7,7 +7,7 @@ import com.google.gson.JsonElement;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.*;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.functions.spi.*;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -24,11 +24,13 @@ import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
+import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator2;
+import uno.anahata.gemini.functions.schema.SwaggerSchemaParser;
 import uno.anahata.gemini.internal.GsonUtils;
 
 
 /**
- * Handles java method to genai tool/function conversation for a given GeminiChat. 
+ * Handles java method to genai tool/function conversation for a given Chat. 
  */
 @Slf4j
 public class FunctionManager {
@@ -36,7 +38,8 @@ public class FunctionManager {
     private static final Gson GSON = GsonUtils.getGson();
 
     @Getter
-    private final GeminiChat chat;
+    private final Chat chat;
+    private final ChatConfig config;
     @Getter
     private final FunctionPrompter prompter;
     private final Map<String, Method> functionCallMethods = new HashMap<>();
@@ -76,10 +79,11 @@ public class FunctionManager {
         public final String userComment;
     }
     
-    public FunctionManager(GeminiChat chat, ChatConfig config, FunctionPrompter prompter) {
+    public FunctionManager(Chat chat, FunctionPrompter prompter) {
         this.chat = chat;
+        this.config = chat.getConfig();
         this.prompter = prompter;
-        this.failureTracker = new FailureTracker(config);
+        this.failureTracker = new FailureTracker(chat);
         List<Class<?>> allClasses = new ArrayList<>();
         allClasses.add(LocalFiles.class);
         allClasses.add(LocalShell.class);
@@ -103,15 +107,20 @@ public class FunctionManager {
                 .build();
     }
 
-    private Tool makeFunctionsTool(Class<?>... classes) {
+    private Tool makeFunctionsTool(Class<?>... classes)  {
         List<FunctionDeclaration> fds = new ArrayList<>();
         for (Class<?> c : classes) {
             for (Method m : c.getDeclaredMethods()) {
                 if (m.isAnnotationPresent(AIToolMethod.class)) {
-                    FunctionDeclaration fd = fromMethod(m);
-                    functionCallMethods.put(fd.name().get(), m);
-                    fds.add(fd);
-                    functionInfos.add(new FunctionInfo(fd, m));
+                    try {
+                        FunctionDeclaration fd = fromMethod(m);
+                        functionCallMethods.put(fd.name().get(), m);
+                        fds.add(fd);
+                        functionInfos.add(new FunctionInfo(fd, m));
+                    } catch (Exception e) {
+                        log.error("Could not register tool: " + m, e);
+                    }
+                    
                 }
             }
         }
@@ -134,7 +143,6 @@ public class FunctionManager {
         
         List<FunctionCall> allProposedCalls = new ArrayList<>(callToPartMap.keySet());
         
-        ChatConfig config = chat.getContextManager().getConfig();
         boolean allAlwaysApproved = true;
         for (FunctionCall fc : allProposedCalls) {
             if (config.getFunctionConfirmation(fc) != FunctionConfirmation.ALWAYS) {
@@ -172,7 +180,7 @@ public class FunctionManager {
                     throw new RuntimeException("Tool call '" + toolName + "' is temporarily blocked due to repeated failures.");
                 }
 
-                GeminiChat.callingInstance.set(chat);
+                Chat.callingInstance.set(chat);
                 Method method = functionCallMethods.get(toolName);
                 if (method == null) {
                     throw new RuntimeException("Tool not found: '" + toolName + "' available tools: " + functionCallMethods.keySet());
@@ -194,7 +202,7 @@ public class FunctionManager {
                     Executors.cachedThreadPool.submit(() -> {
                         JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + toolName, null);
                         try {
-                            GeminiChat.callingInstance.set(chat);
+                            Chat.callingInstance.set(chat);
                             Object result = invokeFunctionMethod(method, args);
                             completedJobInfo.setStatus(JobStatus.COMPLETED);
                             completedJobInfo.setResult(result);
@@ -205,7 +213,7 @@ public class FunctionManager {
                             log.error("Asynchronous job " + jobId + " failed.", e);
                         } finally {
                             chat.notifyJobCompletion(completedJobInfo);
-                            GeminiChat.callingInstance.remove();
+                            Chat.callingInstance.remove();
                         }
                     });
                 } else {
@@ -243,7 +251,7 @@ public class FunctionManager {
                     .build();
                 executedCalls.add(new ExecutedToolCall(sourceCallPart, errorResponse, e));
             } finally {
-                GeminiChat.callingInstance.remove();
+                Chat.callingInstance.remove();
             }
         }
         
@@ -276,7 +284,7 @@ public class FunctionManager {
         return method.invoke(null, argsToInvoke);
     }
 
-    public FunctionDeclaration fromMethod(Method method) {
+    public FunctionDeclaration fromMethod(Method method) throws Exception  {
         if (!Modifier.isStatic(method.getModifiers())) {
             throw new IllegalArgumentException("Only static methods are supported. Not static: " + method);
         }
@@ -327,11 +335,15 @@ public class FunctionManager {
             alwaysApproveFunctions.add(finalToolName);
         }
 
+        //String jsonSchemaTest1 = GeminiSchemaGenerator2.generateSchemaAsString(method.getReturnType(), "Schema for " + method.getReturnType().getSimpleName());
+        //String jsonSchemaTest2 = SwaggerSchemaParser.generateInlinedSchema(method.getReturnType());
+        
         return FunctionDeclaration.builder()
                 .name(finalToolName)
                 .description(descriptionBuilder.toString())
                 .parameters(paramsSchema)
                 .response(responseSchema)
+                //.responseJsonSchema(jsonSchemaTest2)
                 .build();
     }
 

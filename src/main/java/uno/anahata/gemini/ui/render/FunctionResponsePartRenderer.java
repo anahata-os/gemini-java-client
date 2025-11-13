@@ -9,7 +9,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JToggleButton;
 import uno.anahata.gemini.internal.GsonUtils;
-import uno.anahata.gemini.ui.SwingGeminiConfig.UITheme;
+import uno.anahata.gemini.ui.SwingChatConfig.UITheme;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class FunctionResponsePartRenderer implements PartRenderer {

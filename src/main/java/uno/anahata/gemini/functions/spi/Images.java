@@ -9,7 +9,7 @@ import com.google.genai.types.Part;
 import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.AIToolMethod;
 import uno.anahata.gemini.functions.AIToolParam;
 
@@ -32,7 +32,7 @@ public class Images {
         }
 
         try {
-            Client client = GeminiChat.getCallingInstance().getGoogleGenAIClient();
+            Client client = Chat.getCallingInstance().getGoogleGenAIClient();
             
             GenerateContentConfig config = GenerateContentConfig.builder()
                 .responseModalities("IMAGE")

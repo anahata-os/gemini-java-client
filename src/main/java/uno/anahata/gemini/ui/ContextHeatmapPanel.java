@@ -67,7 +67,7 @@ public class ContextHeatmapPanel extends JPanel {
     private JLabel statusLabel;
     private SwingWorker<List<PartInfo>, Void> worker;
     private FunctionManager functionManager;
-    private SwingGeminiConfig.UITheme theme;
+    private SwingChatConfig.UITheme theme;
 
     private ScrollableTooltipPopup tooltipPopup;
 
@@ -77,7 +77,7 @@ public class ContextHeatmapPanel extends JPanel {
 
     public void setFunctionManager(FunctionManager functionManager) {
         this.functionManager = functionManager;
-        this.theme = new SwingGeminiConfig.UITheme();
+        this.theme = new SwingChatConfig.UITheme();
     }
 
     private void initComponents() {
@@ -277,7 +277,7 @@ public class ContextHeatmapPanel extends JPanel {
         private final boolean isError;
         private final Color roleColor;
 
-        PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, FunctionManager fm, SwingGeminiConfig.UITheme theme, Map<String, ResourceStatus> statusMap) {
+        PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, FunctionManager fm, SwingChatConfig.UITheme theme, Map<String, ResourceStatus> statusMap) {
             this.messageIndex = msgIdx;
             this.partIndex = partIdx;
             this.messageUuid = msg.getId();
@@ -345,7 +345,7 @@ public class ContextHeatmapPanel extends JPanel {
             }
         }
 
-        private Color getRoleColor(SwingGeminiConfig.UITheme theme, String role) {
+        private Color getRoleColor(SwingChatConfig.UITheme theme, String role) {
             switch (role) {
                 case "user": return theme.getUserHeaderBg();
                 case "model": return theme.getModelHeaderBg();

@@ -31,7 +31,7 @@ import javax.swing.border.Border;
 import org.apache.commons.text.StringEscapeUtils;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextManager;
-import uno.anahata.gemini.ui.SwingGeminiConfig;
+import uno.anahata.gemini.ui.SwingChatConfig;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class ContentRenderer {
@@ -39,9 +39,9 @@ public class ContentRenderer {
     private final Map<PartType, PartRenderer> typeRendererMap;
     private final Map<Part, PartRenderer> instanceRendererMap;
     private final EditorKitProvider editorKitProvider;
-    private final SwingGeminiConfig.UITheme theme;
+    private final SwingChatConfig.UITheme theme;
 
-    public ContentRenderer(EditorKitProvider editorKitProvider, SwingGeminiConfig config) {
+    public ContentRenderer(EditorKitProvider editorKitProvider, SwingChatConfig config) {
         this.editorKitProvider = editorKitProvider;
         this.theme = config.getTheme();
         this.typeRendererMap = new HashMap<>();

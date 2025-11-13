@@ -8,7 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.functions.AIToolMethod;
@@ -21,13 +21,13 @@ public class ContextWindow {
     public static String setTokenThreshold(
             @AIToolParam("The new token threshold value.") int newThreshold
     ) {
-        GeminiChat.getCallingInstance().getContextManager().setTokenThreshold(newThreshold);
+        Chat.getCallingInstance().getContextManager().setTokenThreshold(newThreshold);
         return "Token threshold updated to " + newThreshold;
     }
 
     @AIToolMethod("Gets the current token threshold. This is the maximum number of total tokens (prompt + candidate) that the user can / is keen to work with due to his own budget or api / model constraints.")
     public static int getTokenThreshold() {
-        return GeminiChat.getCallingInstance().getContextManager().getTokenThreshold();
+        return Chat.getCallingInstance().getContextManager().getTokenThreshold();
     }
 
     @AIToolMethod("Gets the current total token count in the context window as shown to the user. This is the total token count received on the last api call (prompt + candidate)")

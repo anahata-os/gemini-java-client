@@ -1,13 +1,13 @@
-package uno.anahata.gemini.config.systeminstructions.spi;
+package uno.anahata.gemini.context.provider.spi;
 
 import com.google.genai.types.Part;
 import java.util.Collections;
 import java.util.List;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.spi.ContextWindow;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.content.ContextProvider;
 
-public class ContextSummaryProvider extends SystemInstructionProvider {
+public class ContextSummaryProvider extends ContextProvider {
 
     @Override
     public String getId() {
@@ -20,7 +20,7 @@ public class ContextSummaryProvider extends SystemInstructionProvider {
     }
 
     @Override
-    public List<Part> getInstructionParts(GeminiChat chat) {
+    public List<Part> getParts(Chat chat) {
         if (!isEnabled()) {
             return Collections.emptyList();
         }

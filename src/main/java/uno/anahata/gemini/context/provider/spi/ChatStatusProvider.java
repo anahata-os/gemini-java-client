@@ -1,14 +1,14 @@
-package uno.anahata.gemini.config.systeminstructions.spi;
+package uno.anahata.gemini.context.provider.spi;
 
 import com.google.genai.types.Part;
 import java.util.Collections;
 import java.util.List;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.Chat;
+import uno.anahata.gemini.content.ContextProvider;
 import uno.anahata.gemini.status.ApiExceptionRecord;
 
-public class ChatStatusProvider extends SystemInstructionProvider {
+public class ChatStatusProvider extends ContextProvider {
 
     @Override
     public String getId() {
@@ -21,7 +21,7 @@ public class ChatStatusProvider extends SystemInstructionProvider {
     }
 
     @Override
-    public List<Part> getInstructionParts(GeminiChat chat) {
+    public List<Part> getParts(Chat chat) {
         if (!isEnabled()) {
             return Collections.emptyList();
         }
@@ -36,7 +36,7 @@ public class ChatStatusProvider extends SystemInstructionProvider {
         chatStatusBlock.append("- ConfigManager: ").append(chat.getConfigManager()).append("\n");
         chatStatusBlock.append("- StatusManager: ").append(chat.getStatusManager()).append("\n");
         chatStatusBlock.append("- Session Start time: ").append(chat.getStartTime()).append("\n");
-        chatStatusBlock.append("- Live Workspace (auto attaches screen captures on every call) Enabled: ").append(chat.isLiveWorkspaceEnabled()).append("\n");        
+        //chatStatusBlock.append("- Live Workspace (auto attaches screen captures on every call) Enabled: ").append(chat.isLiveWorkspaceEnabled()).append("\n");        
         chatStatusBlock.append("- Server Side Tools (like google search) Enabled: ").append(!chat.isFunctionsEnabled()).append("\n");
         chatStatusBlock.append("- Local @AiToolMethod Tools (e.g. LocalFiles) Enabled: ").append(chat.isFunctionsEnabled()).append("\n");
         if (chat.getLatency() > 0) {

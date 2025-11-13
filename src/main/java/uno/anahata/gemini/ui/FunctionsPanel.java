@@ -23,16 +23,16 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.functions.FunctionManager;
 import uno.anahata.gemini.internal.GsonUtils;
 
 public class FunctionsPanel extends JScrollPane {
-    private final GeminiChat chat;
-    private final SwingGeminiConfig config;
+    private final Chat chat;
+    private final SwingChatConfig config;
 
-    public FunctionsPanel(GeminiChat chat, SwingGeminiConfig config) {
+    public FunctionsPanel(Chat chat, SwingChatConfig config) {
         this.chat = chat;
         this.config = config;
         refresh();

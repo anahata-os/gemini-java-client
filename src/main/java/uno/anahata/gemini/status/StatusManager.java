@@ -8,14 +8,14 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.Getter;
 import lombok.Setter;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 
 /**
- * Manages the status of a GeminiChat session.
+ * Manages the status of a Chat session.
  */
 @Getter
 public class StatusManager {
-    private final GeminiChat chat;
+    private final Chat chat;
     private final List<StatusListener> listeners = new CopyOnWriteArrayList<>();
     private final List<ApiExceptionRecord> apiErrors = new ArrayList<>();
     private volatile ChatStatus currentStatus = ChatStatus.IDLE_WAITING_FOR_USER;
@@ -32,7 +32,7 @@ public class StatusManager {
     @Setter
     private volatile String executingToolName;
 
-    public StatusManager(GeminiChat chat) {
+    public StatusManager(Chat chat) {
         this.chat = chat;
         resetTimers();
     }

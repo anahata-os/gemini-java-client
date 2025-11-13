@@ -1,4 +1,3 @@
-
 package uno.anahata.gemini.functions.schema;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -172,6 +171,9 @@ public class GeminiSchemaGenerator {
 
             Schema fieldSchema = generateSchemaInternal(f.getGenericType(), seen, fieldDescription);
             Schema.Builder fieldBuilder = fieldSchema.toBuilder();
+            
+            // CRITICAL FIX: Ensure the description is applied to the final schema builder for the field.
+            fieldBuilder.description(fieldDescription);
 
             JsonProperty jsonProp = f.getAnnotation(JsonProperty.class);
             if (jsonProp != null) {

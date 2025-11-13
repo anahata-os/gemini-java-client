@@ -1,15 +1,21 @@
-package uno.anahata.gemini.config.systeminstructions.spi;
+package uno.anahata.gemini.context.provider.spi;
 
 import com.google.genai.types.Part;
 import java.util.Collections;
 import java.util.List;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.context.stateful.StatefulResourceStatus;
-import uno.anahata.gemini.GeminiChat;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
+import uno.anahata.gemini.Chat;
+import uno.anahata.gemini.content.ContextPosition;
+import uno.anahata.gemini.content.ContextProvider;
 
-public class StatefulResourcesProvider extends SystemInstructionProvider {
+public class StatefulResourcesProvider extends ContextProvider {
 
+    public StatefulResourcesProvider() {
+        super(ContextPosition.AUGMENTED_WORKSPACE);
+    }
+
+    
     @Override
     public String getId() {
         return "core-stateful-resources";
@@ -21,7 +27,7 @@ public class StatefulResourcesProvider extends SystemInstructionProvider {
     }
 
     @Override
-    public List<Part> getInstructionParts(GeminiChat chat) {
+    public List<Part> getParts(Chat chat) {
         if (!isEnabled()) {
             return Collections.emptyList();
         }

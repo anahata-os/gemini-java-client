@@ -24,8 +24,8 @@ public class GeminiKeysPanel extends JPanel {
         this.keysFile = new File(config.getWorkingFolder(), config.getApiKeyFileName());
         
         keysTextArea = new JTextArea();
-        if (config instanceof SwingGeminiConfig) {
-            keysTextArea.setFont(((SwingGeminiConfig) config).getTheme().getMonoFont());
+        if (config instanceof SwingChatConfig) {
+            keysTextArea.setFont(((SwingChatConfig) config).getTheme().getMonoFont());
         }
         
         JButton saveButton = new JButton("Save");

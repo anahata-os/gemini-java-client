@@ -18,7 +18,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.context.ContextListener;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.status.ChatStatus;
@@ -28,8 +28,8 @@ import uno.anahata.gemini.status.StatusListener;
 @Getter
 public class GeminiPanel extends JPanel implements ContextListener, StatusListener {
 
-    private GeminiChat chat;
-    private SwingGeminiConfig config;
+    private Chat chat;
+    private SwingChatConfig config;
 
     // UI Components
     private JToolBar toolbar;
@@ -44,7 +44,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
     private ChatPanel chatPanel;
     private ContextHeatmapPanel heatmapPanel;
     private JTabbedPane tabbedPane;
-    
+
     private SystemInstructionsPanel systemInstructionsPanel;
     private GeminiKeysPanel geminiKeysPanel;
     private FunctionsPanel functionsPanel;
@@ -59,11 +59,11 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         this.editorKitProvider = editorKitProvider;
     }
 
-    public void init(SwingGeminiConfig config) {
+    public void init(SwingChatConfig config) {
         this.config = config;
         JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider, config);
-        this.chat = new GeminiChat(config, prompter);
+        this.chat = new Chat(config, prompter);
         this.chat.addContextListener(this);
         this.chat.addStatusListener(this);
     }
@@ -77,15 +77,15 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         clearButton = new JButton(IconUtils.getIcon("restart.png"));
         clearButton.setToolTipText("Restart Chat");
         clearButton.addActionListener(e -> restartChat());
-        
+
         functionsButton = new JToggleButton(IconUtils.getIcon("functions.png"), true);
         functionsButton.setToolTipText("Enable / Disable Functions");
         functionsButton.addActionListener(e -> chat.setFunctionsEnabled(functionsButton.isSelected()));
 
-        liveWorkspaceButton = new JToggleButton(IconUtils.getIcon("compress.png"), chat.isLiveWorkspaceEnabled());
+        liveWorkspaceButton = new JToggleButton(IconUtils.getIcon("compress.png"), true);
         liveWorkspaceButton.setToolTipText("Toggle Live Workspace View");
-        liveWorkspaceButton.addActionListener(e -> chat.setLiveWorkspaceEnabled(liveWorkspaceButton.isSelected()));
-        
+        //liveWorkspaceButton.addActionListener(e -> chat.setAugmentedWorkspaceEnabled(liveWorkspaceButton.isSelected()));
+
         saveSessionButton = new JButton(IconUtils.getIcon("save.png"));
         saveSessionButton.setToolTipText("Save Session");
         saveSessionButton.addActionListener(e -> saveSession());
@@ -129,7 +129,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         modelIdPanel.add(modelIdComboBox);
         northPanel.add(modelIdPanel, BorderLayout.EAST);
         add(northPanel, BorderLayout.NORTH);
-        
+
         // --- SOUTH Panel (Status and Usage) ---
         statusPanel = new StatusPanel(this);
         add(statusPanel, BorderLayout.SOUTH);
@@ -138,18 +138,18 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         chatPanel = new ChatPanel(this);
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
-        
+
         systemInstructionsPanel = new SystemInstructionsPanel(chat, editorKitProvider, config);
         geminiKeysPanel = new GeminiKeysPanel(config);
         functionsPanel = new FunctionsPanel(chat, config);
-        
+
         tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Chat", chatPanel);
         tabbedPane.addTab("Context Heatmap", heatmapPanel);
         tabbedPane.addTab("System Instructions", systemInstructionsPanel);
         tabbedPane.addTab("Functions", functionsPanel);
         tabbedPane.addTab("API Keys", geminiKeysPanel);
-        
+
         tabbedPane.addChangeListener(e -> {
             Component selected = tabbedPane.getSelectedComponent();
             if (selected == heatmapPanel) {
@@ -160,7 +160,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
                 functionsPanel.refresh();
             }
         });
-        
+
         add(tabbedPane, BorderLayout.CENTER);
 
         FileDropListener fileDropListener = new FileDropListener();
@@ -171,7 +171,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
     }
 
     @Override
-    public void contextChanged(GeminiChat source) {
+    public void contextChanged(Chat source) {
         SwingUtilities.invokeLater(() -> {
             if (tabbedPane.getSelectedComponent() == heatmapPanel) {
                 heatmapPanel.updateContext(chat.getContext());
@@ -180,7 +180,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
     }
 
     @Override
-    public void contextCleared(GeminiChat source) {
+    public void contextCleared(Chat source) {
         // The ChatPanel already listens and clears itself.
         // The heatmap will be cleared the next time it's selected.
     }
@@ -211,10 +211,12 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         boolean restoreAttempted = false;
 
         if (autobackupFile.exists() && autobackupFile.length() > 0) {
+            
+            /*
             int response = JOptionPane.showConfirmDialog(
                     this,
                     "An automatic backup from a previous session was found. \n"
-                            + "\n\n" + autobackupFile + "</b>"
+                            + "\n\n" + autobackupFile + ""
                             + "\n\nDo you want to restore it?",
                     
                     "Anahata AI - Restore Session? " + autobackupFile.getName(),
@@ -224,7 +226,11 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
             if (response == JOptionPane.YES_OPTION) {
                 restoreAttempted = true;
                 loadAutobackupInSwingWorker();
-            }
+            }*/
+            
+            //trying always load
+            restoreAttempted = true;
+            loadAutobackupInSwingWorker();
         }
 
         if (!restoreAttempted) {

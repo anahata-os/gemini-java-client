@@ -12,7 +12,7 @@ import javax.swing.SwingUtilities;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.ChatMessage;
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.context.ContextListener;
 import java.util.List;
 import uno.anahata.gemini.ui.render.ContentRenderer;
@@ -22,9 +22,9 @@ import uno.anahata.gemini.ui.render.ContentRenderer;
 public class ChatPanel extends JPanel implements ContextListener {
 
     private final GeminiPanel parentPanel;
-    private GeminiChat chat;
+    private Chat chat;
     private EditorKitProvider editorKitProvider;
-    private SwingGeminiConfig config;
+    private SwingChatConfig config;
     
     // UI Components
     private JPanel chatContentPanel;
@@ -86,12 +86,12 @@ public class ChatPanel extends JPanel implements ContextListener {
     }
 
     @Override
-    public void contextChanged(GeminiChat source) {
+    public void contextChanged(Chat source) {
         SwingUtilities.invokeLater(this::redraw);
     }
 
     @Override
-    public void contextCleared(GeminiChat source) {
+    public void contextCleared(Chat source) {
         SwingUtilities.invokeLater(this::redraw);
     }
 }

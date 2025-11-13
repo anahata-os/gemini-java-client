@@ -13,17 +13,19 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.AnahataConfig;
 import uno.anahata.gemini.GeminiAPI;
+import uno.anahata.gemini.content.ContextPosition;
 import uno.anahata.gemini.functions.FunctionConfirmation;
-import uno.anahata.gemini.config.systeminstructions.SystemInstructionProvider;
-import uno.anahata.gemini.config.systeminstructions.spi.ChatStatusProvider;
-import uno.anahata.gemini.config.systeminstructions.spi.ContextSummaryProvider;
-import uno.anahata.gemini.config.systeminstructions.spi.CoreSystemInstructionsMdFileProvider;
-import uno.anahata.gemini.config.systeminstructions.spi.EnvironmentVariablesProvider;
-import uno.anahata.gemini.config.systeminstructions.spi.StatefulResourcesProvider;
-import uno.anahata.gemini.config.systeminstructions.spi.SystemPropertiesProvider;
+import uno.anahata.gemini.content.ContextProvider;
+import uno.anahata.gemini.context.provider.spi.ChatStatusProvider;
+import uno.anahata.gemini.context.provider.spi.ContextSummaryProvider;
+import uno.anahata.gemini.context.provider.spi.CoreSystemInstructionsMdFileProvider;
+import uno.anahata.gemini.context.provider.spi.EnvironmentVariablesProvider;
+import uno.anahata.gemini.context.provider.spi.StatefulResourcesProvider;
+import uno.anahata.gemini.context.provider.spi.SystemPropertiesProvider;
 
 @Slf4j
 public abstract class ChatConfig {
@@ -32,20 +34,19 @@ public abstract class ChatConfig {
 
     private final transient Preferences prefs = Preferences.userNodeForPackage(ChatConfig.class);
 
-    
     public GeminiAPI getApi() {
         return api;
     }
 
     public abstract String getSessionId();
-    
+
     public File getAutobackupFile() {
         File sessionsDir = getWorkingFolder("sessions");
         return new File(sessionsDir, "autobackup-" + getSessionId() + ".kryo");
     }
 
-    public List<SystemInstructionProvider> getSystemInstructionProviders() {
-        List<SystemInstructionProvider> providers = new ArrayList<>();
+    public List<ContextProvider> getContextProviders() {
+        List<ContextProvider> providers = new ArrayList<>();
         // Core Providers
         providers.add(new CoreSystemInstructionsMdFileProvider());
         providers.add(new ChatStatusProvider());
@@ -53,11 +54,10 @@ public abstract class ChatConfig {
         providers.add(new SystemPropertiesProvider());
         providers.add(new EnvironmentVariablesProvider());
         providers.add(new StatefulResourcesProvider());
-        
+
         return providers;
     }
 
-    
     public Content getStartupContent() {
         List<Part> parts = getStartupParts();
         return Content.fromParts(parts.toArray(new Part[parts.size()]));
@@ -78,7 +78,7 @@ public abstract class ChatConfig {
             return Collections.EMPTY_LIST;
         }
     }
-    
+
     public List<Part> getLiveWorkspaceParts() {
         return Collections.emptyList();
     }
@@ -86,12 +86,12 @@ public abstract class ChatConfig {
     public List<Class<?>> getAutomaticFunctionClasses() {
         return Collections.emptyList();
     }
-    
+
     @Deprecated
     public File getWorkingFolder(String name) {
         return AnahataConfig.getWorkingFolder(name);
     }
-    
+
     @Deprecated
     public File getWorkingFolder() {
         return AnahataConfig.getWorkingFolder();
