@@ -1,4 +1,4 @@
-package uno.anahata.gemini.ui.config.systeminstructions.spi;
+package uno.anahata.gemini.ui.context.provider;
 
 import com.google.genai.types.Part;
 import java.io.File;
@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.Chat;
+import uno.anahata.gemini.content.ContextPosition;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.content.ContextProvider;
 import uno.anahata.gemini.ui.UICapture;
@@ -17,6 +18,12 @@ import uno.anahata.gemini.ui.UICapture;
  */
 @Slf4j
 public class ApplicationFramesContextProvider extends ContextProvider {
+
+    public ApplicationFramesContextProvider() {
+        super(ContextPosition.AUGMENTED_WORKSPACE, false);
+    }
+    
+    
 
     @Override
     public String getId() {
@@ -30,22 +37,23 @@ public class ApplicationFramesContextProvider extends ContextProvider {
 
     @Override
     public List<Part> getParts(Chat chat) {
-        if (!isEnabled()) {
-            return Collections.emptyList();
-        }
+        
 
         List<Part> parts = new ArrayList<>();
         try {
             List<File> screenshotFiles = UICapture.screenshotAllJFrames();
             if (screenshotFiles.isEmpty()) {
-                log.warn("ScreenInstructionsProvider found no JFrames to capture.");
+                log.warn("Found no JFrames to capture.");
+                Part.fromText("Found no JFrames to capture.");
                 return Collections.emptyList();
             }
             
+            
             for (File file : screenshotFiles) {
+                parts.add(Part.fromText("Live Workspace Screenshot (just-in-time): " + file));
                 parts.add(PartUtils.toPart(file));
             }
-            log.info("Successfully added {} screen capture(s) to system instructions.", parts.size());
+            log.info("Successfully added {} screen capture(s) to system instructions.", screenshotFiles.size());
             
         } catch (Exception e) {
             log.error("Error capturing screen for system instructions", e);

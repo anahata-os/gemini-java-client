@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -35,6 +36,7 @@ import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
+import uno.anahata.gemini.ui.IconUtils;
 import uno.anahata.gemini.ui.SwingChatConfig.UITheme;
 import uno.anahata.gemini.ui.WrapLayout;
 
@@ -109,9 +111,8 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
         
         try {
             // Use the Anahata icon from resources
-            ImageIcon originalIcon = new ImageIcon(getClass().getResource("/icons/anahata.png"));
-            Image scaledImage = originalIcon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
-            titleLabel.setIcon(new ImageIcon(scaledImage));
+            //ImageIcon originalIcon = );            
+            titleLabel.setIcon(IconUtils.getIcon("anahata.png"));
             titleLabel.setIconTextGap(6);
         } catch (Exception e) {
             log.warn("Could not load icon for header.", e);

@@ -22,25 +22,26 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.miginfocom.swing.MigLayout;
+import org.jdesktop.swingx.JXTextArea;
 import uno.anahata.gemini.Chat;
-import uno.anahata.gemini.functions.spi.Audio;
+import uno.anahata.gemini.media.util.Microphone;
 
 @Slf4j
 @Getter
 public class InputPanel extends JPanel {
 
-    private final GeminiPanel parentPanel;
+    private final AnahataPanel parentPanel;
     private final Chat chat;
 
     // UI Components
-    private JTextArea inputTextArea;
+    private JXTextArea inputTextArea;
     private JButton sendButton;
     private JToggleButton micButton;
     private JButton attachButton;
@@ -48,22 +49,26 @@ public class InputPanel extends JPanel {
     private JButton captureFramesButton;
     private AttachmentsPanel attachmentsPanel;
 
-    public InputPanel(GeminiPanel parentPanel) {
-        super(new BorderLayout(5, 5));
+    public InputPanel(AnahataPanel parentPanel) {
+        // Switched to MigLayout for better control over component sizing.
+        super(new MigLayout("fill, insets 5", "[grow, fill]", "[][grow, fill][]"));
         this.parentPanel = parentPanel;
         this.chat = parentPanel.getChat();
         initComponents();
     }
 
     private void initComponents() {
-        setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        // No border needed with MigLayout insets
+        // setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         attachmentsPanel = new AttachmentsPanel();
-        add(attachmentsPanel, BorderLayout.NORTH);
+        add(attachmentsPanel, "cell 0 0, wrap");
 
-        inputTextArea = new JTextArea(3, 20);
+        // Use JXTextArea from SwingX for placeholder text and better scrolling behavior.
+        inputTextArea = new JXTextArea("Type your message here (Ctrl+Enter to send)");
         inputTextArea.setLineWrap(true);
         inputTextArea.setWrapStyleWord(true);
+        inputTextArea.setRows(3); // Initial size hint
 
         // Ctrl+Enter to send
         KeyStroke ctrlEnter = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK);
@@ -76,7 +81,8 @@ public class InputPanel extends JPanel {
         });
 
         JScrollPane inputScrollPane = new JScrollPane(inputTextArea);
-        add(inputScrollPane, BorderLayout.CENTER);
+        // Add with MigLayout constraints: grow vertically, with a min height of ~3 rows and max of ~10 rows.
+        add(inputScrollPane, "cell 0 1, growy, hmin 60, hmax 220");
 
         // Panel for buttons on the south side
         JPanel southButtonPanel = new JPanel(new BorderLayout(5, 0));
@@ -112,7 +118,7 @@ public class InputPanel extends JPanel {
         southButtonPanel.add(actionButtonPanel, BorderLayout.WEST);
         southButtonPanel.add(sendButton, BorderLayout.EAST);
 
-        add(southButtonPanel, BorderLayout.SOUTH);
+        add(southButtonPanel, "cell 0 2");
 
         // Setup Drag and Drop for the entire panel and its key components
         FileDropListener fileDropListener = new FileDropListener();
@@ -131,7 +137,7 @@ public class InputPanel extends JPanel {
                 @Override
                 protected Void doInBackground() throws Exception {
                     try {
-                        Audio.startRecording();
+                        Microphone.startRecording();
                     } catch (Exception e) {
                         this.error = e;
                     }
@@ -155,7 +161,7 @@ public class InputPanel extends JPanel {
                 @Override
                 protected File doInBackground() throws Exception {
                     try {
-                        return Audio.stopRecording();
+                        return Microphone.stopRecording();
                     } catch (Exception e) {
                         this.error = e;
                         return null;
@@ -189,6 +195,12 @@ public class InputPanel extends JPanel {
             return;
         }
 
+        // --- UX IMPROVEMENT ---
+        // Clear the input immediately after capturing the content.
+        inputTextArea.setText("");
+        attachmentsPanel.clearStagedParts();
+        // --------------------
+
         requestInProgress();
 
         new SwingWorker<Void, Void>() {
@@ -215,7 +227,6 @@ public class InputPanel extends JPanel {
                 } catch (Exception e) {
                     log.error("Exception sending message", e);
                 } finally {
-                    attachmentsPanel.clearStagedParts();
                     enableInputAndRequestFocus();
                 }
             }
@@ -223,7 +234,7 @@ public class InputPanel extends JPanel {
     }
 
     private void requestInProgress() {
-        inputTextArea.setEnabled(false);
+        // Keep the text area enabled, but disable action buttons to prevent conflicts.
         sendButton.setEnabled(false);
         micButton.setEnabled(false);
         attachButton.setEnabled(false);
@@ -232,8 +243,7 @@ public class InputPanel extends JPanel {
     }
 
     private void enableInputAndRequestFocus() {
-        inputTextArea.setText("");
-        inputTextArea.setEnabled(true);
+        // Re-enable action buttons. Text area is always enabled and is cleared immediately on send.
         sendButton.setEnabled(true);
         micButton.setEnabled(true);
         attachButton.setEnabled(true);
@@ -259,12 +269,9 @@ public class InputPanel extends JPanel {
         attachmentsPanel.addAll(UICapture.screenshotAllScreenDevices());
     }
 
-
-
     private void attachFrameCaptures() {
         attachmentsPanel.addAll(UICapture.screenshotAllJFrames());
     }
-
 
     /**
      * Handles file drops for the entire input panel area.

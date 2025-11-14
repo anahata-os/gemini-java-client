@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
-import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.PartUtils;
 
 @Slf4j
@@ -184,7 +184,7 @@ public class SessionManager {
     private String summarizePart(Part p) {
         final int MAX_LENGTH = 128;
         StringBuilder sb = new StringBuilder();
-        FunctionManager fm = contextManager.getFunctionManager();
+        ToolManager fm = contextManager.getFunctionManager();
 
         if (p.text().isPresent()) {
             sb.append("[Text]:").append(p.text().get());

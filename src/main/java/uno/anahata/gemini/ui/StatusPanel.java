@@ -16,9 +16,11 @@ import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JToggleButton;
 import javax.swing.Timer;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.Chat;
+import uno.anahata.gemini.media.util.AudioPlayer;
 import uno.anahata.gemini.status.ApiExceptionRecord;
 import uno.anahata.gemini.status.ChatStatus;
 import uno.anahata.gemini.status.StatusManager;
@@ -27,8 +29,9 @@ public class StatusPanel extends JPanel {
     private static final SimpleDateFormat TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance();
 
-    private final GeminiPanel parentPanel;
+    private final AnahataPanel parentPanel;
     private final Timer refreshTimer;
+    private ChatStatus lastStatus = null;
 
     // UI Components
     private StatusIndicator statusIndicator;
@@ -36,8 +39,9 @@ public class StatusPanel extends JPanel {
     private ContextUsageBar contextUsageBar;
     private JPanel detailsPanel;
     private JLabel tokenDetailsLabel;
+    private JToggleButton soundToggle;
 
-    public StatusPanel(GeminiPanel parentPanel) {
+    public StatusPanel(AnahataPanel parentPanel) {
         super(new BorderLayout(10, 2));
         this.parentPanel = parentPanel;
         initComponents();
@@ -66,6 +70,13 @@ public class StatusPanel extends JPanel {
         statusIndicator = new StatusIndicator();
         statusLabel = new JLabel("Initializing...");
         
+        soundToggle = new JToggleButton(IconUtils.getIcon("bell.png"));
+        soundToggle.setSelectedIcon(IconUtils.getIcon("bell_mute.png"));
+        soundToggle.setToolTipText("Toggle Sound Notifications");
+        soundToggle.setSelected(!parentPanel.getConfig().isAudioFeedbackEnabled());
+        soundToggle.addActionListener(e -> parentPanel.getConfig().setAudioFeedbackEnabled(!soundToggle.isSelected()));
+
+        statusDisplayPanel.add(soundToggle);
         statusDisplayPanel.add(statusIndicator);
         statusDisplayPanel.add(statusLabel);
         
@@ -92,29 +103,35 @@ public class StatusPanel extends JPanel {
         }
         
         StatusManager statusManager = chat.getStatusManager();
-        ChatStatus status = statusManager.getCurrentStatus();
+        ChatStatus currentStatus = statusManager.getCurrentStatus();
         long now = System.currentTimeMillis();
-        Color statusColor = parentPanel.getConfig().getColor(status);
+        Color statusColor = parentPanel.getConfig().getColor(currentStatus);
+
+        // Play sound on status change
+        if (lastStatus != currentStatus && parentPanel.getConfig().isAudioFeedbackEnabled()) {
+            handleStatusSound(currentStatus, lastStatus);
+        }
+        this.lastStatus = currentStatus;
 
         // 1. Update Status Indicator and Label
         statusIndicator.setColor(statusColor);
         statusLabel.setForeground(statusColor);
-        statusLabel.setToolTipText(status.getDescription());
+        statusLabel.setToolTipText(currentStatus.getDescription());
         
-        String statusText = status.getDisplayName();
-        if (status == ChatStatus.TOOL_EXECUTION_IN_PROGRESS && StringUtils.isNotBlank(statusManager.getExecutingToolName())) {
-            statusText = String.format("%s (%s)", status.getDisplayName(), statusManager.getExecutingToolName());
+        String statusText = currentStatus.getDisplayName();
+        if (currentStatus == ChatStatus.TOOL_EXECUTION_IN_PROGRESS && StringUtils.isNotBlank(statusManager.getExecutingToolName())) {
+            statusText = String.format("%s (%s)", currentStatus.getDisplayName(), statusManager.getExecutingToolName());
         }
         
-        if (status != ChatStatus.IDLE_WAITING_FOR_USER) {
+        if (currentStatus != ChatStatus.IDLE_WAITING_FOR_USER) {
             long duration = now - statusManager.getStatusChangeTime();
             statusLabel.setText(String.format("%s... (%s)", statusText, TimeUtils.formatMillisConcise(duration)));
         } else {
             long lastDuration = statusManager.getLastOperationDuration();
             if (lastDuration > 0) {
-                statusLabel.setText(String.format("%s (took %s)", status.getDisplayName(), TimeUtils.formatMillisConcise(lastDuration)));
+                statusLabel.setText(String.format("%s (took %s)", currentStatus.getDisplayName(), TimeUtils.formatMillisConcise(lastDuration)));
             } else {
-                statusLabel.setText(status.getDisplayName());
+                statusLabel.setText(currentStatus.getDisplayName());
             }
         }
 
@@ -124,7 +141,7 @@ public class StatusPanel extends JPanel {
         // 3. Update Details Panel
         List<ApiExceptionRecord> errors = statusManager.getApiErrors();
         GenerateContentResponseUsageMetadata usage = statusManager.getLastUsage();
-        boolean isRetrying = !errors.isEmpty() && (status == ChatStatus.WAITING_WITH_BACKOFF || status == ChatStatus.API_CALL_IN_PROGRESS);
+        boolean isRetrying = !errors.isEmpty() && (currentStatus == ChatStatus.WAITING_WITH_BACKOFF || currentStatus == ChatStatus.API_CALL_IN_PROGRESS);
 
         if (isRetrying) {
             detailsPanel.removeAll();
@@ -138,10 +155,18 @@ public class StatusPanel extends JPanel {
             detailsPanel.add(new JLabel(headerText));
 
             for (ApiExceptionRecord error : errors) {
+                String exceptionString = error.getException().toString();
+                String displayString;
+                if (exceptionString.length() > 200) {
+                    displayString = exceptionString.substring(0, 100) + " ... " + exceptionString.substring(exceptionString.length() - 100);
+                } else {
+                    displayString = exceptionString;
+                }
+                
                 String errorText = String.format("  • [%s] [..%s] %s",
                                                  TIME_FORMAT.format(error.getTimestamp()),
                                                  error.getApiKey(),
-                                                 error.getException().toString());
+                                                 displayString);
                 JLabel errorLabel = new JLabel(errorText);
                 errorLabel.setForeground(Color.RED.darker());
                 detailsPanel.add(errorLabel);
@@ -167,6 +192,25 @@ public class StatusPanel extends JPanel {
         
         revalidate();
         repaint();
+    }
+    
+    private void handleStatusSound(ChatStatus newStatus, ChatStatus oldStatus) {
+        boolean wasWorking = oldStatus == ChatStatus.API_CALL_IN_PROGRESS || oldStatus == ChatStatus.TOOL_EXECUTION_IN_PROGRESS;
+        
+        switch (newStatus) {
+            case API_CALL_IN_PROGRESS:
+            case TOOL_EXECUTION_IN_PROGRESS:
+                AudioPlayer.playSound("start.wav");
+                break;
+            case IDLE_WAITING_FOR_USER:
+                if (wasWorking) {
+                    AudioPlayer.playSound("idle.wav");
+                }
+                break;
+            case WAITING_WITH_BACKOFF:
+                AudioPlayer.playSound("error.wav");
+                break;
+        }
     }
     
     /**

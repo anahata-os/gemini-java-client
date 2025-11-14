@@ -17,7 +17,7 @@ import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
 import uno.anahata.gemini.functions.ContextBehavior;
-import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.ContentUtils;
 
 @Slf4j
@@ -287,9 +287,9 @@ public class ContextPruner {
      * Implements the new, more robust logic for automatically pruning old tool calls based on our expanded definition of "ephemeral".
      * This method now only collects the initial candidates and delegates the full dependency traversal and removal.
      *
-     * @param functionManager The FunctionManager, needed to check tool metadata.
+     * @param functionManager The ToolManager, needed to check tool metadata.
      */
-    public void pruneEphemeralToolCalls(FunctionManager functionManager) {
+    public void pruneEphemeralToolCalls(ToolManager functionManager) {
         final int turnsToKeep = 5;
         log.info("Starting pruneEphemeralToolCalls (" + turnsToKeep + "-Turn Rule check).");
         if (functionManager == null) {
@@ -385,7 +385,7 @@ public class ContextPruner {
     /**
      * Helper to check if a part is associated with a tool marked as EPHEMERAL.
      */
-    private boolean isPartNaturallyEphemeral(Part part, FunctionManager functionManager) {
+    private boolean isPartNaturallyEphemeral(Part part, ToolManager functionManager) {
         String toolName = "";
         if (part.functionCall().isPresent()) {
             toolName = part.functionCall().get().name().orElse("");
@@ -398,7 +398,7 @@ public class ContextPruner {
     /**
      * Helper to check if a FunctionResponse is from a STATEFUL_REPLACE tool but failed to return a valid resource ID.
      */
-    private boolean isFailedStatefulResponse(FunctionResponse fr, FunctionManager functionManager) {
+    private boolean isFailedStatefulResponse(FunctionResponse fr, ToolManager functionManager) {
         String toolName = fr.name().orElse("");
         // Only check if the tool was *supposed* to be stateful.
         if (functionManager.getContextBehavior(toolName) == ContextBehavior.STATEFUL_REPLACE) {

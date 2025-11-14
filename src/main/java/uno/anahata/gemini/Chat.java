@@ -17,9 +17,9 @@ import uno.anahata.gemini.context.ContextListener;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.content.ContentFactory;
 import uno.anahata.gemini.content.ContextPosition;
-import uno.anahata.gemini.functions.FunctionManager;
-import uno.anahata.gemini.functions.FunctionManager.ExecutedToolCall;
-import uno.anahata.gemini.functions.FunctionManager.FunctionProcessingResult;
+import uno.anahata.gemini.functions.ToolManager;
+import uno.anahata.gemini.functions.ToolManager.ExecutedToolCall;
+import uno.anahata.gemini.functions.ToolManager.FunctionProcessingResult;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.functions.JobInfo;
 import uno.anahata.gemini.functions.MultiPartResponse;
@@ -36,7 +36,7 @@ public class Chat {
     private static final Gson GSON = GsonUtils.getGson();
     public static final ThreadLocal<Chat> callingInstance = new ThreadLocal<>();
 
-    private final FunctionManager functionManager;
+    private final ToolManager functionManager;
     private final ChatConfig config;
     private final ContextManager contextManager;
     @Getter
@@ -64,7 +64,7 @@ public class Chat {
             FunctionPrompter prompter) {
         this.config = config;
         this.executor = AnahataExecutors.newCachedThreadPoolExecutor(config.getSessionId());
-        this.functionManager = new FunctionManager(this, prompter);
+        this.functionManager = new ToolManager(this, prompter);
         this.contextManager = new ContextManager(this);
         this.configManager = new ConfigManager(this);
         this.contentFactory = new ContentFactory(this);
@@ -124,7 +124,6 @@ public class Chat {
         statusManager.recordUserInputTime();
         statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
         try {
-
             ChatMessage userMessage = ChatMessage.builder()
                     .modelId(config.getApi().getModelId())
                     .content(content)
@@ -132,9 +131,17 @@ public class Chat {
             contextManager.add(userMessage);
 
             processModelResponseLoop();
+        } catch (Exception e) {
+            log.error("An unhandled exception occurred during the processing loop.", e);
+            // If an exception bubbles all the way up, it's a critical failure.
+            // The MAX_RETRIES_REACHED status would have already been set inside the loop.
+            // We don't want the finally block to override it.
         } finally {
             isProcessing = false;
-            statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
+            // Only reset to IDLE if we are not in a terminal error state.
+            if (statusManager.getCurrentStatus() != ChatStatus.MAX_RETRIES_REACHED) {
+                statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
+            }
         }
     }
 
@@ -357,6 +364,7 @@ public class Chat {
                 if (e.toString().contains("429") || e.toString().contains("503") || e.toString().contains("500")) {
                     if (attempt == maxRetries - 1) {
                         log.error("Max retries reached. Aborting.", e);
+                        statusManager.setStatus(ChatStatus.MAX_RETRIES_REACHED);
                         throw new RuntimeException("Failed to get response from model after " + maxRetries + " attempts.", e);
                     }
                     long delayMillis = (long) (initialDelayMillis * Math.pow(2, attempt));

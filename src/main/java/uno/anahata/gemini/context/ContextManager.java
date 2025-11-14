@@ -14,7 +14,7 @@ import uno.anahata.gemini.context.pruning.ContextPruner;
 import uno.anahata.gemini.context.session.SessionManager;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
 import uno.anahata.gemini.context.stateful.StatefulResourceStatus;
-import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.PartUtils;
 
 @Slf4j
@@ -25,7 +25,7 @@ public class ContextManager {
     private final Chat chat;
     private final ChatConfig config;
     private final List<ContextListener> listeners = new CopyOnWriteArrayList<>();
-    private final FunctionManager functionManager;
+    private final ToolManager functionManager;
     private int totalTokenCount = 0;
     @Getter
     @Setter

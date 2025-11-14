@@ -22,8 +22,7 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
-import uno.anahata.gemini.ui.actions.AudioPlayer;
+import uno.anahata.gemini.media.util.Microphone;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class BlobPartRenderer implements PartRenderer {
@@ -55,7 +54,7 @@ public class BlobPartRenderer implements PartRenderer {
             playButton.addActionListener(e -> {
                 playButton.setEnabled(false);
                 playButton.setText("Playing...");
-                AudioPlayer.play(data);
+                Microphone.play(data);
                 // A more robust solution would listen for playback to finish
                 // and re-enable the button. For now, we just prevent re-clicks.
                 // A listener on the audio clip could re-enable it via SwingUtilities.invokeLater.

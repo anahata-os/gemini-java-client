@@ -53,7 +53,7 @@ import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.stateful.ResourceStatus;
 import uno.anahata.gemini.context.stateful.StatefulResource;
 import uno.anahata.gemini.functions.ContextBehavior;
-import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
 
@@ -66,7 +66,7 @@ public class ContextHeatmapPanel extends JPanel {
     private PieChartPanel pieChartPanel;
     private JLabel statusLabel;
     private SwingWorker<List<PartInfo>, Void> worker;
-    private FunctionManager functionManager;
+    private ToolManager functionManager;
     private SwingChatConfig.UITheme theme;
 
     private ScrollableTooltipPopup tooltipPopup;
@@ -75,7 +75,7 @@ public class ContextHeatmapPanel extends JPanel {
         initComponents();
     }
 
-    public void setFunctionManager(FunctionManager functionManager) {
+    public void setFunctionManager(ToolManager functionManager) {
         this.functionManager = functionManager;
         this.theme = new SwingChatConfig.UITheme();
     }
@@ -277,7 +277,7 @@ public class ContextHeatmapPanel extends JPanel {
         private final boolean isError;
         private final Color roleColor;
 
-        PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, FunctionManager fm, SwingChatConfig.UITheme theme, Map<String, ResourceStatus> statusMap) {
+        PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, ToolManager fm, SwingChatConfig.UITheme theme, Map<String, ResourceStatus> statusMap) {
             this.messageIndex = msgIdx;
             this.partIndex = partIdx;
             this.messageUuid = msg.getId();

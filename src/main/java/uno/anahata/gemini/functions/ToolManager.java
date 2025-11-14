@@ -24,8 +24,6 @@ import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
 import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
-import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator2;
-import uno.anahata.gemini.functions.schema.SwaggerSchemaParser;
 import uno.anahata.gemini.internal.GsonUtils;
 
 
@@ -33,7 +31,7 @@ import uno.anahata.gemini.internal.GsonUtils;
  * Handles java method to genai tool/function conversation for a given Chat. 
  */
 @Slf4j
-public class FunctionManager {
+public class ToolManager {
 
     private static final Gson GSON = GsonUtils.getGson();
 
@@ -79,7 +77,7 @@ public class FunctionManager {
         public final String userComment;
     }
     
-    public FunctionManager(Chat chat, FunctionPrompter prompter) {
+    public ToolManager(Chat chat, FunctionPrompter prompter) {
         this.chat = chat;
         this.config = chat.getConfig();
         this.prompter = prompter;
@@ -91,8 +89,8 @@ public class FunctionManager {
         allClasses.add(Images.class);
         allClasses.add(ContextWindow.class);
         allClasses.add(Session.class);
-        if (prompter != null && config.getAutomaticFunctionClasses() != null) {
-            allClasses.addAll(config.getAutomaticFunctionClasses());
+        if (prompter != null && config.getToolClasses() != null) {
+            allClasses.addAll(config.getToolClasses());
         }
         log.info("FunctionManager scanning classes for @AIToolMethod: " + allClasses);
         this.coreTools = makeFunctionsTool(allClasses.toArray(new Class<?>[0]));
@@ -270,14 +268,12 @@ public class FunctionManager {
 
             if (argValueFromModel == null) {
                 argsToInvoke[i] = null;
-                continue;
-            }
-
-            if (paramType.isPrimitive() || Number.class.isAssignableFrom(paramType) || Boolean.class.isAssignableFrom(paramType) || String.class.equals(paramType)) {
-                 argsToInvoke[i] = argValueFromModel;
             } else {
-                String json = GSON.toJson(argValueFromModel);
-                argsToInvoke[i] = GSON.fromJson(json, paramType);
+                // Let Gson handle all conversions. It's smart enough to convert
+                // a JSON number to the correct Java numeric type (e.g. Integer -> Long)
+                // and other objects from Map<String, Object> to their target type.
+                JsonElement jsonElement = GSON.toJsonTree(argValueFromModel);
+                argsToInvoke[i] = GSON.fromJson(jsonElement, paramType);
             }
         }
 
@@ -318,7 +314,7 @@ public class FunctionManager {
             AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
             String paramDescription = (paramAnnotation != null) ? paramAnnotation.value() : "No description";
             
-            properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), paramDescription));
+            properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), "Schema for " + p.getType().getSimpleName()));
             required.add(paramName);
         }
         
@@ -335,16 +331,17 @@ public class FunctionManager {
             alwaysApproveFunctions.add(finalToolName);
         }
 
-        //String jsonSchemaTest1 = GeminiSchemaGenerator2.generateSchemaAsString(method.getReturnType(), "Schema for " + method.getReturnType().getSimpleName());
-        //String jsonSchemaTest2 = SwaggerSchemaParser.generateInlinedSchema(method.getReturnType());
-        
-        return FunctionDeclaration.builder()
+        FunctionDeclaration.Builder builder = FunctionDeclaration.builder()
                 .name(finalToolName)
                 .description(descriptionBuilder.toString())
-                .parameters(paramsSchema)
-                .response(responseSchema)
-                //.responseJsonSchema(jsonSchemaTest2)
-                .build();
+                .parameters(paramsSchema);
+
+        // FIX: The response schema is optional. Do not set it if it's null (e.g., for void methods).
+        if (responseSchema != null) {
+            builder.response(responseSchema);
+        }
+
+        return builder.build();
     }
 
     

@@ -16,6 +16,9 @@ public enum ChatStatus {
     /** An API error occurred, and the system is in retry mode with exponential backoff. */
     WAITING_WITH_BACKOFF("Waiting with Backoff...", "An API error occurred. Retrying with exponential backoff."), 
     
+    /** The assistant has hit the maximum number of retries and has stopped. */
+    MAX_RETRIES_REACHED("Max Retries Reached", "The assistant has stopped after hitting the maximum number of retries."),
+    
     /** The model has finished processing and is waiting for the user's next input. */
     IDLE_WAITING_FOR_USER("Idle", "Waiting for user input.");
 

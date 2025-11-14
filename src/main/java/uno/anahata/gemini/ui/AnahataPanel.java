@@ -26,7 +26,7 @@ import uno.anahata.gemini.status.StatusListener;
 
 @Slf4j
 @Getter
-public class GeminiPanel extends JPanel implements ContextListener, StatusListener {
+public class AnahataPanel extends JPanel implements ContextListener, StatusListener {
 
     private Chat chat;
     private SwingChatConfig config;
@@ -41,20 +41,22 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
     private JComboBox<String> modelIdComboBox;
 
     private final EditorKitProvider editorKitProvider;
-    private ChatPanel chatPanel;
+    private ConversationPanel chatPanel;
+    private InputPanel inputPanel;
     private ContextHeatmapPanel heatmapPanel;
     private JTabbedPane tabbedPane;
+    private JSplitPane mainSplitPane; // The new main layout component
 
     private SystemInstructionsPanel systemInstructionsPanel;
     private GeminiKeysPanel geminiKeysPanel;
     private FunctionsPanel functionsPanel;
     private StatusPanel statusPanel;
 
-    public GeminiPanel() {
+    public AnahataPanel() {
         this(new DefaultEditorKitProvider());
     }
 
-    public GeminiPanel(EditorKitProvider editorKitProvider) {
+    public AnahataPanel(EditorKitProvider editorKitProvider) {
         super();
         this.editorKitProvider = editorKitProvider;
     }
@@ -130,12 +132,17 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
         northPanel.add(modelIdPanel, BorderLayout.EAST);
         add(northPanel, BorderLayout.NORTH);
 
-        // --- SOUTH Panel (Status and Usage) ---
+        // --- SOUTH Panel (Input and Status) ---
+        inputPanel = new InputPanel(this);
         statusPanel = new StatusPanel(this);
-        add(statusPanel, BorderLayout.SOUTH);
+
+        JPanel mainSouthPanel = new JPanel(new BorderLayout());
+        mainSouthPanel.add(inputPanel, BorderLayout.CENTER);
+        mainSouthPanel.add(statusPanel, BorderLayout.SOUTH);
+        // We will add this to the split pane later, not directly to the main panel.
 
         // --- CENTER Panel (Tabs) ---
-        chatPanel = new ChatPanel(this);
+        chatPanel = new ConversationPanel(this);
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
 
@@ -161,11 +168,18 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
             }
         });
 
-        add(tabbedPane, BorderLayout.CENTER);
+        // --- JSplitPane for Main Layout ---
+        mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbedPane, mainSouthPanel);
+        mainSplitPane.setResizeWeight(0.8); // Give more space to the chat history initially
+        mainSplitPane.setOneTouchExpandable(true);
+        mainSplitPane.setBorder(BorderFactory.createEmptyBorder()); // Remove split pane border
+
+        add(mainSplitPane, BorderLayout.CENTER);
 
         FileDropListener fileDropListener = new FileDropListener();
         new DropTarget(this, fileDropListener);
         new DropTarget(chatPanel, fileDropListener);
+        new DropTarget(inputPanel, fileDropListener); // Also allow dropping on the input panel
 
         setVisible(true);
     }
@@ -181,7 +195,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
 
     @Override
     public void contextCleared(Chat source) {
-        // The ChatPanel already listens and clears itself.
+        // The ConversationPanel already listens and clears itself.
         // The heatmap will be cleared the next time it's selected.
     }
 
@@ -198,7 +212,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
                 dtde.acceptDrop(DnDConstants.ACTION_COPY);
                 List<File> droppedFiles = (List<File>) dtde.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
                 for (File file : droppedFiles) {
-                    chatPanel.getInputPanel().getAttachmentsPanel().addStagedFile(file);
+                    inputPanel.getAttachmentsPanel().addStagedFile(file);
                 }
             } catch (Exception ex) {
                 log.warn("Drag and drop failed", ex);
@@ -258,7 +272,7 @@ public class GeminiPanel extends JPanel implements ContextListener, StatusListen
             protected void done() {
                 if (error != null) {
                     log.error("Failed to load autobackup session", error);
-                    JOptionPane.showMessageDialog(GeminiPanel.this, "Error loading backup: " + error.getMessage() + "\nStarting a new session.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(AnahataPanel.this, "Error loading backup: " + error.getMessage() + "\nStarting a new session.", "Error", JOptionPane.ERROR_MESSAGE);
                     initFreshChatInSwingWorker();
                 } else {
                     finalizeUIInitialization();

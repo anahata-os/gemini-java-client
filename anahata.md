@@ -9,7 +9,7 @@
 - **Pure Java & Portable:** Built entirely in Java, ensuring maximum compatibility and performance across different JVM environments.
 - **Deep Local Integration (Functions):** An annotation-driven Service Provider Interface (SPI) allows the AI to invoke local Java methods (`@AIToolMethod`), enabling direct interaction with the host machine via tools like `LocalFiles`, `LocalShell`, and dynamic code execution via `RunningJVM`.
 - **Embeddable Swing UI:** A complete, renderer-based UI (`uno.anahata.gemini.ui.GeminiPanel`) that supports complex parts (text, images, interactive tool calls, grounding metadata) and is designed for seamless embedding.
-- **Robust Context Management:** Features a sophisticated `ContextManager` with automatic, dependency-aware pruning to manage token limits and maintain conversation integrity.
+- **Robust Context Management:** Features a sophisticated `ContextManager` with automatic, dependency-aware pruning to manage token limits, and maintain conversation integrity.
 - **Stateful Resource Tracking:** Tracks local resources (e.g., files read into context) to detect and manage stale versions, ensuring the AI always works with the latest data.
 - **Dynamic System Instructions:** A provider-based system dynamically injects context-aware instructions (e.g., system properties, environment variables, project overview) into the model's prompt for superior performance and relevance.
 - **Session Persistence:** Uses Kryo serialization for fast and reliable saving and loading of entire chat sessions, including all context and stateful resources.
@@ -78,3 +78,54 @@ This is the long-term architectural plan to be executed after the V1 launch.
     -   Transition to an "Active Workspace" model where stateful resources are managed by these providers and injected into the prompt, rather than being fished from the chat history. This will eliminate context bloat and is the preferred strategy over auto-reloading stale resources.
 -   [ ] **Embeddings for Notes:** Convert the personal notes system from a simple folder of markdown files into a searchable knowledge base using embeddings for context augmentation.
 -   [ ] **Code Health:** Investigate why `buildApiContext` needs to filter for null `Content` objects, as this may be hiding an upstream bug.
+
+## 7. Current Task Board (As of 2025-11-14)
+
+This section tracks our active work items to ensure continuity across sessions.
+
+-   **[High Priority] Task H: Improve Input Panel UX:**
+    -   **Status:** Done.
+    -   **Description:** The user input text area remains enabled at all times, clears immediately on send, and auto-resizes as the user types. This was implemented using `JXTextArea` from the SwingX library.
+    -   **Next Step:** Completed.
+
+-   **[High Priority] Task G: Refactor to `ChatStatusEvent`:**
+    -   **Status:** In Progress.
+    -   **Description:** Refactor the status listening mechanism from a simple listener to a full event-driven model using a new `ChatStatusEvent` class. This will provide richer context to listeners and improve the architectural design.
+    -   **Next Step:** All files have been refactored. The task is complete.
+
+-   **[High Priority] Task A: Fix UI/Audio Bugs:**
+    -   **Status:** Done.
+    -   **Description:** The UI was unstable. The logs showed two distinct problems: an `UnsupportedAudioFileException` when trying to play `start.wav`, and a failure to load `bell.png` and `bell_mute.png` for the sound toggle button.
+    -   **Next Step:** Completed.
+
+-   **[High Priority] Task B: Add New Chat Status:**
+    -   **Status:** In Progress.
+    -   **Description:** Add a new `MAX_RETRIES_REACHED` status to the `ChatStatus` enum. This will provide clearer feedback to the user when the assistant is stuck due to persistent API or tool failures.
+    -   **Next Step:** Integrate the new `MAX_RETRIES_REACHED` status into the `StatusManager` and `Chat` loop logic.
+
+-   **[Low Priority] Task C: Code Quality:**
+    -   **Status:** To Do.
+    -   **Description:** The IDE reports a warning in `AnahataNavigatorTopComponent.java` that an anonymous inner class can be converted to a lambda.
+    -   **Next Step:** Apply the suggested lambda conversion in `AnahataNavigatorTopComponent.java`.
+
+-   **[Strategic] Task D: 'Active Workspace' Refactor:**
+    -   **Status:** On Hold.
+    -   **Description:** A strategic, multi-phase refactor to move from a "context-in-history" model to a more efficient "Active Workspace" model using `ContextProvider`s.
+    -   **Next Step:** Awaiting stabilization of the current feature work.
+
+-   **[Housekeeping] Task E: Context Management:**
+    -   **Status:** On Hold.
+    -   **Description:** Summarize and prune the files related to the 'Active Workspace' analysis (`ContextManager.java`, `ContextPruner.java`, etc.) from the conversation context.
+    -   **Next Step:** Awaiting stabilization of the current feature work.
+
+-   **[Medium Priority] Task F: Implement Per-Status Audio Notifications:**
+    -   **Status:** To Do.
+    -   **Description:** Enhance the UI to provide a unique audio notification for each `ChatStatus`.
+    -   **Next Step:** 
+        1. Find and add new `.wav` files to the `/sounds` resources for each status.
+        2. Update the `handleStatusSound` method in `StatusPanel.java` to play the appropriate sound.
+
+
+## 8. Development & Testing Notes
+
+- When testing code in this project via `NetBeansProjectJVM.compileAndExecuteInProject`, **always set `includeCompileAndExecuteDependencies` to `false`**. This is crucial to avoid `LinkageError` exceptions, as the NetBeans Platform already provides the necessary dependencies in its own classloader. Including them again creates a classloader conflict.

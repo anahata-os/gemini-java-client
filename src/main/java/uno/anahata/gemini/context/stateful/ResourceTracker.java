@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.functions.ContextBehavior;
-import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.GsonUtils;
 
 @Slf4j
@@ -38,11 +38,11 @@ public class ResourceTracker {
      * and if so, extracts the resource ID.
      *
      * @param fr The FunctionResponse to check.
-     * @param functionManager The FunctionManager to query for tool behavior.
+     * @param functionManager The ToolManager to query for tool behavior.
      * @return An Optional containing the resource ID if the response is stateful,
      * otherwise an empty Optional.
      */
-    public static Optional<String> getResourceIdIfStateful(FunctionResponse fr, FunctionManager functionManager) {
+    public static Optional<String> getResourceIdIfStateful(FunctionResponse fr, ToolManager functionManager) {
         String toolName = fr.name().orElse("");
         if (functionManager.getContextBehavior(toolName) != ContextBehavior.STATEFUL_REPLACE) {
             return Optional.empty();
@@ -63,7 +63,7 @@ public class ResourceTracker {
         return Optional.empty();
     }
 
-    public void handleStatefulReplace(ChatMessage newMessage, FunctionManager functionManager) {
+    public void handleStatefulReplace(ChatMessage newMessage, ToolManager functionManager) {
         if (functionManager == null) {
             return;
         }
@@ -103,7 +103,7 @@ public class ResourceTracker {
 
     public List<StatefulResourceStatus> getStatefulResourcesOverview() {
         List<StatefulResourceStatus> statuses = new ArrayList<>();
-        FunctionManager fm = contextManager.getFunctionManager();
+        ToolManager fm = contextManager.getFunctionManager();
 
         for (ChatMessage message : contextManager.getContext()) {
             if (message.getContent() == null || !message.getContent().parts().isPresent()) {
@@ -127,7 +127,7 @@ public class ResourceTracker {
         return new ArrayList<>(uniqueStatuses.values());
     }
 
-    private Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr, FunctionManager fm) {
+    private Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr, ToolManager fm) {
         String toolName = fr.name().orElse("");
         Method toolMethod = fm.getToolMethod(toolName);
 
@@ -188,7 +188,7 @@ public class ResourceTracker {
     }
 
     public void pruneStatefulResources(List<String> resourceIds) {
-        FunctionManager functionManager = contextManager.getFunctionManager();
+        ToolManager functionManager = contextManager.getFunctionManager();
         if (resourceIds == null || resourceIds.isEmpty() || functionManager == null) {
             return;
         }

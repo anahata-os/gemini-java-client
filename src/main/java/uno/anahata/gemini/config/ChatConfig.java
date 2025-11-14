@@ -79,12 +79,10 @@ public abstract class ChatConfig {
         }
     }
 
-    public List<Part> getLiveWorkspaceParts() {
-        return Collections.emptyList();
-    }
+    
 
-    public List<Class<?>> getAutomaticFunctionClasses() {
-        return Collections.emptyList();
+    public List<Class<?>> getToolClasses() {
+        return new ArrayList<>();
     }
 
     @Deprecated

@@ -25,7 +25,7 @@ import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
 import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.FunctionConfirmation;
-import uno.anahata.gemini.functions.FunctionManager;
+import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.GsonUtils;
 
 public class FunctionsPanel extends JScrollPane {
@@ -42,7 +42,7 @@ public class FunctionsPanel extends JScrollPane {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         
-        for (FunctionManager.FunctionInfo fi : chat.getFunctionManager().getFunctionInfos()) {
+        for (ToolManager.FunctionInfo fi : chat.getFunctionManager().getFunctionInfos()) {
             mainPanel.add(createFunctionControlPanel(fi));
             mainPanel.add(Box.createVerticalStrut(8));
         }
@@ -51,7 +51,7 @@ public class FunctionsPanel extends JScrollPane {
         getVerticalScrollBar().setUnitIncrement(16);
     }
 
-    private JPanel createFunctionControlPanel(FunctionManager.FunctionInfo fi) {
+    private JPanel createFunctionControlPanel(ToolManager.FunctionInfo fi) {
         FunctionDeclaration fd = fi.declaration;
         Method method = fi.method;
         

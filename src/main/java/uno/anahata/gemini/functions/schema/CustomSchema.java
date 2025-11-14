@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Singular;
 
 /**
  * A custom Schema DTO that extends the functionality of the Google GenAI Schema
@@ -22,7 +21,6 @@ public class CustomSchema {
     private final String description;
     
     // Fields for complex objects
-    @Singular
     private final Map<String, CustomSchema> properties;
     private final List<String> required;
     
