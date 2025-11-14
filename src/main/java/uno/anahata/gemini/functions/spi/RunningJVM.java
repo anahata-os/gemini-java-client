@@ -228,7 +228,10 @@ public class RunningJVM {
             requiresApproval = true
     )
     public static Object compileAndExecuteJava(
-            @AIToolParam("Source code of a java class called 'Anahata' that implements java.util.concurrent.Callable") String sourceCode,
+            @AIToolParam("Source code of a java class called 'Anahata' that:\n  "
+                    + "a) is public\n"
+                    + "b) has no package declaration\n"
+                    + "c) implements java.util.concurrent.Callable") String sourceCode,
             @AIToolParam("Compiler's additional classpath entries separated with File.pathSeparator. ") String extraClassPath,
             @AIToolParam("Compiler's additional options.") String[] compilerOptions) throws Exception {
 
