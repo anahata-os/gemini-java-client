@@ -8,20 +8,25 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.content.ContextProvider;
-import uno.anahata.gemini.functions.spi.Audio;
 import uno.anahata.gemini.internal.PartUtils;
+import uno.anahata.gemini.media.functions.spi.AudioTool;
 import uno.anahata.gemini.status.ChatStatus;
-import uno.anahata.gemini.ui.config.systeminstructions.spi.ApplicationFramesContextProvider;
+import uno.anahata.gemini.ui.context.provider.ApplicationFramesContextProvider;
 import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
 
 /**
  * A simple, concrete ChatConfig for standalone Swing applications.
  */
 @Slf4j
+@Getter
+@Setter
 public class SwingChatConfig extends ChatConfig {
+    
+    private boolean audioFeedbackEnabled = true; // Default to ON, no persistence.
 
     @Override
     public String getSessionId() {
@@ -29,38 +34,18 @@ public class SwingChatConfig extends ChatConfig {
     }
 
     @Override
-    public List<Class<?>> getAutomaticFunctionClasses() {
-        List<Class<?>> ret = new ArrayList<>();
+    public List<Class<?>> getToolClasses() {
+        List<Class<?>> ret = super.getToolClasses();
         ret.add(ScreenCapture.class);
-        ret.add(Audio.class);
+        ret.add(AudioTool.class);
         return ret;
     }
 
-    
     @Override
-    public List<Part> getLiveWorkspaceParts() {
-        try {
-            List<File> captures = UICapture.screenshotAllJFrames();
-            if (captures.isEmpty()) {
-                return Collections.emptyList();
-            }
-
-            List<Part> workspaceParts = new ArrayList<>();
-            workspaceParts.add(Part.fromText("Live Workspace Screenshot (just-in-time): " + captures.size() + " parts"));
-
-            for (File capture : captures) {
-                try {
-                    workspaceParts.add(PartUtils.toPart(capture));
-                } catch (Exception e) {
-                    log.error("Failed to convert capture file to Part: {}", capture.getAbsolutePath(), e);
-                    workspaceParts.add(Part.fromText("Error capturing workspace frame " + capture.getName() + ": " + e.getMessage()));
-                }
-            }
-            return workspaceParts;
-        } catch (Exception e) {
-            log.error("Failed to capture workspace for live context", e);
-            return Collections.singletonList(Part.fromText("Error capturing workspace: " + e.getMessage()));
-        }
+    public List<ContextProvider> getContextProviders() {
+        List<ContextProvider> ret = super.getContextProviders(); 
+        ret.add(new ApplicationFramesContextProvider());
+        return ret;
     }
 
     public Color getColor(ChatStatus status) {
