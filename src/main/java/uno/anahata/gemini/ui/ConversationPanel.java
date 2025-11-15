@@ -3,7 +3,6 @@ package uno.anahata.gemini.ui;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Rectangle;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -18,12 +17,14 @@ import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextListener;
+import uno.anahata.gemini.status.ChatStatus;
+import uno.anahata.gemini.status.StatusListener;
 import uno.anahata.gemini.ui.render.ContentRenderer;
 import uno.anahata.gemini.ui.util.SwingUtils;
 
 @Slf4j
 @Getter
-public class ConversationPanel extends JPanel implements ContextListener {
+public class ConversationPanel extends JPanel implements ContextListener, StatusListener {
 
     private final AnahataPanel parentPanel;
     private Chat chat;
@@ -33,6 +34,10 @@ public class ConversationPanel extends JPanel implements ContextListener {
     // UI Components
     private JPanel chatContentPanel;
     private JScrollPane chatScrollPane;
+
+    // For scroll state restoration
+    private SwingUtils.ScrollState<ChatMessage> scrollStateToRestore;
+    private boolean wasAtBottom = true;
 
     public ConversationPanel(AnahataPanel parentPanel) {
         super(new BorderLayout(5, 5));
@@ -46,33 +51,28 @@ public class ConversationPanel extends JPanel implements ContextListener {
         this.config = parentPanel.getConfig();
 
         this.chat.addContextListener(this);
+        this.chat.addStatusListener(this);
 
         chatContentPanel = new ScrollablePanel();
         chatContentPanel.setLayout(new BoxLayout(chatContentPanel, BoxLayout.Y_AXIS));
         chatScrollPane = new JScrollPane(chatContentPanel);
         chatScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        
-        // Create the button
+
         JButton scrollToBottomButton = new JButton("↓");
         scrollToBottomButton.setToolTipText("Scroll to Bottom");
         scrollToBottomButton.addActionListener(e -> scrollToBottom());
 
-        // Create a dedicated panel for the button, aligned to the right
         JPanel southPanel = new JPanel(new BorderLayout());
-        southPanel.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0)); // Add some top padding
+        southPanel.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
         southPanel.add(scrollToBottomButton, BorderLayout.EAST);
 
-        // Add the main components to the ConversationPanel
         add(chatScrollPane, BorderLayout.CENTER);
         add(southPanel, BorderLayout.SOUTH);
     }
 
     public void redraw() {
-        // 1. Capture scroll state BEFORE mutation
-        boolean wasAtBottom = isScrolledToBottom();
-        int topVisibleIndex = getTopVisibleMessageIndex();
+        captureScrollState();
 
-        // 2. Mutate the UI components
         chatContentPanel.removeAll();
         List<ChatMessage> currentContext = chat.getContext();
 
@@ -93,34 +93,47 @@ public class ConversationPanel extends JPanel implements ContextListener {
         chatContentPanel.revalidate();
         chatContentPanel.repaint();
 
-        // 3. Schedule scroll restoration AFTER layout has been updated
-        restoreScrollState(wasAtBottom, topVisibleIndex);
+        restoreScrollState();
+    }
+
+    private void captureScrollState() {
+        wasAtBottom = isScrolledToBottom();
+        if (wasAtBottom) {
+            scrollStateToRestore = null;
+        } else {
+            scrollStateToRestore = SwingUtils.getScrollState(chatScrollPane, c -> ((ChatMessageJPanel) c).getChatMessage());
+        }
     }
 
     private boolean isScrolledToBottom() {
         JScrollBar verticalScrollBar = chatScrollPane.getVerticalScrollBar();
-        // A tolerance of a few pixels helps account for rounding errors.
-        int tolerance = 10;
+        int tolerance = 10; // A few pixels of tolerance
         return (verticalScrollBar.getValue() + verticalScrollBar.getVisibleAmount()) >= (verticalScrollBar.getMaximum() - tolerance);
     }
 
-    private int getTopVisibleMessageIndex() {
-        return SwingUtils.getTopmostVisibleComponentIndex(chatScrollPane);
-    }
-
-    private void restoreScrollState(boolean wasAtBottom, int topVisibleIndex) {
+    private void restoreScrollState() {
         SwingUtilities.invokeLater(() -> {
             if (wasAtBottom) {
                 scrollToBottom();
-            } else if (topVisibleIndex != -1) {
-                int newComponentCount = chatContentPanel.getComponentCount();
-                if (newComponentCount > 0) {
-                    // If the old index is out of bounds (due to pruning), scroll to the new last element.
-                    // Otherwise, scroll to the element at the same index to preserve the user's view.
-                    int indexToScrollTo = Math.min(topVisibleIndex, newComponentCount - 1);
-                    Component componentToScrollTo = chatContentPanel.getComponent(indexToScrollTo);
-                    if (componentToScrollTo != null) {
-                        chatContentPanel.scrollRectToVisible(componentToScrollTo.getBounds());
+                return;
+            }
+
+            if (scrollStateToRestore == null || scrollStateToRestore.getAnchor() == null) {
+                return;
+            }
+
+            for (Component comp : chatContentPanel.getComponents()) {
+                if (comp instanceof ChatMessageJPanel) {
+                    ChatMessageJPanel panel = (ChatMessageJPanel) comp;
+                    // Use .equals() for robustness, though reference equality should work too.
+                    if (panel.getChatMessage().equals(scrollStateToRestore.getAnchor())) {
+                        int newScrollValue = panel.getY() - scrollStateToRestore.getOffset();
+                        int messageIndex = chat.getContext().indexOf(panel.getChatMessage());
+                        
+                        log.info("Restoring scroll state to message #{} ({}), pixel value: {}",
+                                 messageIndex, panel.getChatMessage().toString(), newScrollValue);
+                        chatScrollPane.getVerticalScrollBar().setValue(newScrollValue);
+                        return;
                     }
                 }
             }
@@ -131,13 +144,9 @@ public class ConversationPanel extends JPanel implements ContextListener {
         if (chatContentPanel.getComponentCount() == 0) {
             return;
         }
-        // We need to wait for the layout manager to do its job, hence invokeLater.
         SwingUtilities.invokeLater(() -> {
-            Component lastComponent = chatContentPanel.getComponent(chatContentPanel.getComponentCount() - 1);
-            if (lastComponent != null) {
-                Rectangle bounds = lastComponent.getBounds();
-                chatContentPanel.scrollRectToVisible(bounds);
-            }
+            JScrollBar verticalScrollBar = chatScrollPane.getVerticalScrollBar();
+            verticalScrollBar.setValue(verticalScrollBar.getMaximum());
         });
     }
 
@@ -149,5 +158,10 @@ public class ConversationPanel extends JPanel implements ContextListener {
     @Override
     public void contextCleared(Chat source) {
         SwingUtilities.invokeLater(this::redraw);
+    }
+
+    @Override
+    public void statusChanged(ChatStatus status, String lastExceptionToString) {
+        // This listener is no longer responsible for scrolling logic.
     }
 }

@@ -44,7 +44,7 @@ public class ChatMessage {
 
     // This field is mutable and is set after the model's response is received.
     private List<FunctionResponse> functionResponses;
-
+    
     /**
      * Performs a full graph traversal to find all parts connected to the startPart,
      * including the startPart itself. This is used to find the complete set of

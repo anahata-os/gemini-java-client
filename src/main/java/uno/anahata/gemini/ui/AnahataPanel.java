@@ -172,7 +172,7 @@ public class AnahataPanel extends JPanel implements ContextListener, StatusListe
         mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbedPane, mainSouthPanel);
         mainSplitPane.setResizeWeight(0.8); // Give more space to the chat history initially
         mainSplitPane.setOneTouchExpandable(true);
-        mainSplitPane.setBorder(BorderFactory.createEmptyBorder()); // Remove split pane border
+        // By removing the setBorder call, we restore the default L&F border, making the divider visible.
 
         add(mainSplitPane, BorderLayout.CENTER);
 

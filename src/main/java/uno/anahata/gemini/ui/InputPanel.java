@@ -28,7 +28,6 @@ import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.miginfocom.swing.MigLayout;
 import org.jdesktop.swingx.JXTextArea;
 import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.media.util.Microphone;
@@ -50,25 +49,23 @@ public class InputPanel extends JPanel {
     private AttachmentsPanel attachmentsPanel;
 
     public InputPanel(AnahataPanel parentPanel) {
-        // Switched to MigLayout for better control over component sizing.
-        super(new MigLayout("fill, insets 5", "[grow, fill]", "[][grow, fill][]"));
+        // Use a simple BorderLayout. The JScrollPane in the CENTER will automatically fill available space.
+        super(new BorderLayout(5, 5));
         this.parentPanel = parentPanel;
         this.chat = parentPanel.getChat();
         initComponents();
     }
 
     private void initComponents() {
-        // No border needed with MigLayout insets
-        // setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         attachmentsPanel = new AttachmentsPanel();
-        add(attachmentsPanel, "cell 0 0, wrap");
+        add(attachmentsPanel, BorderLayout.NORTH);
 
-        // Use JXTextArea from SwingX for placeholder text and better scrolling behavior.
+        // Use JXTextArea from SwingX for placeholder text.
         inputTextArea = new JXTextArea("Type your message here (Ctrl+Enter to send)");
         inputTextArea.setLineWrap(true);
         inputTextArea.setWrapStyleWord(true);
-        inputTextArea.setRows(3); // Initial size hint
 
         // Ctrl+Enter to send
         KeyStroke ctrlEnter = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK);
@@ -80,9 +77,9 @@ public class InputPanel extends JPanel {
             }
         });
 
+        // The JScrollPane will grow to fill the CENTER of the BorderLayout.
         JScrollPane inputScrollPane = new JScrollPane(inputTextArea);
-        // Add with MigLayout constraints: grow vertically, with a min height of ~3 rows and max of ~10 rows.
-        add(inputScrollPane, "cell 0 1, growy, hmin 60, hmax 220");
+        add(inputScrollPane, BorderLayout.CENTER);
 
         // Panel for buttons on the south side
         JPanel southButtonPanel = new JPanel(new BorderLayout(5, 0));
@@ -118,7 +115,7 @@ public class InputPanel extends JPanel {
         southButtonPanel.add(actionButtonPanel, BorderLayout.WEST);
         southButtonPanel.add(sendButton, BorderLayout.EAST);
 
-        add(southButtonPanel, "cell 0 2");
+        add(southButtonPanel, BorderLayout.SOUTH);
 
         // Setup Drag and Drop for the entire panel and its key components
         FileDropListener fileDropListener = new FileDropListener();
@@ -177,8 +174,9 @@ public class InputPanel extends JPanel {
                             JOptionPane.showMessageDialog(InputPanel.this, "Error during recording:\n" + error.getMessage(), "Recording Error", JOptionPane.ERROR_MESSAGE);
                         } else if (audioFile != null) {
                             attachmentsPanel.addStagedFile(audioFile);
-                            inputTextArea.setText(""); // Send no text, the audio is the message
-                            sendMessage();
+                            // BUGFIX: Do not send automatically. Let the user see the attachment and click send.
+                            // inputTextArea.setText(""); // Send no text, the audio is the message
+                            // sendMessage();
                         }
                     } catch (Exception e) {
                         log.error("Failed to get recording result", e);
