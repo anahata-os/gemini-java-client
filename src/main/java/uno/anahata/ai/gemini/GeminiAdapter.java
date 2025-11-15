@@ -8,18 +8,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import uno.anahata.gemini.functions.schema.SchemaProvider;
+import uno.anahata.gemini.functions.schema.SchemaProvider2;
 
-/**
- * Adapts the model-agnostic JSON schema from SchemaProvider into formats
- * specific to the Google Gemini API.
- */
 public class GeminiAdapter {
 
     private static final Gson GSON = new Gson();
     private static final Map<Class<?>, Type.Known> PRIMITIVE_MAP = new HashMap<>();
-    
-    // A constant for a valid, empty schema for void return types.
     private static final Schema VOID_SCHEMA = Schema.builder().build();
 
     static {
@@ -36,58 +30,46 @@ public class GeminiAdapter {
         PRIMITIVE_MAP.put(boolean.class, Type.Known.BOOLEAN);
     }
 
-    /**
-     * A convenience method that performs the full conversion from a Java class
-     * to a Gemini {@link Schema} object, correctly handling the abstract nature
-     * of the Schema class and primitive types. This method is guaranteed to never return null.
-     *
-     * @param clazz The class to generate the schema for.
-     * @return The Gemini Schema object. Never null.
-     * @throws Exception if schema generation or conversion fails.
-     */
-    public static Schema getGeminiSchema(Class<?> clazz) throws Exception {
-        if (clazz == null || clazz == void.class || clazz == Void.class) {
+    public static Schema getGeminiSchema(java.lang.reflect.Type type) throws Exception {
+        return getGeminiSchema(type, false);
+    }
+    
+    public static Schema getGeminiSchema(java.lang.reflect.Type type, boolean includeJsonSchemaId) throws Exception {
+        if (type == null || type.equals(void.class) || type.equals(Void.class)) {
             return VOID_SCHEMA;
         }
 
-        // FIX: Handle primitive/simple types directly, as SchemaProvider doesn't generate schemas for them.
-        if (PRIMITIVE_MAP.containsKey(clazz)) {
-            return Schema.builder()
-                    .type(PRIMITIVE_MAP.get(clazz))
-                    .description("Schema for " + clazz.getSimpleName())
-                    .build();
-        }
-
-        String inlinedSchema = SchemaProvider.generateInlinedSchemaString(clazz);
-        if (inlinedSchema == null) {
-            // Return the empty schema as a fallback instead of null
-            return VOID_SCHEMA;
-        }
+        String inlinedSchema = SchemaProvider2.generateInlinedSchemaString(type);
+        if (inlinedSchema == null) return VOID_SCHEMA;
         
-        // 1. Parse the generic JSON string into a Map
         Map<String, Object> schemaMap = GSON.fromJson(inlinedSchema, new TypeToken<Map<String, Object>>() {}.getType());
-        
-        // 2. Manually build the Schema object from the map
         return buildSchemaFromMap(schemaMap);
     }
+    
+    public static Schema getGeminiSchema(Class<?> clazz) throws Exception {
+        return getGeminiSchema((java.lang.reflect.Type) clazz, false);
+    }
 
-    /**
-     * Recursively builds a Gemini {@link Schema} object from a map representation of its JSON structure.
-     * This method correctly uses the Schema.Builder, avoiding issues with deserializing into abstract classes.
-     *
-     * @param map The map parsed from the JSON schema.
-     * @return A fully constructed Schema object.
-     */
     private static Schema buildSchemaFromMap(Map<String, Object> map) {
-        if (map == null || map.isEmpty()) {
-            return null;
-        }
+        if (map == null || map.isEmpty()) return null;
 
         Schema.Builder builder = Schema.builder();
 
+        String fqn = (String) map.get("title");
+        if (fqn == null) {
+            fqn = "N/A";
+        }
+        
+        // For now, just use the FQN as the title as requested.
+        // The logic can be expanded later to include the JSON ID if needed.
+        builder.title(fqn);
+
+        if (map.containsKey("description")) {
+            builder.description((String) map.get("description"));
+        }
+
         if (map.containsKey("type")) {
             String typeStr = (String) map.get("type");
-            // Simple mapping from JSON schema types to Gemini's Type.Known enum
             switch (typeStr.toUpperCase()) {
                 case "STRING":  builder.type(Type.Known.STRING);  break;
                 case "NUMBER":  builder.type(Type.Known.NUMBER);  break;
@@ -98,12 +80,10 @@ public class GeminiAdapter {
             }
         }
 
-        if (map.containsKey("description")) {
-            builder.description((String) map.get("description"));
-        }
-
         if (map.containsKey("enum")) {
-            builder.enum_((List<String>) map.get("enum"));
+            List<?> rawList = (List<?>) map.get("enum");
+            List<String> enumValues = rawList.stream().map(Object::toString).collect(Collectors.toList());
+            builder.enum_(enumValues);
         }
 
         if (map.containsKey("properties")) {

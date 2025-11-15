@@ -188,7 +188,9 @@ public class InputPanel extends JPanel {
 
     private void sendMessage() {
         final String text = inputTextArea.getText().trim();
-        final List<Part> stagedParts = attachmentsPanel.getStagedParts();
+        // BUGFIX: Create a defensive copy of the list. Do not get a reference that will be cleared.
+        final List<Part> stagedParts = new ArrayList<>(attachmentsPanel.getStagedParts());
+        
         if (text.isEmpty() && stagedParts.isEmpty()) {
             return;
         }

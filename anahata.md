@@ -30,6 +30,11 @@ The project is logically divided into four main layers, designed for modularity 
     *   Existing Javadoc, comments, and blank lines **must never be removed**.
     *   New public classes and methods **must have Javadoc**.
     *   Changes should be made by patching, not regenerating, to preserve the original structure and comments.
+2.  **Dependency Management Workflow:** Adhere to this strict workflow when adding new dependencies to ensure project stability and maintainability:
+    a. **Find Latest Version:** Use `MavenSearch.searchMavenIndex` to identify the latest stable version of the desired artifact.
+    b. **Check for Conflicts:** Before adding, use `MavenPom.getResolvedDependencies` to inspect the project's current transitive dependency tree. Check for existing versions of the artifact or potential conflicts with other libraries.
+    c. **Add Dependency:** Use the `MavenPom.addDependency` tool to safely modify the `pom.xml`.
+    d. **Download Sources:** Immediately after adding the dependency, use `Maven.downloadDependencyArtifact` to download the `sources` and `javadoc` for the new artifact. This is crucial for future development and debugging.
 
 ## 5. V1 Launch Goals (Immediate Focus)
 
@@ -79,9 +84,19 @@ This is the long-term architectural plan to be executed after the V1 launch.
 -   [ ] **Embeddings for Notes:** Convert the personal notes system from a simple folder of markdown files into a searchable knowledge base using embeddings for context augmentation.
 -   [ ] **Code Health:** Investigate why `buildApiContext` needs to filter for null `Content` objects, as this may be hiding an upstream bug.
 
-## 7. Current Task Board (As of 2025-11-14)
+## 7. Current Task Board (As of 2025-11-15)
 
 This section tracks our active work items to ensure continuity across sessions.
+
+-   **[Highest Priority] Task J: Design and Refactor Maven Tools:**
+    -   **Status:** In Progress.
+    -   **Description:** The current Maven tools are spread across `Maven.java` and `MavenPom.java`, leading to confusion and redundancy. The `addDependency` tool has undergone several flawed design iterations. The new focus is to pause all other work and architect a clean, robust, and consolidated set of Maven tools.
+    -   **Next Step:** Analyze the user's feedback on asynchronous downloads and pre-download verification to create a definitive design proposal for a new `addDependency` "super-tool".
+
+-   **[On Hold] Task I: Test Schema Generation for `Tree` class:**
+    -   **Status:** On Hold.
+    -   **Description:** The investigation into serializing `com.google.genai.types` objects for debugging is complete. The findings have been documented in `jsonSchema.md`. This task is paused to focus on the higher-priority Maven tool redesign.
+    -   **Next Step:** Awaiting completion of Maven tool refactoring.
 
 -   **[High Priority] Task H: Improve Input Panel UX:**
     -   **Status:** Done.
@@ -89,9 +104,9 @@ This section tracks our active work items to ensure continuity across sessions.
     -   **Next Step:** Completed.
 
 -   **[High Priority] Task G: Refactor to `ChatStatusEvent`:**
-    -   **Status:** In Progress.
+    -   **Status:** Done.
     -   **Description:** Refactor the status listening mechanism from a simple listener to a full event-driven model using a new `ChatStatusEvent` class. This will provide richer context to listeners and improve the architectural design.
-    -   **Next Step:** All files have been refactored. The task is complete.
+    -   **Next Step:** Completed.
 
 -   **[High Priority] Task A: Fix UI/Audio Bugs:**
     -   **Status:** Done.
@@ -99,9 +114,9 @@ This section tracks our active work items to ensure continuity across sessions.
     -   **Next Step:** Completed.
 
 -   **[High Priority] Task B: Add New Chat Status:**
-    -   **Status:** In Progress.
+    -   **Status:** Done.
     -   **Description:** Add a new `MAX_RETRIES_REACHED` status to the `ChatStatus` enum. This will provide clearer feedback to the user when the assistant is stuck due to persistent API or tool failures.
-    -   **Next Step:** Integrate the new `MAX_RETRIES_REACHED` status into the `StatusManager` and `Chat` loop logic.
+    -   **Next Step:** Completed.
 
 -   **[Low Priority] Task C: Code Quality:**
     -   **Status:** To Do.
@@ -129,3 +144,5 @@ This section tracks our active work items to ensure continuity across sessions.
 ## 8. Development & Testing Notes
 
 - When testing code in this project via `NetBeansProjectJVM.compileAndExecuteInProject`, **always set `includeCompileAndExecuteDependencies` to `false`**. This is crucial to avoid `LinkageError` exceptions, as the NetBeans Platform already provides the necessary dependencies in its own classloader. Including them again creates a classloader conflict.
+
+- The AI Assistant's execution environment (the Anahata NetBeans plugin) **inherits the full, resolved classpath of the `gemini-java-client` project**. This means that any dependency (direct or transitive) that is correctly defined in the `pom.xml` is automatically available to dynamically compiled code. There is no need to use the `includeCompileAndExecuteDependencies` flag if the dependency is properly managed by Maven.

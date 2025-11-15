@@ -312,9 +312,11 @@ public class ToolManager {
         for (Parameter p : method.getParameters()) {
             String paramName = p.getName();
             AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
-            String paramDescription = (paramAnnotation != null) ? paramAnnotation.value() : "No description";
+            String paramDescription = (paramAnnotation != null && !paramAnnotation.value().isBlank()) 
+                ? paramAnnotation.value() 
+                : "Schema for " + p.getType().getSimpleName();
             
-            properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), "Schema for " + p.getType().getSimpleName()));
+            properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), paramDescription));
             required.add(paramName);
         }
         

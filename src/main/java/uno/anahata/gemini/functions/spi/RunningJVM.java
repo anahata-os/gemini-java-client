@@ -55,6 +55,11 @@ public class RunningJVM {
     public static void setDefaultCompilerClasspath(@AIToolParam("The default classpath for all code compiled by RunningJVM tools") String defaultCompilerClasspath) {
         RunningJVM.defaultCompilerClasspath = defaultCompilerClasspath;
     }
+    
+    @AIToolMethod(value = "Gets a formatted string of the default compiler classpath, grouped by directory.", requiresApproval = false)
+    public static String getPrettyPrintedDefaultCompilerClasspath() {
+        return ClasspathPrinter.prettyPrint(defaultCompilerClasspath);
+    }
 
     @AIToolMethod("Compiles the source code of a java class with whatever classpath is defined in RunningJVM.getDefaultCompilerClassPath")
     public static Class compileJava(
