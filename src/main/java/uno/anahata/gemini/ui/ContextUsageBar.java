@@ -83,10 +83,10 @@ public class ContextUsageBar extends JPanel {
         Color textColor;
         
         if (status == ChatStatus.WAITING_WITH_BACKOFF) {
-            barColor = parentPanel.getConfig().getColor(status);
+            barColor = SwingChatConfig.getColor(status);
             textColor = Color.WHITE;
         } else {
-            barColor = (SwingChatConfig) parentPanel.getConfig().getColorForContextUsage(percentage);
+            barColor = SwingChatConfig.getColorForContextUsage(percentage);
             // Choose black or white text based on the brightness of the bar color for readability
             double brightness = (barColor.getRed() * 0.299) + (barColor.getGreen() * 0.587) + (barColor.getBlue() * 0.114);
             textColor = (brightness > 186) ? Color.BLACK : Color.WHITE;
