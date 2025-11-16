@@ -36,8 +36,8 @@ public final class GsonUtils {
                 Object json = GSON.fromJson(stringValue, Object.class);
                 // Re-serialize with pretty printing to ensure formatting
                 return PRETTY_PRINT_GSON.toJson(json);
-            } catch (com.google.gson.JsonSyntaxException e) {
-                // Not a JSON string, return it as is
+            } catch (Exception e) { // Catch broader exception to handle JsonIOException as well
+                // Not a valid/complete JSON string, return it as is
                 return stringValue;
             }
         }
