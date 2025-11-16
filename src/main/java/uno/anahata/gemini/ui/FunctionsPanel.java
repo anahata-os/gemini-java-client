@@ -2,18 +2,17 @@ package uno.anahata.gemini.ui;
 
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.FunctionDeclaration;
-import com.google.genai.types.Schema;
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -22,41 +21,130 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
 import javax.swing.JToggleButton;
+import javax.swing.ListSelectionModel;
+import javax.swing.table.DefaultTableModel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.GsonUtils;
 
-public class FunctionsPanel extends JScrollPane {
+public class FunctionsPanel extends JPanel {
     private final Chat chat;
     private final SwingChatConfig config;
+    private final JTable classTable;
+    private final DefaultTableModel tableModel;
+    private final JPanel detailPanel;
+    private final List<ToolManager.FunctionInfo> functionInfos;
 
     public FunctionsPanel(Chat chat, SwingChatConfig config) {
         this.chat = chat;
         this.config = config;
+        this.functionInfos = chat.getFunctionManager().getFunctionInfos();
+        setLayout(new BorderLayout());
+
+        // Left side: Table of classes
+        String[] columnNames = {"Tool Class", "Prompt", "Always", "Never"};
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        classTable = new JTable(tableModel);
+        classTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        classTable.getTableHeader().setReorderingAllowed(false);
+        classTable.setAutoCreateRowSorter(true); // Enable sorting
+
+        // Right side: Details of functions for the selected class
+        detailPanel = new JPanel();
+        detailPanel.setLayout(new BoxLayout(detailPanel, BoxLayout.Y_AXIS));
+        JScrollPane detailScrollPane = new JScrollPane(detailPanel);
+        detailScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+
+        // Split pane
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(classTable), detailScrollPane);
+        splitPane.setDividerLocation(400);
+        add(splitPane, BorderLayout.CENTER);
+
+        // Listener to update detail view on table selection
+        classTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int selectedRow = classTable.getSelectedRow();
+                if (selectedRow != -1) {
+                    int modelRow = classTable.convertRowIndexToModel(selectedRow);
+                    String className = (String) tableModel.getValueAt(modelRow, 0);
+                    updateDetailPanel(className);
+                }
+            }
+        });
+
         refresh();
     }
 
-    public void refresh() {
-        JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        
-        for (ToolManager.FunctionInfo fi : chat.getFunctionManager().getFunctionInfos()) {
-            mainPanel.add(createFunctionControlPanel(fi));
-            mainPanel.add(Box.createVerticalStrut(8));
+    public final void refresh() {
+        // Group functions by class name
+        Map<String, List<ToolManager.FunctionInfo>> groupedByClass = functionInfos.stream()
+            .collect(Collectors.groupingBy(fi -> fi.method.getDeclaringClass().getSimpleName()));
+
+        // Create summary data for the table
+        List<ClassPermissionSummary> summaries = new ArrayList<>();
+        for (Map.Entry<String, List<ToolManager.FunctionInfo>> entry : groupedByClass.entrySet()) {
+            String className = entry.getKey();
+            int promptCount = 0;
+            int alwaysCount = 0;
+            int neverCount = 0;
+            for (ToolManager.FunctionInfo fi : entry.getValue()) {
+                FunctionCall fc = FunctionCall.builder().name(fi.declaration.name().get()).build();
+                FunctionConfirmation pref = config.getFunctionConfirmation(fc);
+                if (pref == null) {
+                    promptCount++;
+                } else {
+                    switch (pref) {
+                        case ALWAYS: alwaysCount++; break;
+                        case NEVER: neverCount++; break;
+                        default: promptCount++; break;
+                    }
+                }
+            }
+            summaries.add(new ClassPermissionSummary(className, promptCount, alwaysCount, neverCount));
         }
+
+        // Sort summaries alphabetically by class name for initial display
+        summaries.sort(Comparator.comparing(s -> s.className));
+
+        // Populate table model
+        tableModel.setRowCount(0);
+        for (ClassPermissionSummary summary : summaries) {
+            tableModel.addRow(new Object[]{summary.className, summary.promptCount, summary.alwaysCount, summary.neverCount});
+        }
+    }
+
+    private void updateDetailPanel(String className) {
+        detailPanel.removeAll();
         
-        setViewportView(mainPanel);
-        getVerticalScrollBar().setUnitIncrement(16);
+        functionInfos.stream()
+            .filter(fi -> fi.method.getDeclaringClass().getSimpleName().equals(className))
+            .sorted(Comparator.comparing(fi -> fi.method.getName()))
+            .forEach(fi -> {
+                detailPanel.add(createFunctionControlPanel(fi));
+                detailPanel.add(Box.createVerticalStrut(8));
+            });
+        
+        detailPanel.revalidate();
+        detailPanel.repaint();
     }
 
     private JPanel createFunctionControlPanel(ToolManager.FunctionInfo fi) {
         FunctionDeclaration fd = fi.declaration;
-        Method method = fi.method;
         
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("<html><b>" + fd.name().get() + "</b></html>"));
+        panel.setBorder(BorderFactory.createTitledBorder("<html><b>" + fi.method.getName() + "</b></html>"));
         
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
@@ -67,14 +155,9 @@ public class FunctionsPanel extends JScrollPane {
 
         // Description (extract original part before signature)
         String fullDescription = fd.description().get();
-        String originalDescription = fullDescription;
-        int signatureIndex = fullDescription.indexOf("\n\njava method signature:");
-        if (signatureIndex != -1) {
-            originalDescription = fullDescription.substring(0, signatureIndex);
-        }
+        String originalDescription = StringUtils.substringBefore(fullDescription, "\n\njava method signature:");
         String descriptionText = "<html>" + originalDescription.replace("\n", "<br>") + "</html>";
-        JLabel description = new JLabel(descriptionText);
-        panel.add(description, gbc);
+        panel.add(new JLabel(descriptionText), gbc);
         gbc.gridy++;
 
         // --- Toggle Button ---
@@ -85,43 +168,31 @@ public class FunctionsPanel extends JScrollPane {
         gbc.gridy++;
 
         // --- Collapsible Details Panel ---
-        JPanel detailsPanel = new JPanel(new GridBagLayout());
-        detailsPanel.setVisible(false); // Collapsed by default
+        JPanel collapsiblePanel = new JPanel(new GridBagLayout());
+        collapsiblePanel.setVisible(false);
         GridBagConstraints detailsGbc = new GridBagConstraints();
         detailsGbc.gridx = 0;
         detailsGbc.gridy = 0;
         detailsGbc.weightx = 1.0;
         detailsGbc.fill = GridBagConstraints.HORIZONTAL;
-        detailsGbc.insets = new Insets(4, 0, 4, 0); // No extra insets needed inside this panel
+        detailsGbc.insets = new Insets(4, 0, 4, 0);
 
-        // Full Java Method Signature (including throws)
-        String methodSignature = "<html><b>" + method.getReturnType().getSimpleName() + "</b> " + method.getName() + "(" +
-                                 Stream.of(method.getParameters())
-                                       .map(p -> p.getType().getSimpleName() + " " + p.getName())
-                                       .collect(Collectors.joining(", ")) +
-                                 ")";
-        if (method.getExceptionTypes().length > 0) {
-            methodSignature += " throws " + Arrays.stream(method.getExceptionTypes())
-                .map(Class::getSimpleName)
-                .collect(Collectors.joining(", "));
-        }
-        methodSignature += "</html>";
-        JLabel methodLabel = new JLabel(methodSignature);
-        detailsPanel.add(methodLabel, detailsGbc);
+        String signature = StringUtils.substringBetween(fullDescription, "java method signature: ", "\ncontext behavior:");
+        String behavior = StringUtils.substringAfter(fullDescription, "context behavior: ");
+
+        collapsiblePanel.add(new JLabel("<html><b>Signature:</b> " + signature + "</html>"), detailsGbc);
         detailsGbc.gridy++;
-
-        // Separator
-        detailsPanel.add(new JSeparator(), detailsGbc);
+        collapsiblePanel.add(new JLabel("<html><b>Behavior:</b> " + behavior + "</html>"), detailsGbc);
         detailsGbc.gridy++;
-
-        // Full FunctionDeclaration JSON
-        String jsonSchema = "<html><pre>" + GsonUtils.prettyPrint(functionDeclarationToMap(fd)).replace("\n", "<br>").replace(" ", "&nbsp;") + "</pre></html>";
-        JLabel schemaLabel = new JLabel(jsonSchema);
-        detailsPanel.add(schemaLabel, detailsGbc);
+        collapsiblePanel.add(new JSeparator(), detailsGbc);
+        detailsGbc.gridy++;
+        collapsiblePanel.add(new JLabel("<html><b>Full JSON Schema:</b></html>"), detailsGbc);
+        detailsGbc.gridy++;
+        String jsonSchema = "<html><pre>" + GsonUtils.prettyPrint(fd.toJson()).replace("\n", "<br>").replace(" ", "&nbsp;") + "</pre></html>";
+        collapsiblePanel.add(new JLabel(jsonSchema), detailsGbc);
         
-        // Add details panel to main panel
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        panel.add(detailsPanel, gbc);
+        panel.add(collapsiblePanel, gbc);
         gbc.gridy++;
         
         // --- Button Group ---
@@ -130,10 +201,9 @@ public class FunctionsPanel extends JScrollPane {
         gbc.anchor = GridBagConstraints.WEST;
         panel.add(createButtonGroup(fd), gbc);
         
-        // --- Toggle Logic ---
         detailsButton.addActionListener(e -> {
             boolean isSelected = detailsButton.isSelected();
-            detailsPanel.setVisible(isSelected);
+            collapsiblePanel.setVisible(isSelected);
             detailsButton.setText(isSelected ? "Hide Details" : "Show Details");
         });
         
@@ -144,76 +214,41 @@ public class FunctionsPanel extends JScrollPane {
     private JPanel createButtonGroup(FunctionDeclaration fd) {
         JPanel buttonPanel = new JPanel();
         ButtonGroup group = new ButtonGroup();
-
         JToggleButton promptButton = new JToggleButton("Prompt");
         JToggleButton alwaysButton = new JToggleButton("Always");
         JToggleButton neverButton = new JToggleButton("Never");
-
         group.add(promptButton);
         group.add(alwaysButton);
         group.add(neverButton);
-
         buttonPanel.add(promptButton);
         buttonPanel.add(alwaysButton);
         buttonPanel.add(neverButton);
         
         FunctionCall fc = FunctionCall.builder().name(fd.name().get()).build();
-
-        // Set initial state from config
         FunctionConfirmation currentPref = config.getFunctionConfirmation(fc);
-        if (currentPref == null) {
-            promptButton.setSelected(true);
-        } else {
+        
+        if (currentPref == null) promptButton.setSelected(true);
+        else {
             switch (currentPref) {
-                case ALWAYS:
-                    alwaysButton.setSelected(true);
-                    break;
-                case NEVER:
-                    neverButton.setSelected(true);
-                    break;
-                default:
-                    promptButton.setSelected(true);
+                case ALWAYS: alwaysButton.setSelected(true); break;
+                case NEVER: neverButton.setSelected(true); break;
+                default: promptButton.setSelected(true); break;
             }
         }
 
-        // Add listeners to update config
-        promptButton.addActionListener(e -> config.clearFunctionConfirmation(fc));
-        alwaysButton.addActionListener(e -> config.setFunctionConfirmation(fc, FunctionConfirmation.ALWAYS));
-        neverButton.addActionListener(e -> config.setFunctionConfirmation(fc, FunctionConfirmation.NEVER));
+        promptButton.addActionListener(e -> { config.clearFunctionConfirmation(fc); refresh(); });
+        alwaysButton.addActionListener(e -> { config.setFunctionConfirmation(fc, FunctionConfirmation.ALWAYS); refresh(); });
+        neverButton.addActionListener(e -> { config.setFunctionConfirmation(fc, FunctionConfirmation.NEVER); refresh(); });
 
         return buttonPanel;
     }
-    
-    private Map<String, Object> functionDeclarationToMap(FunctionDeclaration fd) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        fd.description().ifPresent(d -> map.put("description", d));
-        fd.name().ifPresent(n -> map.put("name", n));
-        fd.parameters().ifPresent(p -> map.put("parameters", schemaToMap(p)));
-        fd.response().ifPresent(r -> map.put("response", schemaToMap(r)));
-        return map;
-    }
 
-    private Map<String, Object> schemaToMap(Schema schema) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        schema.type().ifPresent(t -> map.put("type", t.toString()));
-        schema.description().ifPresent(d -> map.put("description", d));
-        
-        if (schema.properties().isPresent() && !schema.properties().get().isEmpty()) {
-            Map<String, Object> props = new LinkedHashMap<>();
-            schema.properties().get().forEach((key, value) -> props.put(key, schemaToMap(value)));
-            map.put("properties", props);
-        }
-        
-        if (schema.required().isPresent() && !schema.required().get().isEmpty()) {
-            map.put("required", schema.required().get());
-        }
-        
-        schema.items().ifPresent(i -> map.put("items", schemaToMap(i)));
-        
-        if (schema.enum_().isPresent() && !schema.enum_().get().isEmpty()) {
-            map.put("enum", schema.enum_().get());
-        }
-        
-        return map;
+    @Getter
+    @AllArgsConstructor
+    private static class ClassPermissionSummary {
+        String className;
+        int promptCount;
+        int alwaysCount;
+        int neverCount;
     }
 }
