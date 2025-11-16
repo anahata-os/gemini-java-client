@@ -52,7 +52,7 @@ public class SwingChatConfig extends ChatConfig {
         return ret;
     }
 
-    public Color getColor(ChatStatus status) {
+    public static Color getColor(ChatStatus status) {
         switch (status) {
             case API_CALL_IN_PROGRESS:
                 return new Color(0, 123, 255); // BLUE
@@ -64,6 +64,18 @@ public class SwingChatConfig extends ChatConfig {
                 return new Color(0, 128, 0); // GREEN
             default:
                 return Color.BLACK;
+        }
+    }
+    
+    public static Color getColorForContextUsage(double percentage) {
+        if (percentage > 1.0) {
+            return new Color(150, 0, 0); // Dark Red
+        } else if (percentage > 0.9) {
+            return new Color(255, 50, 50); // Red
+        } else if (percentage > 0.7) {
+            return new Color(255, 193, 7); // Yellow/Amber
+        } else {
+            return new Color(40, 167, 69); // Green
         }
     }
 
