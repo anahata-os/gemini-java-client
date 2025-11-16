@@ -318,7 +318,9 @@ public class Chat {
             contextManager.add(message);
         }
 
-        return !executedCalls.isEmpty() || hasDeniedCalls;
+        // Only re-loop if we actually executed something and need the model to process the result.
+        // If the user just denied calls, we've added the feedback message and can stop.
+        return !executedCalls.isEmpty();
     }
 
     private GenerateContentResponse sendToModelWithRetry(List<Content> context) {
