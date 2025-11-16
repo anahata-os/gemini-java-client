@@ -19,11 +19,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import uno.anahata.ai.gemini.GeminiAdapter;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Executors;
 import uno.anahata.gemini.functions.JobInfo.JobStatus;
 import uno.anahata.gemini.functions.FunctionPrompter.PromptResult;
-import uno.anahata.gemini.functions.schema.GeminiSchemaGenerator;
 import uno.anahata.gemini.internal.GsonUtils;
 
 
@@ -288,23 +288,24 @@ public class ToolManager {
         
         StringBuilder descriptionBuilder = new StringBuilder(methodAnnotation.value());
         
-        // Generate and append the full method signature to the description
+        // Generate and append the full FQN method signature to the description
         String signature = Modifier.toString(method.getModifiers())
-                + " " + method.getReturnType().getSimpleName()
+                + " " + method.getGenericReturnType().getTypeName()
                 + " " + method.getName() + "("
                 + Stream.of(method.getParameters())
-                        .map(p -> p.getType().getSimpleName() + " " + p.getName())
+                        .map(p -> p.getParameterizedType().getTypeName() + " " + p.getName())
                         .collect(Collectors.joining(", "))
                 + ")";
 
         if (method.getExceptionTypes().length > 0) {
             signature += " throws " + Stream.of(method.getExceptionTypes())
-                    .map(Class::getSimpleName)
+                    .map(Class::getCanonicalName)
                     .collect(Collectors.joining(", "));
         }
         descriptionBuilder.append("\n\njava method signature: ").append(signature);
+        descriptionBuilder.append("\ncontext behavior: ").append(methodAnnotation.behavior());
         
-        Schema responseSchema = GeminiSchemaGenerator.generateSchema(method.getReturnType(), "Schema for " + method.getReturnType().getSimpleName());
+        Schema responseSchema = GeminiAdapter.getGeminiSchema(method.getGenericReturnType());
 
         Map<String, Schema> properties = new HashMap<>();
         List<String> required = new ArrayList<>();
@@ -314,9 +315,9 @@ public class ToolManager {
             AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
             String paramDescription = (paramAnnotation != null && !paramAnnotation.value().isBlank()) 
                 ? paramAnnotation.value() 
-                : "Schema for " + p.getType().getSimpleName();
+                : "Schema for " + p.getParameterizedType().getTypeName();
             
-            properties.put(paramName, GeminiSchemaGenerator.generateSchema(p.getType(), paramDescription));
+            properties.put(paramName, GeminiAdapter.getGeminiSchema(p.getParameterizedType()));
             required.add(paramName);
         }
         
@@ -338,7 +339,6 @@ public class ToolManager {
                 .description(descriptionBuilder.toString())
                 .parameters(paramsSchema);
 
-        // FIX: The response schema is optional. Do not set it if it's null (e.g., for void methods).
         if (responseSchema != null) {
             builder.response(responseSchema);
         }
