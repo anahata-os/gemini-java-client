@@ -7,7 +7,6 @@ import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -20,7 +19,6 @@ import javax.swing.ButtonGroup;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JToggleButton;
@@ -28,7 +26,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.functions.ToolManager;
@@ -153,10 +150,8 @@ public class FunctionsPanel extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(4, 8, 4, 8);
 
-        // Description (extract original part before signature)
-        String fullDescription = fd.description().get();
-        String originalDescription = StringUtils.substringBefore(fullDescription, "\n\njava method signature:");
-        String descriptionText = "<html>" + originalDescription.replace("\n", "<br>") + "</html>";
+        // Use the full, rich description directly.
+        String descriptionText = "<html>" + fd.description().get().replace("\n", "<br>") + "</html>";
         panel.add(new JLabel(descriptionText), gbc);
         gbc.gridy++;
 
@@ -168,28 +163,12 @@ public class FunctionsPanel extends JPanel {
         gbc.gridy++;
 
         // --- Collapsible Details Panel ---
-        JPanel collapsiblePanel = new JPanel(new GridBagLayout());
+        JPanel collapsiblePanel = new JPanel(new BorderLayout());
         collapsiblePanel.setVisible(false);
-        GridBagConstraints detailsGbc = new GridBagConstraints();
-        detailsGbc.gridx = 0;
-        detailsGbc.gridy = 0;
-        detailsGbc.weightx = 1.0;
-        detailsGbc.fill = GridBagConstraints.HORIZONTAL;
-        detailsGbc.insets = new Insets(4, 0, 4, 0);
-
-        String signature = StringUtils.substringBetween(fullDescription, "java method signature: ", "\ncontext behavior:");
-        String behavior = StringUtils.substringAfter(fullDescription, "context behavior: ");
-
-        collapsiblePanel.add(new JLabel("<html><b>Signature:</b> " + signature + "</html>"), detailsGbc);
-        detailsGbc.gridy++;
-        collapsiblePanel.add(new JLabel("<html><b>Behavior:</b> " + behavior + "</html>"), detailsGbc);
-        detailsGbc.gridy++;
-        collapsiblePanel.add(new JSeparator(), detailsGbc);
-        detailsGbc.gridy++;
-        collapsiblePanel.add(new JLabel("<html><b>Full JSON Schema:</b></html>"), detailsGbc);
-        detailsGbc.gridy++;
+        
+        // Display the full JSON of the FunctionDeclaration
         String jsonSchema = "<html><pre>" + GsonUtils.prettyPrint(fd.toJson()).replace("\n", "<br>").replace(" ", "&nbsp;") + "</pre></html>";
-        collapsiblePanel.add(new JLabel(jsonSchema), detailsGbc);
+        collapsiblePanel.add(new JLabel(jsonSchema), BorderLayout.CENTER);
         
         gbc.fill = GridBagConstraints.HORIZONTAL;
         panel.add(collapsiblePanel, gbc);
