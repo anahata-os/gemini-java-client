@@ -14,6 +14,8 @@ import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.content.ContextProvider;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.media.functions.spi.AudioTool;
+import uno.anahata.gemini.media.functions.spi.PianoTool;
+import uno.anahata.gemini.media.functions.spi.RadioTool;
 import uno.anahata.gemini.status.ChatStatus;
 import uno.anahata.gemini.ui.context.provider.ApplicationFramesContextProvider;
 import uno.anahata.gemini.ui.functions.spi.ScreenCapture;
@@ -38,6 +40,8 @@ public class SwingChatConfig extends ChatConfig {
         List<Class<?>> ret = super.getToolClasses();
         ret.add(ScreenCapture.class);
         ret.add(AudioTool.class);
+        ret.add(RadioTool.class);
+        ret.add(PianoTool.class);
         return ret;
     }
 
