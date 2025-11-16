@@ -19,6 +19,15 @@ public final class AudioPlayer {
 
     private AudioPlayer() {}
 
+    /**
+     * Plays a short, non-blocking notification sound from the application's resources.
+     * <p>
+     * The sound file is expected to be located in the {@code /sounds/} directory
+     * within the classpath. Playback is handled on a dedicated background thread
+     * and will be skipped if the microphone is currently active.
+     *
+     * @param resourceName The simple name of the sound file to play (e.g., "idle.wav").
+     */
     public static void playSound(final String resourceName) {
         if (Microphone.isRecording()) {
             return;
@@ -26,6 +35,10 @@ public final class AudioPlayer {
         audioExecutor.submit(() -> {
             try (AudioInputStream inputStream = AudioSystem.getAudioInputStream(
                 AudioPlayer.class.getResourceAsStream("/sounds/" + resourceName))) {
+                if (inputStream == null) {
+                    log.warn("Sound resource not found: {}", resourceName);
+                    return;
+                }
                 Clip clip = AudioSystem.getClip();
                 clip.addLineListener(event -> {
                     if (event.getType() == LineEvent.Type.STOP) {

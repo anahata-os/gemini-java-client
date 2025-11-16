@@ -18,7 +18,7 @@
 
 The project is logically divided into four main layers, designed for modularity and clear separation of concerns.
 
-- **Core Logic (`uno.anahata.gemini`):** Contains the central orchestrators, including `GeminiChat` (conversation loop, API retries) and `GeminiConfig` (host-specific configuration).
+- **Core Logic (`uno.anahata.gemini`):** Contains the central orchestrators, including `Chat` (conversation loop, API retries) and `ChatConfig` (host-specific configuration).
 - **Context System (`uno.anahata.gemini.context`):** Manages the conversation history, token limits, session persistence (`session`), resource tracking (`stateful`), and pruning logic (`pruning`).
 - **Function System (`uno.anahata.gemini.functions`):** The framework for discovering, generating schema for, and executing local tools, including the `FailureTracker` and `ContextBehavior` logic.
 - **UI Layer (`uno.anahata.gemini.ui`):** The complete Swing-based user interface, including renderers (`render`) and UI-specific tools (`functions.spi`).
@@ -30,28 +30,49 @@ The project is logically divided into four main layers, designed for modularity 
     *   Existing Javadoc, comments, and blank lines **must never be removed**.
     *   New public classes and methods **must have Javadoc**.
     *   Changes should be made by patching, not regenerating, to preserve the original structure and comments.
-2.  **Dependency Management Workflow:** Adhere to this strict workflow when adding new dependencies to ensure project stability and maintainability:
-    a. **Find Latest Version:** Use `MavenSearch.searchMavenIndex` to identify the latest stable version of the desired artifact.
-    b. **Check for Conflicts:** Before adding, use `MavenPom.getResolvedDependencies` to inspect the project's current transitive dependency tree. Check for existing versions of the artifact or potential conflicts with other libraries.
-    c. **Add Dependency:** Use the `MavenPom.addDependency` tool to safely modify the `pom.xml`.
-    d. **Download Sources:** Immediately after adding the dependency, use `Maven.downloadDependencyArtifact` to download the `sources` and `javadoc` for the new artifact. This is crucial for future development and debugging.
+2.  **Logging Standard:** All logging **must** be done through the SLF4J API.
+    *   Use the `@Slf4j` Lombok annotation on the class.
+    *   Use the provided `log` object (`log.info`, `log.warn`, `log.error`, etc.).
+    *   **Never** use `System.out.println()` or `System.err.println()`.
+3.  **Dependency Management Workflow:** Adhere to this strict workflow when adding new dependencies to ensure project stability and maintainability:
+    a. **Find Latest Version:** Use `MavenTools.searchMavenIndex` to identify the latest stable version of the desired artifact.
+    b. **Check for Conflicts:** Before adding, use `MavenTools.getResolvedDependencies` to inspect the project's current transitive dependency tree. Check for existing versions of the artifact or potential conflicts with other libraries.
+    c. **Add Dependency:** Use the `MavenTools.addDependency` tool to safely modify the `pom.xml`.
+    d. **Download Sources:** Immediately after adding the dependency, use `MavenTools.downloadProjectDependencies` to download the `sources` and `javadoc` for the new artifact. This is crucial for future development and debugging.
 
-## 5. V1 Launch Goals (Immediate Focus)
+## 5. Managing AI Tools
+
+The set of Java classes available to the AI as tools is determined at startup by the `getToolClasses()` method in your `ChatConfig` implementation (e.g., `SwingChatConfig` or `NetBeansChatConfig`).
+
+-   **To Register a New Tool:** Add the `.class` literal of your new tool class to the list returned by `getToolClasses()`.
+    ```java
+    @Override
+    public List<Class<?>> getToolClasses() {
+        List<Class<?>> ret = super.getToolClasses();
+        ret.add(MyNewTool.class); // Add your new tool here
+        return ret;
+    }
+    ```
+-   **To Unregister a Tool:** Simply remove or comment out the line that adds the tool's `.class` from the list.
+
+This mechanism provides a simple and centralized way to control which Java methods the AI is allowed to see and execute.
+
+## 6. V1 Launch Goals (Immediate Focus)
 
 ### Phase 1: Core Lifecycle & Concurrency
 -   [ ] **"Tool call execution does not follow the same sequence as the received FunctionCalls:** Sometimes the model provides two tool calls but in the tool output they show as if they were executed in different order.
 -   [ ] **"Tool call execution**. FunctionPrompting should be embedded in the main chat window, not in a popup, When the model proposes 3 tool calls, the user should be able to execute an individual tool with a click and possibly re-run it later as many times as he wants. There should still be a runAll at the bottom that runs all the tools marked as Yes" currently if the model wants to do two operations and one depends on the oter
--   [ ] **"Ghost Chat" Prevention:** Tightly couple the `AnahataTopComponent` lifecycle (in `anahata-netbeans-ai`) to the `GeminiChat` instance. When the UI component is closed, it must signal the chat to terminate all background processes.
+-   [ ] **"Ghost Chat" Prevention:** Tightly couple the `AnahataTopComponent` lifecycle (in `anahata-netbeans-ai`) to the `Chat` instance. When the UI component is closed, it must signal the chat to terminate all background processes.
 -   [ ] **Cancellation Framework:** Implement a robust cancellation mechanism (`ExecutorService`/`Future`) to allow interrupting:
     -   In-flight API calls.
     -   The entire tool-call-reloop cycle.
     -   Individual long-running tool executions (e.g., Maven downloads).
--   [ ] **Fix Async Job Delivery:** Implement a queueing mechanism in `GeminiChat` to ensure that asynchronous job results are reliably delivered and not dropped when a tool loop is already in progress.
+-   [ ] **Fix Async Job Delivery:** Implement a queueing mechanism in `Chat` to ensure that asynchronous job results are reliably delivered and not dropped when a tool loop is already in progress.
 
 ### Phase 2: Rich Status Reporting & UI Feedback
 -   [ ] **Status Bar Integration:** Fully integrate the new status bar and progress bar components into `GeminiPanel`.
 -   [ ] **Detailed Status Reporting:** The status bar must clearly display:
-    -   The current state (e.g., "API Call in Progress...", "Executing tool: `Maven.downloadProjectDependencies`").
+    -   The current state (e.g., "API Call in Progress...", "Executing tool: `MavenTools.downloadProjectDependencies`").
     -   API call latency.
     -   Retry attempts, including the count and the last `Exception.toString()` (e.g., "Retry 2/5: 429 Quota Exceeded...").
     -   The total token count, ensuring it remains visible and accurate even during tool execution.
@@ -66,7 +87,7 @@ The project is logically divided into four main layers, designed for modularity 
 -   [ ] **`package-info.java`:** Start the process of ensuring every package has a comprehensive Javadoc `package-info.java` file.
 -   [ ] **Context Integrity:** Investigate the pruning and message reconstruction logic to ensure that no metadata (e.g., `thoughtSignatures` from `usageMetadata`) is lost.
 
-## 6. V2 Mega-Refactor Plan (Future Focus)
+## 7. V2 Mega-Refactor Plan (Future Focus)
 
 This is the long-term architectural plan to be executed after the V1 launch.
 
@@ -74,7 +95,7 @@ This is the long-term architectural plan to be executed after the V1 launch.
 -   [ ] **Multi-Model Abstraction:**
     -   Create a generic `ChatModel` interface to allow plugging in other providers (OpenAI, Claude, etc.).
     -   **`ContentProducer` Interface:** Abstract all model-specific content creation (`Content`, `Part` objects) into a provider-agnostic interface. This is critical for decoupling the core logic from the Gemini API and will handle the creation of all messages (tool responses, user feedback, errors, etc.).
--   [ ] **Decoupled Status Management:** Move the `ChatStatus` enum and its listener mechanism out of `GeminiChat` into a dedicated `StatusManager` class to further slim down the core orchestrator.
+-   [ ] **Decoupled Status Management:** Move the `ChatStatus` enum and its listener mechanism out of `Chat` into a dedicated `StatusManager` class to further slim down the core orchestrator.
 -   [ ] **Per-Chat Permissions:** Refactor the function permission model to be session-specific instead of global.
 -   [ ] **Asynchronous Input:** Implement the ability for the user to queue a message while a tool loop is running, which will be sent with the next API call.
 -   [ ] **Instance-Based Tooling:** Refactor the tool system from static methods to an instance-based model to improve testability and state management.
@@ -84,14 +105,29 @@ This is the long-term architectural plan to be executed after the V1 launch.
 -   [ ] **Embeddings for Notes:** Convert the personal notes system from a simple folder of markdown files into a searchable knowledge base using embeddings for context augmentation.
 -   [ ] **Code Health:** Investigate why `buildApiContext` needs to filter for null `Content` objects, as this may be hiding an upstream bug.
 
-## 7. Current Task Board (As of 2025-11-15)
+## 8. Current Task Board (As of 2025-11-16)
 
 This section tracks our active work items to ensure continuity across sessions.
 
--   **[Highest Priority] Task J: Design and Refactor Maven Tools:**
-    -   **Status:** In Progress.
-    -   **Description:** The current Maven tools are spread across `Maven.java` and `MavenPom.java`, leading to confusion and redundancy. The `addDependency` tool has undergone several flawed design iterations. The new focus is to pause all other work and architect a clean, robust, and consolidated set of Maven tools.
-    -   **Next Step:** Analyze the user's feedback on asynchronous downloads and pre-download verification to create a definitive design proposal for a new `addDependency` "super-tool".
+-   **[Highest Priority] Task M: Investigate Concurrent Audio Streams:**
+    -   **Status:** To Do.
+    -   **Description:** The user wants to be able to record audio using `AudioTool.startRecording()` while an internet radio stream is playing via `RadioTool.start()`. This requires investigating if the underlying Java Sound API (`javax.sound.sampled`) supports multiple simultaneous audio lines (one for input, one for output).
+    -   **Next Step:** Research the capabilities of `javax.sound.sampled` regarding multiple independent audio streams. Analyze existing audio classes (`AudioPlayer`, `Microphone`, `RadioTool`, `AudioTool`) for potential conflicts or resource locking.
+
+-   **[Highest Priority] Task K: Investigate Schema Generation from Getters:**
+    -   **Status:** To Do.
+    -   **Description:** The schema generation process includes properties from getter methods (e.g., `isAccepted()` in `SuggestChangeResult`) that don't exist as fields. This creates a mismatch between the API schema and the actual serialized JSON.
+    -   **Next Step:** Analyze the `SchemaProvider2` and `GeminiAdapter` to understand why this happens. Determine if the JSON serializer includes these values. If not, modify the schema generator to ignore getter-based properties to ensure schema accuracy.
+
+-   **[Highest Priority] Task L: Verify Unique Audio Notification Sounds:**
+    -   **Status:** To Do.
+    -   **Description:** The user has requested a check to ensure that all audio files mapped to different `ChatStatus` events are unique and not duplicated.
+    -   **Next Step:** Examine the contents of the `sounds` resource folder and the logic in `AudioPlayer.java` to confirm that distinct sounds are used for each status.
+
+-   **[Done] Task J: Design and Refactor Maven Tools:**
+    -   **Status:** Done.
+    -   **Description:** The fragmented Maven tools (`Maven`, `MavenPom`, `MavenSearch`) have been consolidated into a single, robust `MavenTools` class. The old classes have been deprecated and de-registered from the `NetBeansChatConfig`.
+    -   **Next Step:** Completed.
 
 -   **[On Hold] Task I: Test Schema Generation for `Tree` class:**
     -   **Status:** On Hold.
@@ -134,15 +170,17 @@ This section tracks our active work items to ensure continuity across sessions.
     -   **Next Step:** Awaiting stabilization of the current feature work.
 
 -   **[Medium Priority] Task F: Implement Per-Status Audio Notifications:**
-    -   **Status:** To Do.
-    -   **Description:** Enhance the UI to provide a unique audio notification for each `ChatStatus`.
-    -   **Next Step:** 
-        1. Find and add new `.wav` files to the `/sounds` resources for each status.
-        2. Update the `handleStatusSound` method in `StatusPanel.java` to play the appropriate sound.
+    -   **Status:** Done.
+    -   **Description:** Enhanced the UI to provide a unique audio notification for each `ChatStatus`. This included sourcing new sound files and updating the audio playback logic to handle all statuses correctly.
+    -   **Next Step:** Completed.
 
 
-## 8. Development & Testing Notes
+## 9. Development & Testing Notes
 
 - When testing code in this project via `NetBeansProjectJVM.compileAndExecuteInProject`, **always set `includeCompileAndExecuteDependencies` to `false`**. This is crucial to avoid `LinkageError` exceptions, as the NetBeans Platform already provides the necessary dependencies in its own classloader. Including them again creates a classloader conflict.
 
 - The AI Assistant's execution environment (the Anahata NetBeans plugin) **inherits the full, resolved classpath of the `gemini-java-client` project**. This means that any dependency (direct or transitive) that is correctly defined in the `pom.xml` is automatically available to dynamically compiled code. There is no need to use the `includeCompileAndExecuteDependencies` flag if the dependency is properly managed by Maven.
+
+
+---
+**2025-11-16:** The V2 schema generation engine, centered around `SchemaProvider2` and `GeminiAdapter`, has been successfully tested and validated. It correctly handles complex, nested, and recursive objects, producing rich, FQN-titled schemas. While this is a clear victory, the legacy `GeminiSchemaGenerator` will be kept in the codebase temporarily as a fallback during the transition. The `ToolManager` has been switched over to the new engine.

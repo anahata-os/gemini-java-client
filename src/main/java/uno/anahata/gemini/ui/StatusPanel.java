@@ -109,7 +109,7 @@ public class StatusPanel extends JPanel {
 
         // Play sound on status change
         if (lastStatus != currentStatus && parentPanel.getConfig().isAudioFeedbackEnabled()) {
-            handleStatusSound(currentStatus, lastStatus);
+            handleStatusSound(currentStatus);
         }
         this.lastStatus = currentStatus;
 
@@ -194,23 +194,9 @@ public class StatusPanel extends JPanel {
         repaint();
     }
     
-    private void handleStatusSound(ChatStatus newStatus, ChatStatus oldStatus) {
-        boolean wasWorking = oldStatus == ChatStatus.API_CALL_IN_PROGRESS || oldStatus == ChatStatus.TOOL_EXECUTION_IN_PROGRESS;
-        
-        switch (newStatus) {
-            case API_CALL_IN_PROGRESS:
-            case TOOL_EXECUTION_IN_PROGRESS:
-                AudioPlayer.playSound("start.wav");
-                break;
-            case IDLE_WAITING_FOR_USER:
-                if (wasWorking) {
-                    AudioPlayer.playSound("idle.wav");
-                }
-                break;
-            case WAITING_WITH_BACKOFF:
-                AudioPlayer.playSound("error.wav");
-                break;
-        }
+    private void handleStatusSound(ChatStatus newStatus) {
+        String soundFileName = newStatus.name().toLowerCase() + ".wav";
+        AudioPlayer.playSound(soundFileName);
     }
     
     /**

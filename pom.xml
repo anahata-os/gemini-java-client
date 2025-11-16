@@ -173,9 +173,12 @@
             <artifactId>objenesis</artifactId>
             <version>3.3</version>
         </dependency>
-        
-        
-        
+        <dependency>
+            <groupId>javazoom</groupId>
+            <artifactId>jlayer</artifactId>
+            <version>1.0.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>

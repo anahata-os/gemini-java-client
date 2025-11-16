@@ -28,3 +28,14 @@ The `GeminiAdapter.getGeminiSchema(Tree.class)` method was used to generate the 
 ## 4. Conclusion
 
 Any work involving the direct manipulation or inspection of `com.google.genai.types` objects that require serialization to JSON **must** use the object's own **`.toJson()`** method. Standard JSON libraries used directly will likely fail, and Protobuf-specific tools like `JsonFormat` are incorrect for this layer of the library. This knowledge is critical for any future debugging or extension of the function schema generation system.
+
+## 5. Potential Issue: Getter Methods in Schema (Discovered 2025-11-16)
+
+A new issue has been identified where the schema generation process appears to be including properties based on public getter methods (e.g., `is...()` or `get...()`) in addition to the actual fields of a POJO.
+
+A prime example is the `uno.anahata.nb.ai.model.coding.SuggestChangeResult` class. Its schema includes boolean properties like `isAccepted()` and `isCancelled()`, which are derived from its `Status` enum and do not exist as distinct fields in the class itself.
+
+This creates a potential mismatch: the Gemini API schema might describe fields that are not present in the actual JSON object serialized and returned by the tool. It is currently unknown if the serialization framework (e.g., Gson) includes these getter-derived values in its output. This requires further investigation to ensure the schemas accurately reflect the serialized data.
+
+---
+**2025-11-16:** The investigation is complete. The V2 engine (`SchemaProvider2` + `GeminiAdapter`) is a success. The core finding was that `com.google.genai.types` objects must be serialized using their built-in `.toJson()` method, as they are Jackson-based, not Protobuf-based. While the new engine is now active in `ToolManager`, we are leaving the old `GeminiSchemaGenerator` in place for a short period as a safeguard.
