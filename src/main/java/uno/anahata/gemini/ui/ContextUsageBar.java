@@ -21,7 +21,7 @@ import uno.anahata.gemini.status.StatusManager;
  */
 public class ContextUsageBar extends JPanel {
 
-    private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("0%");
+    private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("0.0%");
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance();
     private static final int BAR_HEIGHT = 20;
     private static final int MIN_WIDTH = 250;
@@ -85,18 +85,11 @@ public class ContextUsageBar extends JPanel {
         if (status == ChatStatus.WAITING_WITH_BACKOFF) {
             barColor = parentPanel.getConfig().getColor(status);
             textColor = Color.WHITE;
-        } else if (percentage > 1.0) {
-            barColor = new Color(150, 0, 0); // Dark Red
-            textColor = Color.WHITE;
-        } else if (percentage > 0.9) {
-            barColor = new Color(255, 50, 50); // Red
-            textColor = Color.WHITE;
-        } else if (percentage > 0.7) {
-            barColor = new Color(255, 193, 7); // Yellow/Amber
-            textColor = Color.BLACK;
         } else {
-            barColor = new Color(40, 167, 69); // Green
-            textColor = Color.WHITE;
+            barColor = (SwingChatConfig) parentPanel.getConfig().getColorForContextUsage(percentage);
+            // Choose black or white text based on the brightness of the bar color for readability
+            double brightness = (barColor.getRed() * 0.299) + (barColor.getGreen() * 0.587) + (barColor.getBlue() * 0.114);
+            textColor = (brightness > 186) ? Color.BLACK : Color.WHITE;
         }
         
         // Draw Background
