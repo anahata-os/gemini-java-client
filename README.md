@@ -98,7 +98,7 @@ public class MyAppGeminiConfig extends SwingGeminiConfig {
 ### Step 3: Initialize and Run
 
 ```java
-import uno.anahata.gemini.GeminiChat;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.ui.SwingGeminiConfig;
 import uno.anahata.gemini.ui.SwingFunctionPrompter;
 import uno.anahata.gemini.ui.render.editorkit.DefaultEditorKitProvider;
@@ -109,7 +109,7 @@ MyAppGeminiConfig config = new MyAppGeminiConfig();
 
 // Initialize the chat
 FunctionPrompter prompter = new SwingFunctionPrompter(null, new DefaultEditorKitProvider());
-GeminiChat chat = new GeminiChat(config, prompter);
+Chat chat = new Chat(config, prompter);
 
 // The AI can now call MyAppTools.processItems
 chat.sendText("Please process items ['A1', 'B2', 'C3'] verbosely.");
