@@ -47,6 +47,12 @@ public class Chat {
     private final StatusManager statusManager;
     
     /**
+     * A user-defined nickname for the chat session for easier identification.
+     */
+    @Setter
+    private String nickname;
+    
+    /**
      * Thread pool for the chat.
      */
     @Getter
@@ -73,7 +79,7 @@ public class Chat {
     }
 
     public void shutdown() {
-        log.info("Shutting down GeminiChat for session {}", config.getSessionId());
+        log.info("Shutting down Chat for session {}", config.getSessionId());
         this.shutdown = true;
         if (executor != null && !executor.isShutdown()) {
             executor.shutdown();
@@ -418,5 +424,43 @@ public class Chat {
                 .content(notificationContent)
                 .build();
         contextManager.add(jobResultMessage);
+    }
+    
+    /**
+     * Gets a consistent, 7-character short identifier for the session.
+     * @return The last 7 characters of the session UUID.
+     */
+    public String getShortId() {
+        String sessionId = config.getSessionId();
+        return sessionId.substring(sessionId.length() - 7);
+    }
+    
+    /**
+     * Calculates the context window usage as a ratio between 0.0 and 1.0.
+     * @return The usage ratio, or 0.0 if the threshold is not set.
+     */
+    public float getContextWindowUsage() {
+        try {
+            int tokenCount = contextManager.getTotalTokenCount();
+            int tokenThreshold = contextManager.getTokenThreshold();
+            if (tokenThreshold > 0) {
+                return (float) tokenCount / tokenThreshold;
+            }
+        } catch (Exception e) {
+            log.warn("Could not calculate context window usage", e);
+        }
+        return 0.0f;
+    }
+
+    /**
+     * Calculates and formats the context window usage as a percentage string.
+     * @return A formatted string (e.g., "75.2%") or "N/A".
+     */
+    public String getContextWindowUsageFormatted() {
+        float usage = getContextWindowUsage();
+        if (usage > 0.0f) {
+            return String.format("%.1f%%", usage * 100);
+        }
+        return "N/A";
     }
 }
