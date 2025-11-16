@@ -288,6 +288,25 @@ public class ToolManager {
         
         StringBuilder descriptionBuilder = new StringBuilder(methodAnnotation.value());
         
+        Map<String, Schema> properties = new HashMap<>();
+        List<String> required = new ArrayList<>();
+
+        for (Parameter p : method.getParameters()) {
+            String paramName = p.getName();
+            AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
+            String paramDescription = (paramAnnotation != null && !paramAnnotation.value().isBlank()) 
+                ? paramAnnotation.value() 
+                : "";
+            
+            // Append Javadoc-style parameter description to the main description
+            if (!paramDescription.isEmpty()) {
+                descriptionBuilder.append("\n@param ").append(paramName).append(" ").append(paramDescription);
+            }
+            
+            properties.put(paramName, GeminiAdapter.getGeminiSchema(p.getParameterizedType()));
+            required.add(paramName);
+        }
+        
         // Generate and append the full FQN method signature to the description
         String signature = Modifier.toString(method.getModifiers())
                 + " " + method.getGenericReturnType().getTypeName()
@@ -306,20 +325,6 @@ public class ToolManager {
         descriptionBuilder.append("\ncontext behavior: ").append(methodAnnotation.behavior());
         
         Schema responseSchema = GeminiAdapter.getGeminiSchema(method.getGenericReturnType());
-
-        Map<String, Schema> properties = new HashMap<>();
-        List<String> required = new ArrayList<>();
-
-        for (Parameter p : method.getParameters()) {
-            String paramName = p.getName();
-            AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
-            String paramDescription = (paramAnnotation != null && !paramAnnotation.value().isBlank()) 
-                ? paramAnnotation.value() 
-                : "Schema for " + p.getParameterizedType().getTypeName();
-            
-            properties.put(paramName, GeminiAdapter.getGeminiSchema(p.getParameterizedType()));
-            required.add(paramName);
-        }
         
         properties.put("asynchronous", Schema.builder().type(Type.Known.BOOLEAN).description("Set to true to run this task in the background and return a job ID immediately.").build());
 
