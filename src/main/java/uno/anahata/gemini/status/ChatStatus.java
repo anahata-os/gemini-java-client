@@ -3,7 +3,7 @@ package uno.anahata.gemini.status;
 import lombok.Getter;
 
 /**
- * Defines the possible operational states of the GeminiChat, primarily for UI feedback.
+ * Defines the possible operational states of the Chat, primarily for UI feedback.
  */
 @Getter
 public enum ChatStatus {
@@ -28,5 +28,10 @@ public enum ChatStatus {
     ChatStatus(String displayName, String description) {
         this.displayName = displayName;
         this.description = description;
+    }
+
+    @Override
+    public String toString() {
+        return displayName;
     }
 }
