@@ -1,21 +1,17 @@
 package uno.anahata.gemini.ui;
 
-import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
-import uno.anahata.gemini.ui.render.ContentRenderer;
-import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer;
-import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Rectangle;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -23,16 +19,17 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Chat;
+import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.functions.FunctionConfirmation;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.ui.SwingChatConfig.UITheme;
+import uno.anahata.gemini.ui.render.ContentRenderer;
+import uno.anahata.gemini.ui.render.InteractiveFunctionCallRenderer;
 
 /**
  * A combined JDialog and FunctionPrompter implementation for Swing.
@@ -42,18 +39,16 @@ import uno.anahata.gemini.ui.SwingChatConfig.UITheme;
 @Slf4j
 public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
 
-    private final EditorKitProvider editorKitProvider;
-    private final SwingChatConfig config;
+    private final AnahataPanel anahataPanel;
     private final List<InteractiveFunctionCallRenderer> interactiveRenderers = new ArrayList<>();
     
-    private List<FunctionCall> approvedFunctions = new ArrayList<>();
-    private List<FunctionCall> deniedFunctions = new ArrayList<>();
+    private Map<FunctionCall, FunctionConfirmation> functionConfirmations = new LinkedHashMap<>();
     private String userComment = "";
+    private boolean cancelled = false;
 
-    public SwingFunctionPrompter(JFrame owner, EditorKitProvider editorKitProvider, SwingChatConfig config) {
-        super(owner, "Confirm Proposed Actions", true);
-        this.editorKitProvider = editorKitProvider;
-        this.config = config;
+    public SwingFunctionPrompter(AnahataPanel anahataPanel) {
+        super((JFrame) SwingUtilities.getWindowAncestor(anahataPanel), "Confirm Proposed Actions", true);
+        this.anahataPanel = anahataPanel;
     }
 
     @Override
@@ -61,50 +56,50 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         try {
             SwingUtilities.invokeAndWait(() -> {
                 interactiveRenderers.clear();
-                approvedFunctions.clear();
-                deniedFunctions.clear();
+                functionConfirmations.clear();
                 userComment = "";
+                cancelled = false; // Reset state for the new prompt
                 
-                initComponents(modelMessage, chat);
+                initComponents(modelMessage);
                 pack();
                 setSize(1024, 768);
                 setLocationRelativeTo(getOwner());
-                setVisible(true);
+                setVisible(true); // This blocks until the dialog is closed
             });
         } catch (InterruptedException | InvocationTargetException e) {
             Throwable cause = (e instanceof InvocationTargetException) ? e.getCause() : e;
             log.error("Exception while showing function confirmation dialog", cause);
             Thread.currentThread().interrupt();
+            // Return a result indicating cancellation due to error
             return new PromptResult(
-                Collections.emptyList(), 
-                collectAllProposedFunctions(modelMessage.getContent()), 
-                "Error showing confirmation dialog. Check IDE log for details."
+                Collections.emptyMap(), 
+                "Error showing confirmation dialog. Check IDE log for details.",
+                true 
             );
         }
-        return new PromptResult(approvedFunctions, deniedFunctions, userComment);
+        return new PromptResult(functionConfirmations, userComment, cancelled);
     }
 
-    private void initComponents(ChatMessage modelMessage, Chat chat) {
+    private void initComponents(ChatMessage modelMessage) {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
         
-        ContentRenderer contentRenderer = new ContentRenderer(editorKitProvider, config);
+        ContentRenderer contentRenderer = new ContentRenderer(anahataPanel);
 
         final List<? extends Part> parts = modelMessage.getContent().parts().get();
         
-        UITheme theme = config.getTheme();
+        UITheme theme = anahataPanel.getConfig().getTheme();
         
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {
                 FunctionCall fc = part.functionCall().get();
-                FunctionConfirmation preference = config.getFunctionConfirmation(fc);
+                FunctionConfirmation preference = anahataPanel.getConfig().getFunctionConfirmation(fc);
                 InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, preference, theme);
                 interactiveRenderers.add(interactiveRenderer);
                 contentRenderer.registerRenderer(part, interactiveRenderer);
             }
         }
 
-        int contentIdx = chat.getContextManager().getContext().indexOf(modelMessage);
-        JComponent renderedContent = contentRenderer.render(modelMessage, contentIdx, chat.getContextManager());
+        JComponent renderedContent = contentRenderer.render(modelMessage);
         
         JPanel contentWrapper = new ScrollablePanel();
         contentWrapper.setLayout(new BorderLayout());
@@ -125,14 +120,17 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         JButton cancelButton = new JButton("Cancel");
 
         approveButton.addActionListener(e -> {
-            collectResultsFromInteractiveRenderers(config);
+            this.functionConfirmations = collectResultsFromInteractiveRenderers(anahataPanel.getConfig());
             this.userComment = commentTextArea.getText();
+            this.cancelled = false;
             setVisible(false);
             dispose();
         });
 
         cancelButton.addActionListener(e -> {
             this.userComment = commentTextArea.getText();
+            this.cancelled = true;
+            // Do NOT collect results, the cancellation overrides individual choices.
             setVisible(false);
             dispose();
         });
@@ -141,6 +139,9 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                // Treat closing the dialog as a cancellation
+                userComment = commentTextArea.getText();
+                cancelled = true;
                 setVisible(false);
                 dispose();
             }
@@ -152,52 +153,16 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
-    private void collectResultsFromInteractiveRenderers(ChatConfig config) {
+    private Map<FunctionCall, FunctionConfirmation> collectResultsFromInteractiveRenderers(ChatConfig config) {
+        Map<FunctionCall, FunctionConfirmation> results = new LinkedHashMap<>();
         for (InteractiveFunctionCallRenderer renderer : interactiveRenderers) {
             FunctionCall functionCall = renderer.getFunctionCall();
             FunctionConfirmation state = renderer.getSelectedState();
             
+            // Persist the user's choice for the next time this function is called.
             config.setFunctionConfirmation(functionCall, state);
-
-            switch (state) {
-                case YES:
-                case ALWAYS:
-                    approvedFunctions.add(functionCall);
-                    break;
-                case NO:
-                case NEVER:
-                    deniedFunctions.add(functionCall);
-                    break;
-            }
+            results.put(functionCall, state);
         }
-    }
-    
-    private List<FunctionCall> collectAllProposedFunctions(Content modelResponse) {
-        List<FunctionCall> all = new ArrayList<>();
-        modelResponse.parts().ifPresent(parts -> parts.forEach(part -> part.functionCall().ifPresent(all::add)));
-        return all;
-    }
-    
-    private static class ScrollablePanel extends JPanel implements Scrollable {
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-        @Override
-        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
-            return 16;
-        }
-        @Override
-        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
-            return visibleRect.height;
-        }
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
+        return results;
     }
 }

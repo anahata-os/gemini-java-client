@@ -6,7 +6,7 @@
  *
  * <h2>Key Classes:</h2>
  * <ul>
- *   <li>{@link uno.anahata.gemini.GeminiChat}: The main orchestrator of the chat. It manages the
+ *   <li>{@link uno.anahata.gemini.Chat}: The main orchestrator of the chat. It manages the
  *       conversation loop, builds system instructions from various providers, handles API
  *       retries, and processes function calls and responses.</li>
  *

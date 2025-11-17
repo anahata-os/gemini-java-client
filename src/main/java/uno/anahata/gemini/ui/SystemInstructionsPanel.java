@@ -18,13 +18,12 @@ import uno.anahata.gemini.content.ContextPosition;
 import uno.anahata.gemini.content.ContextProvider;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.ui.render.ContentRenderer;
-import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 @Slf4j
 public class SystemInstructionsPanel extends JPanel {
 
+    private final AnahataPanel anahataPanel;
     private final Chat chat;
-    private final EditorKitProvider editorKitProvider;
     private final SwingChatConfig config;
 
     private JTable providerTable;
@@ -33,10 +32,10 @@ public class SystemInstructionsPanel extends JPanel {
     private JLabel rightPanelStatusLabel;
     private SwingWorker<List<Part>, Void> contentDisplayWorker;
 
-    public SystemInstructionsPanel(Chat chat, EditorKitProvider editorKitProvider, SwingChatConfig config) {
-        this.chat = chat;
-        this.editorKitProvider = editorKitProvider;
-        this.config = config;
+    public SystemInstructionsPanel(AnahataPanel anahataPanel) {
+        this.anahataPanel = anahataPanel;
+        this.chat = anahataPanel.getChat();
+        this.config = anahataPanel.getConfig();
         initComponents();
         refresh(); // Initial data load
     }
@@ -127,10 +126,10 @@ public class SystemInstructionsPanel extends JPanel {
                         rightPanelStatusLabel.setText("Provider returned no content.");
                         rightPanel.add(rightPanelStatusLabel, BorderLayout.CENTER);
                     } else {
-                        ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
+                        ContentRenderer renderer = new ContentRenderer(anahataPanel);
                         Content content = Content.builder().role(provider.getPosition() == ContextPosition.AUGMENTED_WORKSPACE ? "USER" : "SYSTEM").parts(parts).build();
                         ChatMessage fakeMessage = ChatMessage.builder().content(content).build();
-                        JComponent renderedContent = renderer.render(fakeMessage, -1, chat.getContextManager());
+                        JComponent renderedContent = renderer.render(fakeMessage);
                         JScrollPane scrollPane = new JScrollPane(renderedContent);
                         scrollPane.getVerticalScrollBar().setUnitIncrement(24);
                         rightPanel.add(scrollPane, BorderLayout.CENTER);

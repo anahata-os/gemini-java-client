@@ -1,34 +1,30 @@
 package uno.anahata.gemini.context.session;
 
-import uno.anahata.gemini.ChatMessage;
+import com.google.genai.types.*;
 import com.google.gson.Gson;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.config.ChatConfig;
+import org.apache.commons.lang3.StringUtils;
+import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextManager;
+import uno.anahata.gemini.context.stateful.StatefulResourceStatus;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.KryoUtils;
-import com.google.genai.types.*;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.Optional;
-import org.apache.commons.lang3.StringUtils;
-import uno.anahata.gemini.context.stateful.ResourceTracker;
-import uno.anahata.gemini.functions.ToolManager;
 import uno.anahata.gemini.internal.PartUtils;
+import uno.anahata.gemini.internal.TextUtils;
+import uno.anahata.gemini.ui.TimeUtils;
 
 @Slf4j
 public class SessionManager {
@@ -102,24 +98,23 @@ public class SessionManager {
         List<ChatMessage> historyCopy = contextManager.getContext();
         StringBuilder sb = new StringBuilder();
         sb.append("\n# Context Entries: ").append(historyCopy.size()).append("\n");
-        sb.append("| Nº | UUID | Created On | Name | Role | Elapsed | Content Summary |\n");
-        sb.append("|---:|:---|:---|:---|:---|---:|:---|\n");
+        sb.append("| Message ID | Created On | Name | Role | Elapsed | Part Nº | Part Type | Content | Part Size | Tokens (≈) |\n");
+        sb.append("|---:|:---|:---|:---|---:|:---|:---|:---|---:|---:|\n");
 
         Instant previousTimestamp = null;
 
-        for (int i = 0; i < historyCopy.size(); i++) {
-            ChatMessage msg = historyCopy.get(i);
-            sb.append(summarizeMessage(msg, i, previousTimestamp));
+        for (ChatMessage msg : historyCopy) {
+            sb.append(summarizeMessage(msg, previousTimestamp));
             previousTimestamp = msg.getCreatedOn();
         }
         return sb.toString();
     }
 
     public String summarizeMessage(ChatMessage msg) {
-        return summarizeMessage(msg, -1, null);
+        return summarizeMessage(msg, null);
     }
 
-    private String summarizeMessage(ChatMessage msg, int index, Instant previousTimestamp) {
+    private String summarizeMessage(ChatMessage msg, Instant previousTimestamp) {
         StringBuilder sb = new StringBuilder();
         Content content = msg.getContent();
         String role = content != null ? content.role().orElse("system") : "system";
@@ -138,93 +133,111 @@ public class SessionManager {
                 break;
         }
 
-        String createdOn = DateTimeFormatter.ISO_INSTANT.format(msg.getCreatedOn()).replace("T", " ").substring(0, 19);
-
-        String elapsedStr = "N/A";
-        if (previousTimestamp != null) {
-            long elapsedMillis = Duration.between(previousTimestamp, msg.getCreatedOn()).toMillis();
-            elapsedStr = formatDuration(elapsedMillis);
-        }
-        
-        String indexStr = (index == -1) ? "" : String.valueOf(index);
+        String createdOn = TimeUtils.formatSmartTimestamp(msg.getCreatedOn());
+        String elapsedStr = TimeUtils.getElapsedString(previousTimestamp, msg.getCreatedOn());
+        String seqIdStr = String.valueOf(msg.getSequentialId());
 
         if (content != null && content.parts().isPresent()) {
             List<Part> parts = content.parts().get();
             if (parts.isEmpty()) {
-                sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s |\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Parts)"));
+                sb.append(String.format("| %s | %s | %s | %s | %s | | | (No Parts) | | |\n", seqIdStr, createdOn, name, role, elapsedStr));
             } else {
                 for (int j = 0; j < parts.size(); j++) {
-                    String prefix = String.format("[%d/%d] ", j, parts.size());
-                    String summary = prefix + summarizePart(parts.get(j));
+                    Part part = parts.get(j);
+                    String partNo = String.valueOf(j);
+                    long partSize = PartUtils.calculateSizeInBytes(part);
+                    int approxTokens = PartUtils.calculateApproxTokenSize(part);
+                    String[] summary = describePart(part); // Returns [type, content]
                     if (j == 0) {
-                        sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s |\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, summary));
+                        sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s | %s | %d | %d |\n", seqIdStr, createdOn, name, role, elapsedStr, partNo, summary[0], summary[1], partSize, approxTokens));
                     } else {
-                        sb.append(String.format("| | | | | | | %s |\n", summary));
+                        sb.append(String.format("| | | | | | %s | %s | %s | %d | %d |\n", partNo, summary[0], summary[1], partSize, approxTokens));
                     }
                 }
             }
         } else {
-            sb.append(String.format("| %s | %s | %s | %s | %s | %s | %s |\n", indexStr, msg.getId(), createdOn, name, role, elapsedStr, "(No Content)"));
+            sb.append(String.format("| %s | %s | %s | %s | %s | | | (No Content) | | |\n", seqIdStr, createdOn, name, role, elapsedStr));
         }
         return sb.toString();
     }
 
-    private String formatDuration(long millis) {
-        if (millis < 1000) {
-            return millis + "ms";
+    private String truncateString(String s, int maxLength) {
+        if (s == null || s.length() <= maxLength) {
+            return s;
         }
-        if (millis < 60000) {
-            return String.format("%.2fs", millis / 1000.0);
-        }
-        long minutes = millis / 60000;
-        long seconds = (millis % 60000) / 1000;
-        return String.format("%dm %ds", minutes, seconds);
+        return s.substring(0, maxLength - 3) + "...";
     }
 
-    private String summarizePart(Part p) {
+    public String[] describePart(Part p) {
         final int MAX_LENGTH = 128;
-        StringBuilder sb = new StringBuilder();
-        ToolManager fm = contextManager.getFunctionManager();
+        String type;
+        String contentSummary;
 
         if (p.text().isPresent()) {
-            sb.append("[Text]:").append(p.text().get());
+            type = "Text";
+            contentSummary = truncateString(p.text().get(), MAX_LENGTH);
         } else if (p.functionCall().isPresent()) {
             FunctionCall fc = p.functionCall().get();
-            sb.append("[FunctionCall]:").append(fc.name().get());
+            type = "FunctionCall" + fc.id().map(id -> " (id=" + id + ")").orElse("");
 
+            StringBuilder summary = new StringBuilder(fc.name().get());
             if (fc.args().isPresent()) {
                 Map<String, Object> args = fc.args().get();
                 String argsString = args.entrySet().stream()
-                        .map(entry -> entry.getKey() + "=" + StringUtils.truncate(String.valueOf(entry.getValue()), MAX_LENGTH / 2))
+                        .filter(entry -> !TextUtils.isNullOrEmpty(entry.getValue()))
+                        .map(entry -> entry.getKey() + "=" + TextUtils.formatValue(entry.getValue()))
                         .collect(Collectors.joining(", ", "(", ")"));
-                sb.append(argsString);
+                if (!argsString.equals("()")) {
+                    summary.append(argsString);
+                }
             }
+            contentSummary = summary.toString();
 
         } else if (p.functionResponse().isPresent()) {
             FunctionResponse fr = p.functionResponse().get();
-            String toolName = fr.name().orElse("unknown");
-            sb.append("[FunctionResponse][").append(toolName).append("]");
-            
-            Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(fr, fm);
-            if (resourceIdOpt.isPresent()) {
-                sb.append(":STATEFUL:").append(resourceIdOpt.get());
+            type = "FunctionResponse" + fr.id().map(id -> " (id=" + id + ")").orElse("");
+
+            StringBuilder summary = new StringBuilder(fr.name().orElse("unknown"));
+            Optional<StatefulResourceStatus> statusOpt = contextManager.getResourceTracker().getResourceStatus(fr);
+            if (statusOpt.isPresent()) {
+                StatefulResourceStatus srs = statusOpt.get();
+                String fileName = new File(srs.getResourceId()).getName();
+                summary.append(String.format(":STATEFUL:%s (%s)", fileName, srs.getStatus().name()));
             } else {
-                sb.append(": ").append(fr.response().get().toString());
+                Object responseObject = fr.response().get();
+                if (responseObject instanceof Map) {
+                    Map<String, Object> responseMap = (Map<String, Object>) responseObject;
+                    String summaryString = responseMap.entrySet().stream()
+                            .filter(entry -> !TextUtils.isNullOrEmpty(entry.getValue()))
+                            .map(entry -> entry.getKey() + "=" + TextUtils.formatValue(entry.getValue()))
+                            .collect(Collectors.joining(", ", "{", "}"));
+                    if (!summaryString.equals("{}")) {
+                        summary.append(": ").append(summaryString);
+                    }
+                } else {
+                    summary.append(": ").append(TextUtils.formatValue(responseObject));
+                }
             }
+            contentSummary = summary.toString();
+
         } else if (p.inlineData().isPresent()) {
-            sb.append("[Blob]:").append(PartUtils.toString(p.inlineData().get()));
+            type = "Blob";
+            contentSummary = PartUtils.toString(p.inlineData().get());
         } else if (p.codeExecutionResult().isPresent()) {
             CodeExecutionResult cer = p.codeExecutionResult().get();
-            sb.append("[CodeExecutionResult]:").append(cer.outcome().get()).append(":").append(cer.output().get());
+            type = "CodeExecutionResult";
+            contentSummary = truncateString(cer.outcome().get() + ":" + cer.output().get(), MAX_LENGTH);
         } else if (p.executableCode().isPresent()) {
             ExecutableCode ec = p.executableCode().get();
-            sb.append("[ExecutableCode]:").append(ec.code().get());
+            type = "ExecutableCode";
+            contentSummary = truncateString(ec.code().get(), MAX_LENGTH);
         } else {
-            sb.append("[Unknown part type]:").append(p.toString());
+            type = "Unknown";
+            contentSummary = truncateString(p.toString(), MAX_LENGTH);
         }
-
-        // Sanitize and truncate the final string
-        String finalString = sb.toString().replace("\n", "\\n").replace("\r", "").replace("|", "\\|");
-        return StringUtils.truncate(finalString, MAX_LENGTH);
+        
+        // Escape newlines and pipes to prevent markdown table formatting hiccups.
+        String finalContent = contentSummary.replace("\n", "\\n").replace("\r", "").replace("|", "\\|");
+        return new String[]{type, finalContent};
     }
 }

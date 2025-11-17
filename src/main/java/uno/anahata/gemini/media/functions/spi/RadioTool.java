@@ -75,6 +75,11 @@ public class RadioTool {
         if (playbackTask != null) {
             playbackTask.cancel(true);
         }
+        
+        player = null;
+        playbackTask = null;
+        currentStationUrl = null;
+        
         return "Radio playback stopped.";
     }
     

@@ -109,20 +109,28 @@ This is the long-term architectural plan to be executed after the V1 launch.
 
 This section tracks our active work items to ensure continuity across sessions.
 
--   **[Highest Priority] Task M: Investigate Concurrent Audio Streams:**
+-   **[Highest Priority] Task N: Fix Critical FunctionDeclaration Schema Bugs:**
+    -   **Status:** To Do.
+    -   **Description:** A critical bug exists in the `ToolManager`'s schema generation. It fails to include `@AiToolParam` descriptions, does not generate rich schemas for parameters (only for return types), and incorrectly adds properties from getter methods, creating a mismatch between the schema and the actual JSON response.
+    -   **Next Step:** Analyze `ToolManager.java` to identify the root cause of these schema generation flaws.
+
+-   **[High Priority] Task M: Investigate Concurrent Audio Streams:**
     -   **Status:** To Do.
     -   **Description:** The user wants to be able to record audio using `AudioTool.startRecording()` while an internet radio stream is playing via `RadioTool.start()`. This requires investigating if the underlying Java Sound API (`javax.sound.sampled`) supports multiple simultaneous audio lines (one for input, one for output).
     -   **Next Step:** Research the capabilities of `javax.sound.sampled` regarding multiple independent audio streams. Analyze existing audio classes (`AudioPlayer`, `Microphone`, `RadioTool`, `AudioTool`) for potential conflicts or resource locking.
 
--   **[Highest Priority] Task K: Investigate Schema Generation from Getters:**
+-   **[High Priority] Task K: Investigate Schema Generation from Getters:**
     -   **Status:** To Do.
     -   **Description:** The schema generation process includes properties from getter methods (e.g., `isAccepted()` in `SuggestChangeResult`) that don't exist as fields. This creates a mismatch between the API schema and the actual serialized JSON.
     -   **Next Step:** Analyze the `SchemaProvider2` and `GeminiAdapter` to understand why this happens. Determine if the JSON serializer includes these values. If not, modify the schema generator to ignore getter-based properties to ensure schema accuracy.
 
--   **[Highest Priority] Task L: Verify Unique Audio Notification Sounds:**
-    -   **Status:** To Do.
-    -   **Description:** The user has requested a check to ensure that all audio files mapped to different `ChatStatus` events are unique and not duplicated.
-    -   **Next Step:** Examine the contents of the `sounds` resource folder and the logic in `AudioPlayer.java` to confirm that distinct sounds are used for each status.
+-   **[Done] Task L: Verify Unique Audio Notification Sounds:**
+    -   **Status:** Done.
+    -   **Description:** The user requested a check to ensure that all audio files mapped to different `ChatStatus` events are unique. The check revealed that several statuses share the same sound files.
+    -   **Findings:**
+        -   `api_call_in_progress.wav`, `idle_waiting_for_user.wav`, `idle.wav`, `start.wav`, and `tool_execution_in_progress.wav` are identical.
+        -   `error.wav`, `max_retries_reached.wav`, and `waiting_with_backoff.wav` are identical.
+    -   **Next Step:** Completed.
 
 -   **[Done] Task J: Design and Refactor Maven Tools:**
     -   **Status:** Done.

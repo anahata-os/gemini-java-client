@@ -60,4 +60,13 @@ public class PartUtils {
         }
         return 0;
     }
+    
+    /**
+     * Estimates the token count of a Part using a simple heuristic (bytes / 4).
+     * @param part The part to analyze.
+     * @return The approximate number of tokens.
+     */
+    public static int calculateApproxTokenSize(Part part) {
+        return (int) (calculateSizeInBytes(part) / 4);
+    }
 }

@@ -1,20 +1,29 @@
 package uno.anahata.ai.gemini;
 
+import com.google.genai.types.Content;
+import com.google.genai.types.FunctionCall;
+import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.gemini.functions.schema.SchemaProvider2;
 
+@Slf4j
 public class GeminiAdapter {
 
     private static final Gson GSON = new Gson();
     private static final Map<Class<?>, Type.Known> PRIMITIVE_MAP = new HashMap<>();
     private static final Schema VOID_SCHEMA = Schema.builder().build();
+    private static final AtomicInteger functionCallIdCounter = new AtomicInteger(1);
 
     static {
         PRIMITIVE_MAP.put(String.class, Type.Known.STRING);
@@ -103,5 +112,68 @@ public class GeminiAdapter {
         }
 
         return builder.build();
+    }
+    
+    /**
+     * Extracts the tool call ID from a Part, checking both FunctionCall and FunctionResponse.
+     *
+     * @param part The part to inspect.
+     * @return An Optional containing the ID if found, otherwise empty.
+     */
+    public static Optional<String> getToolCallId(Part part) {
+        if (part.functionCall().isPresent()) {
+            return part.functionCall().get().id();
+        }
+        if (part.functionResponse().isPresent()) {
+            return part.functionResponse().get().id();
+        }
+        return Optional.empty();
+    }
+    
+    /**
+     * Inspects a Content object from the model and ensures every FunctionCall part has a stable ID.
+     * If a FunctionCall is missing an ID, this method generates one and reconstructs the
+     * entire Content object to include it, preserving all other metadata.
+     *
+     * @param originalContent The raw content received from the model.
+     * @return The original content if no changes were needed, or a new, patched Content object.
+     */
+    public static Content sanitize(Content originalContent) {
+        if (originalContent == null || !originalContent.parts().isPresent()) {
+            return originalContent;
+        }
+
+        List<Part> originalParts = originalContent.parts().get();
+        List<Part> newParts = new ArrayList<>(originalParts.size());
+        boolean wasModified = false;
+
+        for (Part originalPart : originalParts) {
+            if (originalPart.functionCall().isPresent() && originalPart.functionCall().get().id().isEmpty()) {
+                wasModified = true;
+                FunctionCall originalFc = originalPart.functionCall().get();
+                String newId = String.valueOf(functionCallIdCounter.getAndIncrement());
+
+                // Refactored to use toBuilder() for robustness
+                FunctionCall newFc = originalFc.toBuilder()
+                        .id(newId)
+                        .build();
+
+                Part newPart = originalPart.toBuilder()
+                        .functionCall(newFc)
+                        .build();
+                newParts.add(newPart);
+                log.info("Sanitized FunctionCall '{}' with new generated ID '{}'", newFc.name().get(), newId);
+            } else {
+                newParts.add(originalPart);
+            }
+        }
+
+        if (!wasModified) {
+            return originalContent;
+        }
+
+        return originalContent.toBuilder()
+                .parts(newParts)
+                .build();
     }
 }

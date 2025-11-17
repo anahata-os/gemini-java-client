@@ -28,7 +28,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.functions.FunctionConfirmation;
-import uno.anahata.gemini.functions.ToolManager;
+import uno.anahata.gemini.functions.FunctionInfo;
 import uno.anahata.gemini.internal.GsonUtils;
 
 public class FunctionsPanel extends JPanel {
@@ -37,7 +37,7 @@ public class FunctionsPanel extends JPanel {
     private final JTable classTable;
     private final DefaultTableModel tableModel;
     private final JPanel detailPanel;
-    private final List<ToolManager.FunctionInfo> functionInfos;
+    private final List<FunctionInfo> functionInfos;
 
     public FunctionsPanel(Chat chat, SwingChatConfig config) {
         this.chat = chat;
@@ -86,17 +86,17 @@ public class FunctionsPanel extends JPanel {
 
     public final void refresh() {
         // Group functions by class name
-        Map<String, List<ToolManager.FunctionInfo>> groupedByClass = functionInfos.stream()
+        Map<String, List<FunctionInfo>> groupedByClass = functionInfos.stream()
             .collect(Collectors.groupingBy(fi -> fi.method.getDeclaringClass().getSimpleName()));
 
         // Create summary data for the table
         List<ClassPermissionSummary> summaries = new ArrayList<>();
-        for (Map.Entry<String, List<ToolManager.FunctionInfo>> entry : groupedByClass.entrySet()) {
+        for (Map.Entry<String, List<FunctionInfo>> entry : groupedByClass.entrySet()) {
             String className = entry.getKey();
             int promptCount = 0;
             int alwaysCount = 0;
             int neverCount = 0;
-            for (ToolManager.FunctionInfo fi : entry.getValue()) {
+            for (FunctionInfo fi : entry.getValue()) {
                 FunctionCall fc = FunctionCall.builder().name(fi.declaration.name().get()).build();
                 FunctionConfirmation pref = config.getFunctionConfirmation(fc);
                 if (pref == null) {
@@ -137,7 +137,7 @@ public class FunctionsPanel extends JPanel {
         detailPanel.repaint();
     }
 
-    private JPanel createFunctionControlPanel(ToolManager.FunctionInfo fi) {
+    private JPanel createFunctionControlPanel(FunctionInfo fi) {
         FunctionDeclaration fd = fi.declaration;
         
         JPanel panel = new JPanel(new GridBagLayout());

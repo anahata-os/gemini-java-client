@@ -6,23 +6,27 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import uno.anahata.ai.gemini.GeminiAdapter;
 import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.config.ConfigManager;
 import uno.anahata.gemini.context.ContextListener;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.content.ContentFactory;
 import uno.anahata.gemini.content.ContextPosition;
+import uno.anahata.gemini.functions.ExecutedToolCall;
+import uno.anahata.gemini.functions.FunctionProcessingResult;
 import uno.anahata.gemini.functions.ToolManager;
-import uno.anahata.gemini.functions.ToolManager.ExecutedToolCall;
-import uno.anahata.gemini.functions.ToolManager.FunctionProcessingResult;
 import uno.anahata.gemini.functions.FunctionPrompter;
 import uno.anahata.gemini.functions.JobInfo;
 import uno.anahata.gemini.functions.MultiPartResponse;
+import uno.anahata.gemini.functions.ToolCallOutcome;
+import uno.anahata.gemini.functions.ToolCallStatus;
 import uno.anahata.gemini.internal.GsonUtils;
 import uno.anahata.gemini.internal.PartUtils;
 import uno.anahata.gemini.status.ChatStatus;
@@ -64,6 +68,8 @@ public class Chat {
     private volatile boolean isProcessing = false;
     private volatile boolean shutdown = false;
     private Date startTime = new Date();
+    
+    private final AtomicLong messageCounter = new AtomicLong(0);
 
     public Chat(
             ChatConfig config,
@@ -120,6 +126,16 @@ public class Chat {
     public void sendText(String message) {
         sendContent(Content.builder().role("user").parts(Part.fromText(message)).build());
     }
+    
+    private ChatMessage buildChatMessage(Content content, GenerateContentResponseUsageMetadata usage, GroundingMetadata grounding) {
+        return ChatMessage.builder()
+            .sequentialId(messageCounter.incrementAndGet())
+            .modelId(config.getApi().getModelId())
+            .content(content)
+            .usageMetadata(usage)
+            .groundingMetadata(grounding)
+            .build();
+    }
 
     public void sendContent(Content content) {
         if (isProcessing) {
@@ -130,10 +146,7 @@ public class Chat {
         statusManager.recordUserInputTime();
         statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
         try {
-            ChatMessage userMessage = ChatMessage.builder()
-                    .modelId(config.getApi().getModelId())
-                    .content(content)
-                    .build();
+            ChatMessage userMessage = buildChatMessage(content, null, null);
             contextManager.add(userMessage);
 
             processModelResponseLoop();
@@ -164,11 +177,7 @@ public class Chat {
             if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
                 log.warn("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
                 Content emptyContent = Content.builder().role("model").parts(Part.fromText("[No response from model]")).build();
-                ChatMessage emptyModelMessage = ChatMessage.builder()
-                        .modelId(config.getApi().getModelId())
-                        .content(emptyContent)
-                        .usageMetadata(resp.usageMetadata().orElse(null))
-                        .build();
+                ChatMessage emptyModelMessage = buildChatMessage(emptyContent, resp.usageMetadata().orElse(null), null);
                 contextManager.add(emptyModelMessage);
                 break;
             }
@@ -179,13 +188,15 @@ public class Chat {
                 break;
             }
 
-            Content modelResponseContent = cand.content().get();
-            ChatMessage modelMessage = ChatMessage.builder()
-                    .modelId(config.getApi().getModelId())
-                    .content(modelResponseContent)
-                    .usageMetadata(resp.usageMetadata().orElse(null))
-                    .groundingMetadata(cand.groundingMetadata().orElse(null))
-                    .build();
+            Content originalContent = cand.content().get();
+            // Sanitize the content to ensure all FunctionCalls have an ID before adding to context.
+            Content sanitizedContent = GeminiAdapter.sanitize(originalContent);
+
+            ChatMessage modelMessage = buildChatMessage(
+                sanitizedContent, 
+                resp.usageMetadata().orElse(null), 
+                cand.groundingMetadata().orElse(null)
+            );
             contextManager.add(modelMessage);
 
             if (!processAndReloopForFunctionCalls(modelMessage)) {
@@ -205,11 +216,14 @@ public class Chat {
         }
 
         if (!functionsEnabled) {
-            String attemptedCalls = allProposedCalls.stream()
-                    .map(fc -> fc.name().orElse("unnamed function"))
-                    .collect(Collectors.joining(", "));
-            String feedbackText = "User Feedback: The model attempted to call the following tool(s) while local functions were disabled: [" + attemptedCalls + "]. The calls were ignored.";
-            sendContent(Content.builder().role("user").parts(Part.fromText(feedbackText)).build());
+            String feedback = allProposedCalls.stream()
+                .map(fc -> String.format("[%s id=N/A %s]", fc.name().orElse("unknown"), ToolCallStatus.DISABLED))
+                .collect(Collectors.joining(" "));
+            String feedbackText = "User Feedback: " + feedback;
+            
+            Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText)).build();
+            ChatMessage feedbackMessage = buildChatMessage(feedbackContent, null, null);
+            contextManager.add(feedbackMessage);
             return false;
         }
 
@@ -224,37 +238,29 @@ public class Chat {
 
         List<Part> extraUserParts = new ArrayList<>();
         List<ChatMessage> messagesToAdd = new ArrayList<>();
-        ChatMessage toolMessage = null;
 
         if (!executedCalls.isEmpty()) {
             List<Part> responseParts = new ArrayList<>();
             for (ExecutedToolCall etc : executedCalls) {
                 Part sourceCallPart = etc.getSourceCallPart();
                 FunctionResponse fr = etc.getResponse();
-                Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
-                Part responsePart = Part.fromFunctionResponse(fr.name().get(), responseMap);
+                
+                // CRITICAL FIX: Use the Part.builder() to ensure the entire FunctionResponse object,
+                // including its ID, is preserved. Do not use the lossy Part.fromFunctionResponse() factory.
+                Part responsePart = Part.builder().functionResponse(fr).build();
                 responseParts.add(responsePart);
 
-                // 1. Model Dependency (Forward Link: Call -> Response)
                 modelDependencies.computeIfAbsent(sourceCallPart, k -> new ArrayList<>()).add(responsePart);
-
-                // 2. Tool Dependency (Reverse Link: Response -> Call)
                 toolDependencies.computeIfAbsent(responsePart, k -> new ArrayList<>()).add(sourceCallPart);
 
-                // 3. Handle MultiPartResponse (Links between tool and user messages)
                 if (etc.getRawResult() instanceof MultiPartResponse) {
                     MultiPartResponse mpr = (MultiPartResponse) etc.getRawResult();
                     for (String filePath : mpr.getFilePaths()) {
                         try {
                             Part imagePart = PartUtils.toPart(new File(filePath));
                             extraUserParts.add(imagePart);
-
-                            // Tool Dependency (Link to Image): Response -> ImagePart
                             toolDependencies.computeIfAbsent(responsePart, k -> new ArrayList<>()).add(imagePart);
-
-                            // User Feedback Dependency (Link from Image): ImagePart -> Response
                             userFeedbackDependencies.computeIfAbsent(imagePart, k -> new ArrayList<>()).add(responsePart);
-
                         } catch (Exception e) {
                             log.error("Failed to create Part from file path: {}", filePath, e);
                         }
@@ -262,64 +268,47 @@ public class Chat {
                 }
             }
 
-            // Update the model message in place (via mutability and merging)
             for (Map.Entry<Part, List<Part>> entry : modelDependencies.entrySet()) {
                 modelMessageWithCalls.addDependencies(entry.getKey(), entry.getValue());
             }
-            // contextManager.notifyHistoryChange() is intentionally removed here as it will be triggered by contextManager.add() below.
 
-            // Prepare the tool message to be added later
             Content functionResponseContent = Content.builder().role("tool").parts(responseParts).build();
-            toolMessage = ChatMessage.builder()
-                    .modelId(config.getApi().getModelId())
-                    .content(functionResponseContent)
-                    .dependencies(toolDependencies)
-                    .build();
+            ChatMessage toolMessage = buildChatMessage(functionResponseContent, null, null);
+            toolMessage.setDependencies(toolDependencies); // Set dependencies after creation
             messagesToAdd.add(toolMessage);
         }
 
-        boolean wasAutopilot = "Autopilot".equals(processingResult.getUserComment());
-        boolean hasDeniedCalls = !processingResult.getDeniedCallParts().isEmpty();
-        boolean hasNonAutopilotComment = processingResult.getUserComment() != null && !processingResult.getUserComment().trim().isEmpty() && !wasAutopilot;
+        // Always create a feedback message if there were any tool calls proposed.
+        if (!processingResult.getOutcomes().isEmpty()) {
+            String feedback = processingResult.getOutcomes().stream()
+                .map(outcome -> {
+                    String toolName = outcome.getIdentifiedCall().getCall().name().orElse("unknown");
+                    String id = outcome.getIdentifiedCall().getId();
+                    String status = outcome.getStatus().name();
+                    return String.format("[%s id=%s %s]", toolName, id, status);
+                })
+                .collect(Collectors.joining(" "));
+            
+            StringBuilder feedbackText = new StringBuilder("User Feedback: ").append(feedback);
+            
+            if (StringUtils.isNotBlank(processingResult.getUserComment())) {
+                feedbackText.append("\nUser Comment: '").append(processingResult.getUserComment()).append("'");
+            }
 
-        if (wasAutopilot || hasDeniedCalls || hasNonAutopilotComment || !extraUserParts.isEmpty()) {
             List<Part> userFeedbackParts = new ArrayList<>();
-            StringBuilder feedbackText = new StringBuilder("User has provided feedback on the proposed tool calls:\n");
-
-            if (wasAutopilot) {
-                feedbackText.append("- Autopilot: ").append(executedCalls.size()).append(" tool call(s) were pre-approved and executed automatically.\n");
-            }
-
-            if (hasDeniedCalls) {
-                String denied = processingResult.getDeniedCallParts().stream()
-                        .map(part -> part.functionCall().get().name().orElse("unnamed"))
-                        .collect(Collectors.joining(", "));
-                feedbackText.append("- The following calls were denied: [").append(denied).append("]\n");
-            }
-
-            if (hasNonAutopilotComment) {
-                feedbackText.append("- User's comment: '").append(processingResult.getUserComment()).append("'\n");
-            }
-
             userFeedbackParts.add(Part.fromText(feedbackText.toString()));
             userFeedbackParts.addAll(extraUserParts);
 
             Content feedbackContent = Content.builder().role("user").parts(userFeedbackParts).build();
-            ChatMessage feedbackMessage = ChatMessage.builder()
-                    .modelId(config.getApi().getModelId())
-                    .content(feedbackContent)
-                    .dependencies(userFeedbackDependencies)
-                    .build();
+            ChatMessage feedbackMessage = buildChatMessage(feedbackContent, null, null);
+            feedbackMessage.setDependencies(userFeedbackDependencies); // Set dependencies after creation
             messagesToAdd.add(feedbackMessage);
         }
 
-        // Add all new messages at the end
         for (ChatMessage message : messagesToAdd) {
             contextManager.add(message);
         }
 
-        // Only re-loop if we actually executed something and need the model to process the result.
-        // If the user just denied calls, we've added the feedback message and can stop.
         return !executedCalls.isEmpty();
     }
 
@@ -330,7 +319,6 @@ public class Chat {
         long backoffAmount = 0;
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
-            // Get a new client for each attempt to ensure key rotation.
             Client client = getGoogleGenAIClient();
             try {
                 statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
@@ -338,7 +326,6 @@ public class Chat {
                 
                 List<Content> finalContext = new ArrayList<>(context);
 
-                // --- AUGMENTED WORKSPACE ---
                 List<Part> workspaceParts = contentFactory.produceParts(ContextPosition.AUGMENTED_WORKSPACE);
                 if (!workspaceParts.isEmpty()) {
                     log.info("Augmenting context with {} parts from workspace providers.", workspaceParts.size());
@@ -349,7 +336,6 @@ public class Chat {
                     augmentedMessageParts.addAll(workspaceParts);
                     finalContext.add(Content.builder().role("user").parts(augmentedMessageParts).build());
                 }
-                // --- END AUGMENTED WORKSPACE ---
 
                 log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + finalContext.size() + " content elements. Functions enabled: " + functionsEnabled);
                 long ts = System.currentTimeMillis();
@@ -357,14 +343,12 @@ public class Chat {
                 latency = System.currentTimeMillis() - ts;
                 log.info(latency + " ms. Received response from model for " + finalContext.size() + " content elements.");
                 
-                // On success, clear errors and cache the usage metadata
                 statusManager.clearApiErrors();
                 statusManager.setLastUsage(ret.usageMetadata().orElse(null));
                 
                 return ret;
             } catch (Exception e) {
                 log.warn("Api Error on attempt {}: {}", attempt, e.toString());
-                // Capture the key from the client instance that was used for the failed call.
                 String apiKey = client.apiKey();
                 String apiKeyLast5 = StringUtils.right(apiKey, 5);
                 statusManager.recordApiError(config.getApi().getModelId(), apiKeyLast5, attempt, backoffAmount, e);
@@ -421,26 +405,15 @@ public class Chat {
         Part part = Part.fromFunctionResponse(fr.name().get(), (Map<String, Object>) fr.response().get());
         Content notificationContent = Content.builder().role("tool").parts(part).build();
 
-        ChatMessage jobResultMessage = ChatMessage.builder()
-                .modelId(config.getApi().getModelId())
-                .content(notificationContent)
-                .build();
+        ChatMessage jobResultMessage = buildChatMessage(notificationContent, null, null);
         contextManager.add(jobResultMessage);
     }
     
-    /**
-     * Gets a consistent, 7-character short identifier for the session.
-     * @return The last 7 characters of the session UUID.
-     */
     public String getShortId() {
         String sessionId = config.getSessionId();
         return sessionId.substring(sessionId.length() - 7);
     }
     
-    /**
-     * Calculates the context window usage as a ratio between 0.0 and 1.0.
-     * @return The usage ratio, or 0.0 if the threshold is not set.
-     */
     public float getContextWindowUsage() {
         try {
             int tokenCount = contextManager.getTotalTokenCount();
@@ -454,10 +427,6 @@ public class Chat {
         return 0.0f;
     }
 
-    /**
-     * Calculates and formats the context window usage as a percentage string.
-     * @return A formatted string (e.g., "75.2%") or "N/A".
-     */
     public String getContextWindowUsageFormatted() {
         float usage = getContextWindowUsage();
         if (usage > 0.0f) {

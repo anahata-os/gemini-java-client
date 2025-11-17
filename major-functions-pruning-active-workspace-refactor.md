@@ -29,9 +29,9 @@ This phase focuses on improving the core components to make them more modular, t
 ### 2.2. Tooling Model: Static vs. Instance-Based ("Servlet-Style")
 The current model of static tool methods is limiting. We will explore and likely migrate to an instance-based model.
 
-- **Concept:** Instead of being static, tool methods will be instance methods. Each `GeminiChat` instance will hold a map of instantiated tool objects.
+- **Concept:** Instead of being static, tool methods will be instance methods. Each `Chat` instance will hold a map of instantiated tool objects.
 - **`BaseTool` Class:** A `BaseTool` class will be created. Tool classes can extend this to get access to helper methods like `getCurrentChat()`, `getActiveWorkspace()`, or `unloadResource(String resourceId)`.
-- **Benefits:** This eliminates the need for `GeminiChat.getCallingInstance()`, makes tools easier to test, and allows them to hold state if necessary.
+- **Benefits:** This eliminates the need for `Chat.getCallingInstance()`, makes tools easier to test, and allows them to hold state if necessary.
 
 ### 2.3. Tool Return Type Handling
 The model needs to know how to interpret the `FunctionResponse`. We will provide explicit control over this.
@@ -48,7 +48,7 @@ This phase implements the core "Whiteboard" concept for state management.
 ### 3.1. Core Concept
 - **All Tool Calls Become Ephemeral:** The `FunctionCall`/`FunctionResponse` pair for any tool that modifies state is now considered a transient log entry. Its purpose is to trigger a change, not to hold the state itself. The "two-turn rule" will automatically clean up these log entries.
 - **Client-Side State:** A new `ActiveWorkspaceManager` class will be created. It will hold a `Map<String, StatefulResource>` representing the definitive "current state" of all resources.
-- **Prompt Injection:** Before every request to the model, `GeminiChat` will serialize the entire content of the `ActiveWorkspaceManager` into a series of `Part`s and prepend them to the user's message.
+- **Prompt Injection:** Before every request to the model, `Chat` will serialize the entire content of the `ActiveWorkspaceManager` into a series of `Part`s and prepend them to the user's message.
 
 ### 3.2. `StatefulResource` Enhancements
 - **`shouldRefresh()` Method:** The `StatefulResource` interface will gain a new method: `boolean shouldRefresh()`.
@@ -73,8 +73,8 @@ These are larger-scale explorations for the health of the project.
     - **Performance:** G1 GC improvements, general runtime optimizations.
     - **Virtual Threads:** Potentially a massive simplification for handling asynchronous operations.
 
-### 4.3. `GeminiChat` Refactoring
-- `GeminiChat` is becoming a "God Class". We need to plan for its decomposition, delegating responsibilities like prompt construction, response processing, and state management to smaller, more focused classes.
+### 4.3. `Chat` Refactoring
+- `Chat` is becoming a "God Class". We need to plan for its decomposition, delegating responsibilities like prompt construction, response processing, and state management to smaller, more focused classes.
 
 ---
 

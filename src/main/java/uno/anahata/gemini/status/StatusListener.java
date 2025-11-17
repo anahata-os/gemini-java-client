@@ -1,7 +1,7 @@
 package uno.anahata.gemini.status;
 
 /**
- * Listener interface for receiving real-time status updates from the GeminiChat.
+ * Listener interface for receiving real-time status updates from the Chat.
  * This is primarily used by the UI to display a "traffic light" status indicator.
  */
 @FunctionalInterface

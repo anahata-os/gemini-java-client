@@ -1,8 +1,11 @@
 package uno.anahata.gemini.internal;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.helper.Validate;
 import uno.anahata.gemini.functions.spi.pojos.TextChunk;
 
@@ -86,5 +89,39 @@ public class TextUtils {
                     + " characters, " + (originalLength - maxLineLength) + " more]";
         }
         return line;
+    }
+    
+    /**
+     * Checks if an object is null, a blank string, or an empty collection/map.
+     * @param value The object to check.
+     * @return true if the object is considered null or empty.
+     */
+    public static boolean isNullOrEmpty(Object value) {
+        if (value == null) {
+            return true;
+        }
+        if (value instanceof String && ((String) value).isBlank()) {
+            return true;
+        }
+        if (value instanceof Collection && ((Collection<?>) value).isEmpty()) {
+            return true;
+        }
+        if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Formats a value for display in a summary, escaping newlines and truncating in the middle if necessary.
+     * @param value The object to format.
+     * @return A formatted, truncated string.
+     */
+    public static String formatValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        String s = String.valueOf(value).replace("\n", "\\n").replace("\r", "");
+        return StringUtils.abbreviateMiddle(s, "...", 64);
     }
 }

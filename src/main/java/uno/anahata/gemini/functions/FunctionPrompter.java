@@ -1,7 +1,9 @@
 package uno.anahata.gemini.functions;
 
 import com.google.genai.types.FunctionCall;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.Chat;
 
@@ -31,14 +33,14 @@ public interface FunctionPrompter {
      */
     class PromptResult {
 
-        public final List<FunctionCall> approvedFunctions;
-        public final List<FunctionCall> deniedFunctions;
+        public final Map<FunctionCall, FunctionConfirmation> functionConfirmations;
         public final String userComment;
+        public final boolean cancelled;
 
-        public PromptResult(List<FunctionCall> approvedFunctions, List<FunctionCall> deniedFunctions, String userComment) {
-            this.approvedFunctions = approvedFunctions;
-            this.deniedFunctions = deniedFunctions;
+        public PromptResult(Map<FunctionCall, FunctionConfirmation> functionConfirmations, String userComment, boolean cancelled) {
+            this.functionConfirmations = Collections.unmodifiableMap(functionConfirmations);
             this.userComment = userComment;
+            this.cancelled = cancelled;
         }
     }
 }

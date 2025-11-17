@@ -1,5 +1,7 @@
 package uno.anahata.gemini.functions.schema;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,7 +29,12 @@ import java.util.stream.Collectors;
  */
 public class SchemaProvider2 {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new MrBeanModule());
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .registerModule(new MrBeanModule())
+            .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+            .setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
+            .setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE);
+    
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static String generateInlinedSchemaString(Type type) throws JsonProcessingException {

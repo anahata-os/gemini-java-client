@@ -157,17 +157,17 @@ public class ContextHeatmapPanel extends JPanel {
         );
 
         if (choice == JOptionPane.YES_OPTION) {
-            Map<String, List<Integer>> partsToPruneByMessage = new HashMap<>();
+            Map<Long, List<Integer>> partsToPruneByMessage = new HashMap<>();
             for (int viewRow : selectedRows) {
                 int modelRow = partTable.convertRowIndexToModel(viewRow);
                 PartInfo info = tableModel.getPartInfo(modelRow);
-                partsToPruneByMessage.computeIfAbsent(info.getMessageUuid(), k -> new ArrayList<>()).add(info.getPartIndex());
+                partsToPruneByMessage.computeIfAbsent(info.getMessageSeqId(), k -> new ArrayList<>()).add(info.getPartIndex());
             }
 
             new SwingWorker<Void, Void>() {
                 @Override
                 protected Void doInBackground() throws Exception {
-                    for (Map.Entry<String, List<Integer>> entry : partsToPruneByMessage.entrySet()) {
+                    for (Map.Entry<Long, List<Integer>> entry : partsToPruneByMessage.entrySet()) {
                         List<Number> partIndices = new ArrayList<>(entry.getValue());
                         functionManager.getChat().getContextManager().pruneParts(
                             entry.getKey(),
@@ -264,7 +264,7 @@ public class ContextHeatmapPanel extends JPanel {
     public static class PartInfo {
         private final int messageIndex;
         private final int partIndex;
-        private final String messageUuid;
+        private final long messageSeqId;
         private final String role;
         private final String partType;
         private final long sizeInBytes;
@@ -280,7 +280,7 @@ public class ContextHeatmapPanel extends JPanel {
         PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, ToolManager fm, SwingChatConfig.UITheme theme, Map<String, ResourceStatus> statusMap) {
             this.messageIndex = msgIdx;
             this.partIndex = partIdx;
-            this.messageUuid = msg.getId();
+            this.messageSeqId = msg.getSequentialId();
             this.role = msg.getContent().role().orElse("unknown");
             this.sizeInBytes = PartUtils.calculateSizeInBytes(part);
             this.roleColor = getRoleColor(theme, this.role);

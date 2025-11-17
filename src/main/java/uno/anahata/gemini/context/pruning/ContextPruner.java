@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import uno.anahata.ai.gemini.GeminiAdapter;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextManager;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
@@ -30,59 +31,59 @@ public class ContextPruner {
     }
 
     /**
-     * Prunes entire ChatMessage objects from the context based on their unique IDs.
+     * Prunes entire ChatMessage objects from the context based on their unique sequential IDs.
      * This method now only collects the initial parts to be removed and delegates
      * the full dependency traversal and removal to {@link #prunePartsByReference(java.util.List, java.lang.String)}.
      *
-     * @param uids   A list of message IDs to remove.
-     * @param reason The reason for the pruning, for logging purposes.
+     * @param sequentialIds A list of message sequential IDs to remove.
+     * @param reason        The reason for the pruning, for logging purposes.
      */
-    public void pruneMessages(List<String> uids, String reason) {
-        log.info("PruneMessages called for UIDs: {} with reason: {}", uids, reason);
+    public void pruneMessages(List<Long> sequentialIds, String reason) {
+        log.info("PruneMessages called for Sequential IDs: {} with reason: {}", sequentialIds, reason);
         List<ChatMessage> context = contextManager.getContext();
         Set<Part> initialCandidates = new HashSet<>();
-        Set<String> uidsToPrune = new HashSet<>(uids);
+        Set<Long> idsToPrune = new HashSet<>(sequentialIds);
 
         // 1. Collect all parts from the targeted messages as initial candidates
         for (ChatMessage message : context) {
-            if (uidsToPrune.contains(message.getId())) {
+            if (idsToPrune.contains(message.getSequentialId())) {
                 message.getContent().parts().ifPresent(initialCandidates::addAll);
             }
         }
 
         if (initialCandidates.isEmpty()) {
-            log.warn("No parts found in messages with IDs {} to prune. Aborting.", uids);
+            log.warn("No parts found in messages with IDs {} to prune. Aborting.", sequentialIds);
             return;
         }
-        
-        log.info("Collected {} initial parts from {} messages.", initialCandidates.size(), uids.size());
-        
+
+        log.info("Collected {} initial parts from {} messages.", initialCandidates.size(), sequentialIds.size());
+
         // 2. Delegate to the low-level method for full dependency resolution and removal
         prunePartsByReference(new ArrayList<>(initialCandidates), reason);
     }
 
     /**
-     * Prunes specific parts from a single ChatMessage, identified by the message's ID and the parts' indices.
+     * Prunes specific parts from a single ChatMessage, identified by the message's sequential ID and the parts' indices.
      * This method now only collects the initial parts to be removed and delegates
      * the full dependency traversal and removal to {@link #prunePartsByReference(java.util.List, java.lang.String)}.
      *
-     * @param messageUID  The ID of the message containing the parts to prune.
-     * @param partIndices A list of zero-based indices of the parts to remove.
-     * @param reason      The reason for the pruning, for logging purposes.
+     * @param messageSequentialId The sequential ID of the message containing the parts to prune.
+     * @param partIndices         A list of zero-based indices of the parts to remove.
+     * @param reason              The reason for the pruning, for logging purposes.
      */
-    public void pruneParts(String messageUID, List<Number> partIndices, String reason) {
-        log.info("PruneParts called for message UID: {} with indices: {} and reason: {}", messageUID, partIndices, reason);
+    public void pruneParts(long messageSequentialId, List<Number> partIndices, String reason) {
+        log.info("PruneParts called for message ID: {} with indices: {} and reason: {}", messageSequentialId, partIndices, reason);
         // Get a mutable reference to the context.
         List<ChatMessage> context = contextManager.getContext();
         // Find the specific message the user wants to modify.
         ChatMessage targetMessage = context.stream()
-                .filter(m -> m.getId().equals(messageUID))
+                .filter(m -> m.getSequentialId() == messageSequentialId)
                 .findFirst()
                 .orElse(null);
 
         // If the message doesn't exist, log a warning and exit.
         if (targetMessage == null) {
-            log.warn("Could not find message with ID {} to prune parts. Aborting.", messageUID);
+            log.warn("Could not find message with ID {} to prune parts. Aborting.", messageSequentialId);
             return;
         }
 
@@ -102,12 +103,12 @@ public class ContextPruner {
 
         // If no valid parts were found for the given indices, log a warning and exit.
         if (initialCandidates.isEmpty()) {
-            log.warn("None of the specified part indices {} were valid for message {}. Aborting.", partIndices, messageUID);
+            log.warn("None of the specified part indices {} were valid for message {}. Aborting.", partIndices, messageSequentialId);
             return;
         }
-        
-        log.info("Collected {} initial parts from message {}.", initialCandidates.size(), messageUID);
-        
+
+        log.info("Collected {} initial parts from message {}.", initialCandidates.size(), messageSequentialId);
+
         // 2. Delegate to the low-level method for full dependency resolution and removal
         prunePartsByReference(new ArrayList<>(initialCandidates), reason);
     }
@@ -118,7 +119,7 @@ public class ContextPruner {
      * dependency map of the resulting ChatMessage objects.
      *
      * @param initialCandidates A list of the actual Part objects to remove.
-     * @param reason       The reason for the pruning.
+     * @param reason            The reason for the pruning.
      */
     public void prunePartsByReference(List<Part> initialCandidates, String reason) {
         if (initialCandidates == null || initialCandidates.isEmpty()) {
@@ -128,9 +129,9 @@ public class ContextPruner {
         List<ChatMessage> context = contextManager.getContext();
         Set<Part> fullPruneSet = new HashSet<>(initialCandidates);
         int initialCount = initialCandidates.size();
-        
+
         log.info("Starting prunePartsByReference. Initial candidates: {}. Reason: {}", initialCount, reason);
-        
+
         // === Phase 1: Full Dependency Traversal (Cross-Message) ===
         // Loop until no new dependencies are found across all messages.
         boolean changed;
@@ -139,7 +140,7 @@ public class ContextPruner {
             changed = false;
             iteration++;
             int partsBeforeIteration = fullPruneSet.size();
-            
+
             for (ChatMessage message : context) {
                 if (message.getDependencies() != null) {
                     for (Map.Entry<Part, List<Part>> entry : message.getDependencies().entrySet()) {
@@ -150,7 +151,7 @@ public class ContextPruner {
                         if (fullPruneSet.contains(sourcePart)) {
                             for (Part dependentPart : dependentParts) {
                                 if (fullPruneSet.add(dependentPart)) {
-                                    log.info("Dependency found (Forward): Added part {} from message {}", dependentPart.functionResponse().map(fr -> fr.name().orElse("?")).orElse("?"), message.getId());
+                                    log.info("Dependency found (Forward): Added part {} from message #{}", dependentPart.functionResponse().map(fr -> fr.name().orElse("?")).orElse("?"), message.getSequentialId());
                                     changed = true;
                                 }
                             }
@@ -160,7 +161,7 @@ public class ContextPruner {
                         for (Part dependentPart : dependentParts) {
                             if (fullPruneSet.contains(dependentPart)) {
                                 if (fullPruneSet.add(sourcePart)) {
-                                    log.info("Dependency found (Reverse): Added part {} from message {}", sourcePart.functionCall().map(fc -> fc.name().orElse("?")).orElse("?"), message.getId());
+                                    log.info("Dependency found (Reverse): Added part {} from message #{}", sourcePart.functionCall().map(fc -> fc.name().orElse("?")).orElse("?"), message.getSequentialId());
                                     changed = true;
                                 }
                             }
@@ -170,12 +171,12 @@ public class ContextPruner {
             }
             log.info("Traversal iteration {}: Added {} new parts. Total parts: {}", iteration, fullPruneSet.size() - partsBeforeIteration, fullPruneSet.size());
         } while (changed);
-        
+
         int dependencyCount = fullPruneSet.size() - initialCount;
-        
+
         // Log the action before execution
         log.info("Pruning execution set finalized. Total parts: {} ({} initial candidates + {} from dependencies).",
-                fullPruneSet.size(), initialCount, dependencyCount);
+                 fullPruneSet.size(), initialCount, dependencyCount);
 
         // === Phase 2: Execution (Removal) ===
         Set<Part> partsToPruneSet = fullPruneSet;
@@ -196,8 +197,8 @@ public class ContextPruner {
                 continue;
             }
 
-            log.info("Modifying message {} (Role: {}) to remove parts.", currentMessage.getId(), currentMessage.getContent().role().orElse("N/A"));
-            
+            log.info("Modifying message #{} (Role: {}) to remove parts.", currentMessage.getSequentialId(), currentMessage.getContent().role().orElse("N/A"));
+
             // If we're here, the message needs to be modified.
             // Create a new list containing only the parts we want to keep.
             List<Part> partsToKeep = originalParts.stream()
@@ -209,14 +210,14 @@ public class ContextPruner {
             if (partsToKeep.isEmpty()) {
                 // ...remove the entire message from the context.
                 iterator.remove();
-                log.info("Message {} became empty and was removed from context.", currentMessage.getId());
+                log.info("Message #{} became empty and was removed from context.", currentMessage.getSequentialId());
             } else {
                 // Otherwise, create a new Content object with the remaining parts...
                 Content newContent = ContentUtils.cloneAndRemoveParts(originalContent, new ArrayList<>(partsToPruneSet));
-                
+
                 // CRITICAL STEP: Clean the dependency map before creating the replacement message.
                 Map<Part, List<Part>> cleanedDependencies = cleanDependencies(currentMessage, new HashSet<>(partsToKeep), partsToPruneSet);
-                
+
                 // ...and replace the old message with a new, updated one.
                 // NOTE: We must create a new ChatMessage because the Content field is immutable.
                 ChatMessage replacement = currentMessage.toBuilder()
@@ -224,7 +225,7 @@ public class ContextPruner {
                         .dependencies(cleanedDependencies)
                         .build();
                 iterator.set(replacement);
-                log.info("Message {} updated. Kept {} parts.", currentMessage.getId(), partsToKeep.size());
+                log.info("Message #{} updated. Kept {} parts.", currentMessage.getSequentialId(), partsToKeep.size());
             }
         }
 
@@ -237,35 +238,56 @@ public class ContextPruner {
         }
     }
     
+    public void pruneToolCall(String toolCallId, String reason) {
+        log.info("Pruning tool call by ID: {}. Reason: {}", toolCallId, reason);
+        List<Part> partsToPrune = new ArrayList<>();
+        for (ChatMessage message : contextManager.getContext()) {
+            for (Part part : message.getContent().parts().orElse(Collections.emptyList())) {
+                String id = GeminiAdapter.getToolCallId(part).orElse(null);
+                if (toolCallId.equals(id)) {
+                    partsToPrune.add(part);
+                }
+            }
+        }
+        
+        if (partsToPrune.isEmpty()) {
+            log.warn("No parts found with tool call ID '{}'. No action taken.", toolCallId);
+            return;
+        }
+        
+        log.info("Found {} parts with tool call ID '{}'. Delegating to prunePartsByReference.", partsToPrune.size(), toolCallId);
+        prunePartsByReference(partsToPrune, reason);
+    }
+
     /**
      * Cleans the dependency map of a ChatMessage to ensure it only contains valid links
      * after parts have been removed.
-     * 
-     * @param message The original message.
-     * @param partsToKeep The parts that remain in the message's content.
+     *
+     * @param message         The original message.
+     * @param partsToKeep     The parts that remain in the message's content.
      * @param partsToPruneSet The global set of all parts being pruned from the context.
      * @return A new, cleaned dependency map.
      */
     private Map<Part, List<Part>> cleanDependencies(ChatMessage message, Set<Part> partsToKeep, Set<Part> partsToPruneSet) {
         Map<Part, List<Part>> oldDependencies = message.getDependencies();
         if (oldDependencies == null || oldDependencies.isEmpty()) {
-            log.info("cleanDependencies: No dependencies to clean for message {}", message.getId());
+            log.info("cleanDependencies: No dependencies to clean for message #{}", message.getSequentialId());
             return null;
         }
 
         Map<Part, List<Part>> newDependencies = new HashMap<>();
-        
+
         for (Map.Entry<Part, List<Part>> entry : oldDependencies.entrySet()) {
             Part sourcePart = entry.getKey();
             List<Part> dependentParts = entry.getValue();
 
             // 1. Check if the source part (the key) is still in the message's content.
             if (partsToKeep.contains(sourcePart)) {
-                
+
                 // 2. Filter the dependent parts (the values) to remove any that are being pruned globally.
                 List<Part> cleanedDependentParts = dependentParts.stream()
-                    .filter(p -> !partsToPruneSet.contains(p))
-                    .collect(Collectors.toList());
+                        .filter(p -> !partsToPruneSet.contains(p))
+                        .collect(Collectors.toList());
 
                 // 3. Only keep the entry if there are still valid dependent parts.
                 if (!cleanedDependentParts.isEmpty()) {
@@ -278,8 +300,8 @@ public class ContextPruner {
                 log.info("cleanDependencies: Removed source part {} as it was pruned from the message content.", sourcePart.functionCall().map(fc -> fc.name().orElse("?")).orElse("?"));
             }
         }
-        
-        log.info("cleanDependencies: Final dependency map size for message {}: {}", message.getId(), newDependencies.size());
+
+        log.info("cleanDependencies: Final dependency map size for message #{}: {}", message.getSequentialId(), newDependencies.size());
         return newDependencies.isEmpty() ? null : newDependencies;
     }
 
@@ -297,7 +319,6 @@ public class ContextPruner {
             return;
         }
         List<ChatMessage> context = contextManager.getContext();
-        
 
         // Find the index of the message that marks our cutoff point (2 user turns ago).
         List<Integer> userMessageIndices = new ArrayList<>();
@@ -350,16 +371,16 @@ public class ContextPruner {
             for (Part part : message.getContent().parts().get()) {
                 boolean isEphemeral = false;
                 String reasonCode = "";
-                
+
                 // Condition 1: Is the tool explicitly marked as @AIToolMethod(behavior = EPHEMERAL)?
                 if (isPartNaturallyEphemeral(part, functionManager)) {
                     isEphemeral = true;
                     reasonCode = "NATURALLY_EPHEMERAL";
-                // Condition 2: Is it a FunctionCall that has no corresponding FunctionResponse in our map? (Orphan)
+                    // Condition 2: Is it a FunctionCall that has no corresponding FunctionResponse in our map? (Orphan)
                 } else if (part.functionCall().isPresent() && !callToResponseMap.containsKey(part)) {
                     isEphemeral = true;
                     reasonCode = "ORPHANED_CALL";
-                // Condition 3: Is it a FunctionResponse from a STATEFUL tool that failed to produce a valid resource?
+                    // Condition 3: Is it a FunctionResponse from a STATEFUL tool that failed to produce a valid resource?
                 } else if (part.functionResponse().isPresent() && isFailedStatefulResponse(part.functionResponse().get(), functionManager)) {
                     isEphemeral = true;
                     reasonCode = "FAILED_STATEFUL_RESPONSE";
@@ -367,7 +388,7 @@ public class ContextPruner {
 
                 if (isEphemeral) {
                     initialCandidates.add(part);
-                    log.info("Candidate found for pruning: Message {} Part {} (Reason: {})", message.getId(), part.functionCall().map(fc -> fc.name().orElse("?")).orElse(part.functionResponse().map(fr -> fr.name().orElse("?")).orElse("Text/Blob")), reasonCode);
+                    log.info("Candidate found for pruning: Message #{} Part {} (Reason: {})", message.getSequentialId(), part.functionCall().map(fc -> fc.name().orElse("?")).orElse(part.functionResponse().map(fr -> fr.name().orElse("?")).orElse("Text/Blob")), reasonCode);
                 }
             }
         }

@@ -1,13 +1,12 @@
 package uno.anahata.gemini.ui.render;
 
 import com.google.genai.types.Content;
-import com.google.genai.types.FunctionCall;
-import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -28,10 +27,12 @@ import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.Scrollable;
 import javax.swing.border.Border;
-import org.apache.commons.text.StringEscapeUtils;
+import uno.anahata.gemini.Chat;
 import uno.anahata.gemini.ChatMessage;
 import uno.anahata.gemini.context.ContextManager;
+import uno.anahata.gemini.ui.AnahataPanel;
 import uno.anahata.gemini.ui.SwingChatConfig;
+import uno.anahata.gemini.ui.TimeUtils;
 import uno.anahata.gemini.ui.render.editorkit.EditorKitProvider;
 
 public class ContentRenderer {
@@ -40,10 +41,14 @@ public class ContentRenderer {
     private final Map<Part, PartRenderer> instanceRendererMap;
     private final EditorKitProvider editorKitProvider;
     private final SwingChatConfig.UITheme theme;
+    private final AnahataPanel anahataPanel;
+    private final Chat chat;
 
-    public ContentRenderer(EditorKitProvider editorKitProvider, SwingChatConfig config) {
-        this.editorKitProvider = editorKitProvider;
-        this.theme = config.getTheme();
+    public ContentRenderer(AnahataPanel anahataPanel) {
+        this.anahataPanel = anahataPanel;
+        this.chat = anahataPanel.getChat();
+        this.editorKitProvider = anahataPanel.getEditorKitProvider();
+        this.theme = anahataPanel.getConfig().getTheme();
         this.typeRendererMap = new HashMap<>();
         this.instanceRendererMap = new HashMap<>();
 
@@ -63,10 +68,11 @@ public class ContentRenderer {
         return typeRendererMap.get(partType);
     }
 
-    public JComponent render(ChatMessage message, int contentIdx, ContextManager contextManager) {
+    public JComponent render(ChatMessage message) {
         Content content = message.getContent();
         String role = content.role().orElse("model");
         List<? extends Part> parts = content.parts().orElse(Collections.emptyList());
+        ContextManager contextManager = chat.getContextManager();
 
         JPanel messagePanel = new JPanel(new BorderLayout());
         int tokenCount = message.getUsageMetadata() != null ? message.getUsageMetadata().totalTokenCount().orElse(0) : 0;
@@ -77,11 +83,12 @@ public class ContentRenderer {
         headerPanel.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         headerPanel.setBackground(getBackgroundColor(role, true));
 
-        String headerText = String.format("<html><b>%S</b> [%d]", role, contentIdx);
-        if ("model".equalsIgnoreCase(role)) {
-            headerText += " <font color='#666666'>- " + StringEscapeUtils.escapeHtml4(message.getModelId()) + "</font>";
-        } else if ("user".equalsIgnoreCase(role)) {
-            headerText += " <font color='#666666'>- " + System.getProperty("user.name") + "</font>";
+        String headerText = String.format("<html><b>%S</b> [#%d]", role, message.getSequentialId());
+        
+        headerText += " <font color='#666666'>- " + TimeUtils.formatSmartTimestamp(message.getCreatedOn()) + "</font>";
+        
+        if (message.getElapsedTimeMillis() > 0) {
+            headerText += " <font color='#888888'><i>(Elapsed: " + TimeUtils.formatDuration(message.getElapsedTimeMillis()) + ")</i></font>";
         }
         
         Optional<GenerateContentResponseUsageMetadata> usageOpt = Optional.ofNullable(message.getUsageMetadata());
@@ -94,14 +101,14 @@ public class ContentRenderer {
         headerLabel.setForeground(getForegroundColor(role));
         headerPanel.add(headerLabel, BorderLayout.CENTER);
 
-        JButton pruneButton = new JButton("X");
-        pruneButton.setMargin(new Insets(0, 4, 0, 4));
-        pruneButton.setToolTipText("Remove this message from the context");
-        pruneButton.addActionListener(e -> contextManager.pruneMessages(
-            Collections.singletonList(message.getId()), 
+        JButton pruneMessageButton = new JButton("X");
+        pruneMessageButton.setMargin(new Insets(0, 4, 0, 4));
+        pruneMessageButton.setToolTipText("Remove this entire message from the context");
+        pruneMessageButton.addActionListener(e -> contextManager.pruneMessages(
+            Collections.singletonList(message.getSequentialId()), 
             "User pruned message from UI"
         ));
-        headerPanel.add(pruneButton, BorderLayout.EAST);
+        headerPanel.add(pruneMessageButton, BorderLayout.EAST);
         
         messagePanel.add(headerPanel, BorderLayout.NORTH);
 
@@ -131,18 +138,30 @@ public class ContentRenderer {
             PartRenderer renderer = instanceRendererMap.getOrDefault(part, typeRendererMap.get(PartType.from(part)));
 
             if (renderer != null) {
-                String titleText = String.format("Part %d of %d", i + 1, parts.size());
-                if (part.functionCall().isPresent()) {
-                    FunctionCall fc = part.functionCall().get();
-                    titleText += String.format(" - %s id:%s", StringEscapeUtils.escapeHtml4(fc.name().orElse("?")), StringEscapeUtils.escapeHtml4(fc.id().orElse("n/a")));
-                } else if (part.functionResponse().isPresent()) {
-                    FunctionResponse fr = part.functionResponse().get();
-                    titleText += String.format(" - %s id:n/a", StringEscapeUtils.escapeHtml4(fr.name().orElse("?")));
-                }
-                JLabel partTitle = new JLabel(titleText);
+                String[] description = chat.getContextManager().getSessionManager().describePart(part);
+                
+                JPanel partHeaderPanel = new JPanel(new BorderLayout(4, 0));
+                partHeaderPanel.setOpaque(false);
+                
+                JLabel partTitle = new JLabel(String.format("<html>%s<font color='#666666'> - %s</font></html>", description[0], description[1]));
                 partTitle.setFont(partTitle.getFont().deriveFont(Font.ITALIC, 11f));
                 partTitle.setForeground(Color.DARK_GRAY);
-                contentPanel.add(partTitle, gbc);
+                partHeaderPanel.add(partTitle, BorderLayout.CENTER);
+                
+                JButton prunePartButton = new JButton("x");
+                prunePartButton.setMargin(new Insets(0, 2, 0, 2));
+                prunePartButton.setToolTipText("Remove this part (and its dependencies) from the context");
+                prunePartButton.addActionListener(e -> contextManager.prunePartsByReference(
+                    Collections.singletonList(part), 
+                    "User pruned part from UI"
+                ));
+                
+                JPanel buttonWrapper = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+                buttonWrapper.setOpaque(false);
+                buttonWrapper.add(prunePartButton);
+                partHeaderPanel.add(buttonWrapper, BorderLayout.EAST);
+                
+                contentPanel.add(partHeaderPanel, gbc);
 
                 gbc.insets = new Insets(4, 0, 0, 0);
                 JComponent partComponent = renderer.render(part, editorKitProvider);

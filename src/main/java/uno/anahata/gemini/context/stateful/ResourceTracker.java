@@ -126,6 +126,16 @@ public class ResourceTracker {
 
         return new ArrayList<>(uniqueStatuses.values());
     }
+    
+    /**
+     * Gets the status of a single resource directly from its FunctionResponse.
+     *
+     * @param fr The FunctionResponse that created the stateful resource.
+     * @return An Optional containing the status, or empty if the response is not a valid stateful resource.
+     */
+    public Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr) {
+        return getResourceStatus(fr, contextManager.getFunctionManager());
+    }
 
     private Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr, ToolManager fm) {
         String toolName = fr.name().orElse("");

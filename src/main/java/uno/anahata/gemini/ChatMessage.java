@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.UUID;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -30,8 +30,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ChatMessage {
 
-    @Builder.Default
-    private final String id = UUID.randomUUID().toString();
+    private final long sequentialId;
+    @Setter
+    private long elapsedTimeMillis;
     private final String modelId;
     private final Content content;
     private final GenerateContentResponseUsageMetadata usageMetadata;
@@ -56,7 +57,7 @@ public class ChatMessage {
      */
     public Set<Part> getAllDependencies(Part startPart) {
         if (dependencies == null || !dependencies.containsKey(startPart)) {
-            throw new IllegalArgumentException("The specified startPart is not a key in this message's dependencies map.");
+            throw new IllegalArgumentException("The specified startPart is not a key in this message's dependency graph.");
         }
 
         Set<Part> visited = new HashSet<>();
@@ -105,7 +106,7 @@ public class ChatMessage {
     public void addDependencies(Part sourcePart, List<Part> dependentParts) {
         if (dependencies == null) {
             dependencies = new HashMap<>();
-            log.info("Dependencies map initialized for message {}.", id);
+            log.info("Dependencies map initialized for message {}.", sequentialId);
         }
         
         List<Part> existing = dependencies.computeIfAbsent(sourcePart, k -> new ArrayList<>());
@@ -113,6 +114,6 @@ public class ChatMessage {
         existing.addAll(dependentParts);
         
         log.info("Added {} new dependencies to source part {} in message {}. Total dependencies for part: {}",
-                dependentParts.size(), sourcePart.functionCall().map(fc -> fc.name().orElse("Text/Blob")).orElse("Text/Blob"), id, existing.size());
+                dependentParts.size(), sourcePart.functionCall().map(fc -> fc.name().orElse("Text/Blob")).orElse("Text/Blob"), sequentialId, existing.size());
     }
 }

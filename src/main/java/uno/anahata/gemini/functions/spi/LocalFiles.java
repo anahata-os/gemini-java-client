@@ -16,8 +16,10 @@ import uno.anahata.gemini.context.stateful.ResourceTracker;
 import uno.anahata.gemini.functions.ContextBehavior;
 
 /**
- * A comprehensive, context-aware file operations tool that uses POJOs and timestamps
- * for safe, version-aware file modifications. This is the primary tool for all file I/O.
+ * A comprehensive, context-aware file operations tool that uses POJOs and
+ * timestamps for safe, version-aware file modifications. This is the primary
+ * tool for all file I/O.
+ *
  * @author AI
  */
 public class LocalFiles {
@@ -28,6 +30,19 @@ public class LocalFiles {
         }
         String normalized = content.replaceAll("\\r\\n", "\\n").replaceAll("\\r", "\\n");
         return normalized.replaceAll("[^\\p{Print}\\t\\n]", "");
+    }
+
+    @AIToolMethod(value = "Reads a single a binary file and returns a byte[].", requiresApproval = false, behavior = ContextBehavior.EPHEMERAL)
+    public static byte[] readBinaryFile(@AIToolParam("The absolute path of the file to read.") String path) throws IOException {
+        Path filePath = Paths.get(path);
+        if (!Files.exists(filePath)) {
+            throw new IOException("File not found: " + path);
+        }
+        if (Files.isDirectory(filePath)) {
+            throw new IOException("Path is a directory, not a file: " + path);
+        }
+
+        return Files.readAllBytes(filePath);
     }
 
     @AIToolMethod(value = "Reads a single file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", requiresApproval = false, behavior = ContextBehavior.STATEFUL_REPLACE)
@@ -60,14 +75,14 @@ public class LocalFiles {
         if (Files.exists(filePath)) {
             long currentLastModified = Files.getLastModifiedTime(filePath).toMillis();
             if (currentLastModified != lastModified) {
-                throw new IOException("File modification conflict. The file at " + path +
-                                      " was modified on disk after it was read. Expected timestamp: " + lastModified +
-                                      ", but found: " + currentLastModified);
+                throw new IOException("File modification conflict. The file at " + path
+                        + " was modified on disk after it was read. Expected timestamp: " + lastModified
+                        + ", but found: " + currentLastModified);
             }
         } else if (lastModified > 0) {
-             throw new IOException("File modification conflict. The file at " + path +
-                                      " was expected to exist with timestamp " + lastModified + " but it has been deleted.");
-        } 
+            throw new IOException("File modification conflict. The file at " + path
+                    + " was expected to exist with timestamp " + lastModified + " but it has been deleted.");
+        }
 
         Files.writeString(filePath, sanitize(content));
 
@@ -176,5 +191,5 @@ public class LocalFiles {
             return stream.map(Path::toString).collect(Collectors.toList());
         }
     }
-*/
+     */
 }

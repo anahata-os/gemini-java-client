@@ -78,9 +78,8 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
 
         for (ChatMessage chatMessage : currentContext) {
             if (chatMessage.getContent() != null) {
-                ContentRenderer renderer = new ContentRenderer(editorKitProvider, config);
-                int contentIdx = chat.getContextManager().getContext().indexOf(chatMessage);
-                JComponent messageComponent = renderer.render(chatMessage, contentIdx, chat.getContextManager());
+                ContentRenderer renderer = new ContentRenderer(parentPanel);
+                JComponent messageComponent = renderer.render(chatMessage);
 
                 ChatMessageJPanel messageContainer = new ChatMessageJPanel(chatMessage);
                 messageContainer.setLayout(new BorderLayout());

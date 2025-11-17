@@ -63,8 +63,7 @@ public class AnahataPanel extends JPanel implements ContextListener, StatusListe
 
     public void init(SwingChatConfig config) {
         this.config = config;
-        JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-        FunctionPrompter prompter = new SwingFunctionPrompter(topFrame, editorKitProvider, config);
+        FunctionPrompter prompter = new SwingFunctionPrompter(this);
         this.chat = new Chat(config, prompter);
         this.chat.addContextListener(this);
         this.chat.addStatusListener(this);
@@ -146,7 +145,7 @@ public class AnahataPanel extends JPanel implements ContextListener, StatusListe
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
 
-        systemInstructionsPanel = new SystemInstructionsPanel(chat, editorKitProvider, config);
+        systemInstructionsPanel = new SystemInstructionsPanel(this);
         geminiKeysPanel = new GeminiKeysPanel(config);
         functionsPanel = new FunctionsPanel(chat, config);
 

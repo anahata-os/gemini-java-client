@@ -1,7 +1,7 @@
 package uno.anahata.gemini.context;
 
 import com.google.genai.types.*;
-import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.Getter;
@@ -13,9 +13,7 @@ import uno.anahata.gemini.config.ChatConfig;
 import uno.anahata.gemini.context.pruning.ContextPruner;
 import uno.anahata.gemini.context.session.SessionManager;
 import uno.anahata.gemini.context.stateful.ResourceTracker;
-import uno.anahata.gemini.context.stateful.StatefulResourceStatus;
 import uno.anahata.gemini.functions.ToolManager;
-import uno.anahata.gemini.internal.PartUtils;
 
 @Slf4j
 @Getter
@@ -30,24 +28,25 @@ public class ContextManager {
     @Getter
     @Setter
     private int tokenThreshold = 108_000;
+    private Instant lastMessageTimestamp = Instant.now();
 
     // Delegated classes
     private final SessionManager sessionManager;
     private final ResourceTracker resourceTracker;
     private final ContextPruner contextPruner;
-    
+
     public ContextManager(Chat chat) {
         this.chat = chat;
         this.config = chat.getConfig();
         this.functionManager = chat.getFunctionManager();
-        
+
         this.sessionManager = new SessionManager(this);
         this.resourceTracker = new ResourceTracker(this);
         this.contextPruner = new ContextPruner(this);
     }
 
     /**
-     * Gets the ContextManager for the currently executing tool. 
+     * Gets the ContextManager for the currently executing tool.
      *
      * @return The active ContextManager.
      * @throws IllegalStateException if not called from a tool execution thread.
@@ -69,6 +68,12 @@ public class ContextManager {
     }
 
     public synchronized void add(ChatMessage message) {
+        // Set elapsed time before adding
+        Instant now = Instant.now();
+        long elapsed = now.toEpochMilli() - lastMessageTimestamp.toEpochMilli();
+        message.setElapsedTimeMillis(elapsed);
+        lastMessageTimestamp = now;
+
         resourceTracker.handleStatefulReplace(message, functionManager);
         context.add(message);
 
@@ -79,7 +84,7 @@ public class ContextManager {
         if (isUserMessage(message)) {
             contextPruner.pruneEphemeralToolCalls(functionManager);
         }
-        
+
         notifyHistoryChange();
     }
 
@@ -90,6 +95,7 @@ public class ContextManager {
     public synchronized void clear() {
         context.clear();
         totalTokenCount = 0;
+        lastMessageTimestamp = Instant.now(); // Reset timestamp on clear
         listeners.forEach(l -> l.contextCleared(chat));
         log.info("Chat history cleared.");
     }
@@ -100,6 +106,22 @@ public class ContextManager {
 
     public synchronized void setContext(List<ChatMessage> newContext) {
         this.context = new ArrayList<>(newContext);
+        
+        // Recalculate elapsed time for the entire restored context
+        if (!context.isEmpty()) {
+            lastMessageTimestamp = context.get(0).getCreatedOn();
+            context.get(0).setElapsedTimeMillis(0);
+            for (int i = 1; i < context.size(); i++) {
+                ChatMessage current = context.get(i);
+                ChatMessage previous = context.get(i - 1);
+                long elapsed = current.getCreatedOn().toEpochMilli() - previous.getCreatedOn().toEpochMilli();
+                current.setElapsedTimeMillis(elapsed);
+            }
+            lastMessageTimestamp = context.get(context.size() - 1).getCreatedOn();
+        } else {
+            lastMessageTimestamp = Instant.now();
+        }
+
 
         // Correctly set the token count and usage metadata from the *last* available record.
         GenerateContentResponseUsageMetadata lastUsage = null;
@@ -120,33 +142,47 @@ public class ContextManager {
             chat.getStatusManager().setLastUsage(null);
             log.info("Context restored. No usage metadata found. Token count reset to 0.");
         }
-        
+
         notifyHistoryChange();
     }
 
-    public synchronized void pruneMessages(List<String> uids, String reason) {
-        contextPruner.pruneMessages(uids, reason);
+    public synchronized void pruneMessages(List<Long> sequentialIds, String reason) {
+        contextPruner.pruneMessages(sequentialIds, reason);
     }
 
-    public synchronized void pruneParts(String messageUID, List<Number> partIndices, String reason) {
-        contextPruner.pruneParts(messageUID, partIndices, reason);
+    public synchronized void pruneParts(long messageSequentialId, List<Number> partIndices, String reason) {
+        contextPruner.pruneParts(messageSequentialId, partIndices, reason);
     }
 
     public synchronized void prunePartsByReference(List<Part> partsToPrune, String reason) {
         contextPruner.prunePartsByReference(partsToPrune, reason);
+    }
+    
+    public synchronized void pruneToolCall(String toolCallId, String reason) {
+        contextPruner.pruneToolCall(toolCallId, reason);
     }
 
     public void notifyHistoryChange() {
         listeners.forEach(l -> l.contextChanged(chat));
         sessionManager.triggerAutobackup();
     }
-    /*
-    public String getContextId() {
-        return config.getSessionId() + "-" + System.identityHashCode(this);
-    }*/
-    
+
     private boolean isUserMessage(ChatMessage message) {
         return message.getContent() != null && "user".equals(message.getContent().role().orElse(null));
     }
-
+    
+    /**
+     * Finds the ChatMessage that contains a specific Part instance.
+     *
+     * @param part The Part to find.
+     * @return An Optional containing the ChatMessage if found, otherwise empty.
+     */
+    public Optional<ChatMessage> getChatMessageForPart(Part part) {
+        for (ChatMessage message : context) {
+            if (message.getContent().parts().isPresent() && message.getContent().parts().get().contains(part)) {
+                return Optional.of(message);
+            }
+        }
+        return Optional.empty();
+    }
 }
