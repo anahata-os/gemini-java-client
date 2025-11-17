@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.gemini.functions.schema.SchemaProvider2;
+import uno.anahata.ai.tools.schema.SchemaProvider2;
 
 @Slf4j
 public class GeminiAdapter {
