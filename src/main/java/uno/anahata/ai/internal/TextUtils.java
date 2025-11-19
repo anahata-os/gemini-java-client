@@ -122,6 +122,7 @@ public class TextUtils {
             return "null";
         }
         String s = String.valueOf(value).replace("\n", "\\n").replace("\r", "");
-        return StringUtils.abbreviateMiddle(s, "...", 64);
+        int totalChars = s.length();
+        return StringUtils.abbreviateMiddle(s, " ... " + (totalChars - 64) + " more chars ... " , 64);
     }
 }
