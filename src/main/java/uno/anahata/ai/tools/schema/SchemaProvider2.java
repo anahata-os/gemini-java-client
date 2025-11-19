@@ -55,6 +55,12 @@ public class SchemaProvider2 {
     }
 
     private static String generateStandardSchema(Type type) throws JsonProcessingException {
+        // First, try to handle simple types directly.
+        String simpleSchema = handleSimpleTypeSchema(type);
+        if (simpleSchema != null) {
+            return simpleSchema;
+        }
+        
         ModelConverters converters = new ModelConverters();
         converters.addConverter(new ModelResolver(OBJECT_MAPPER));
         Map<String, Schema> swaggerSchemas = converters.readAll(new AnnotatedType(type));
@@ -70,6 +76,36 @@ public class SchemaProvider2 {
         components.put("schemas", componentSchemas);
         finalSchemaMap.put("components", components);
         return GSON.toJson(finalSchemaMap);
+    }
+    
+    private static String handleSimpleTypeSchema(Type type) {
+        if (!(type instanceof Class)) {
+            return null; // Let the complex handler deal with ParameterizedType etc.
+        }
+        Class<?> clazz = (Class<?>) type;
+        Map<String, Object> schemaMap = new LinkedHashMap<>();
+        schemaMap.put("title", getTypeName(type));
+
+        io.swagger.v3.oas.annotations.media.Schema schemaAnnotation = clazz.getAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+        if (schemaAnnotation != null && !schemaAnnotation.description().isEmpty()) {
+            schemaMap.put("description", schemaAnnotation.description());
+        }
+
+        if (clazz.equals(String.class)) {
+            schemaMap.put("type", "string");
+        } else if (Number.class.isAssignableFrom(clazz) || clazz.isPrimitive() && (clazz.equals(int.class) || clazz.equals(long.class) || clazz.equals(float.class) || clazz.equals(double.class))) {
+            schemaMap.put("type", "number");
+        } else if (clazz.equals(Boolean.class) || clazz.equals(boolean.class)) {
+            schemaMap.put("type", "boolean");
+        } else if (clazz.isEnum()) {
+            schemaMap.put("type", "string");
+            List<String> enumValues = Arrays.stream(clazz.getEnumConstants()).map(Object::toString).collect(Collectors.toList());
+            schemaMap.put("enum", enumValues);
+        } else {
+            return null; // Not a simple type we can handle here.
+        }
+
+        return GSON.toJson(schemaMap);
     }
 
     private static Schema createRootSchema(Type type, Map<String, Schema> swaggerSchemas) {
