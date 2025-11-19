@@ -155,13 +155,8 @@ public class StatusPanel extends JPanel {
             detailsPanel.add(new JLabel(headerText));
 
             for (ApiExceptionRecord error : errors) {
-                String exceptionString = error.getException().toString();
-                String displayString;
-                if (exceptionString.length() > 200) {
-                    displayString = exceptionString.substring(0, 100) + " ... " + exceptionString.substring(exceptionString.length() - 100);
-                } else {
-                    displayString = exceptionString;
-                }
+                
+                String displayString = StringUtils.abbreviateMiddle(error.getException().toString(), " ... ", 108) ;
                 
                 String errorText = String.format("  • [%s] [..%s] %s",
                                                  TIME_FORMAT.format(error.getTimestamp()),
