@@ -78,7 +78,7 @@ public class ContextManager {
         context.add(message);
 
         if (message.getUsageMetadata() != null) {
-            this.totalTokenCount = message.getUsageMetadata().totalTokenCount().orElse(this.totalTokenCount);
+            this.totalTokenCount = message.getUsageMetadata().promptTokenCount().orElse(this.totalTokenCount);
         }
 
         if (isUserMessage(message)) {
