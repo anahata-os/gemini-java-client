@@ -57,7 +57,7 @@ public class SystemPropertiesProvider extends ContextProvider {
         // Append grouped properties to the StringBuilder
         for (String prefix : prefixes) {
             if (grouped.containsKey(prefix)) {
-                sb.append("  *").append(prefix).append("*:\n");
+                sb.append("  **").append(prefix).append("**:\n");
                 for (Map.Entry<String, String> entry : grouped.get(prefix)) {
                     sb.append("    ").append(entry.getKey()).append("=").append(TextUtils.formatValue(entry.getValue())).append("\n");
                 }

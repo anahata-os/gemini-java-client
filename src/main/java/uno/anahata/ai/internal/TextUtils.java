@@ -123,6 +123,6 @@ public class TextUtils {
         }
         String s = String.valueOf(value).replace("\n", "\\n").replace("\r", "");
         int totalChars = s.length();
-        return StringUtils.abbreviateMiddle(s, " ... " + (totalChars - 64) + " more chars ... " , 64);
+        return StringUtils.abbreviateMiddle(s, " (*..." + (totalChars - 64) + " more chars...*) " , 64);
     }
 }
