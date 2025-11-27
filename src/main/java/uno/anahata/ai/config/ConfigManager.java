@@ -25,12 +25,12 @@ import uno.anahata.ai.internal.PartUtils;
 public class ConfigManager {
 
     private final Chat chat;
-    private final List<ContextProvider> contextProviders;
+    //private final List<ContextProvider> contextProviders;
 
     public ConfigManager(Chat chat) {
         this.chat = chat;
         // Get the single, authoritative list of providers from the config.
-        this.contextProviders = chat.getConfig().getContextProviders();
+        //this.contextProviders = chat.getConfig().getContextProviders();
     }
 
     /**
@@ -41,7 +41,7 @@ public class ConfigManager {
      * @return A list of matching enabled providers.
      */
     public List<ContextProvider> getContextProviders(ContextPosition position, boolean enabled) {
-        return contextProviders.stream()
+        return chat.getConfig().getContextProviders().stream()
                 .filter(p -> p.isEnabled() && p.getPosition() == position)
                 .collect(Collectors.toList());
     }

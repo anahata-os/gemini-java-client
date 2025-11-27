@@ -156,7 +156,7 @@ public class SystemInstructionsPanel extends JPanel {
         }
 
         // Initial population of the table with provider names
-        List<ProviderInfo> initialProviders = chat.getConfigManager().getContextProviders().stream()
+        List<ProviderInfo> initialProviders = chat.getConfig().getContextProviders().stream()
             .map(p -> new ProviderInfo(p, -1, -1)) // Use negative values to indicate "loading"
             .collect(Collectors.toList());
         tableModel.setProviders(initialProviders);

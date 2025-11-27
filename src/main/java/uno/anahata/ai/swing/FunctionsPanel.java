@@ -23,9 +23,11 @@ import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JToggleButton;
 import javax.swing.ListSelectionModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.apache.commons.io.FileUtils;
 import uno.anahata.ai.Chat;
 import uno.anahata.ai.tools.FunctionConfirmation;
 import uno.anahata.ai.tools.FunctionInfo;
@@ -46,17 +48,36 @@ public class FunctionsPanel extends JPanel {
         setLayout(new BorderLayout());
 
         // Left side: Table of classes
-        String[] columnNames = {"Tool Class", "Prompt", "Always", "Never"};
+        String[] columnNames = {"Tool Class", "Size", "Prompt", "Always", "Never"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
+
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 1) {
+                    return Long.class; // Size column should be treated as a number for sorting
+                }
+                return super.getColumnClass(columnIndex);
+            }
         };
         classTable = new JTable(tableModel);
         classTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         classTable.getTableHeader().setReorderingAllowed(false);
-        classTable.setAutoCreateRowSorter(true); // Enable sorting
+        classTable.setAutoCreateRowSorter(true);
+
+        // Custom renderer for the size column to display bytes in human-readable format
+        classTable.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                if (value instanceof Long) {
+                    value = FileUtils.byteCountToDisplaySize((Long) value);
+                }
+                return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            }
+        });
 
         // Right side: Details of functions for the selected class
         detailPanel = new JPanel();
@@ -96,7 +117,9 @@ public class FunctionsPanel extends JPanel {
             int promptCount = 0;
             int alwaysCount = 0;
             int neverCount = 0;
+            long totalSize = 0;
             for (FunctionInfo fi : entry.getValue()) {
+                totalSize += fi.getSize();
                 FunctionCall fc = FunctionCall.builder().name(fi.declaration.name().get()).build();
                 FunctionConfirmation pref = config.getFunctionConfirmation(fc);
                 if (pref == null) {
@@ -109,7 +132,7 @@ public class FunctionsPanel extends JPanel {
                     }
                 }
             }
-            summaries.add(new ClassPermissionSummary(className, promptCount, alwaysCount, neverCount));
+            summaries.add(new ClassPermissionSummary(className, totalSize, promptCount, alwaysCount, neverCount));
         }
 
         // Sort summaries alphabetically by class name for initial display
@@ -118,7 +141,7 @@ public class FunctionsPanel extends JPanel {
         // Populate table model
         tableModel.setRowCount(0);
         for (ClassPermissionSummary summary : summaries) {
-            tableModel.addRow(new Object[]{summary.className, summary.promptCount, summary.alwaysCount, summary.neverCount});
+            tableModel.addRow(new Object[]{summary.className, summary.totalSize, summary.promptCount, summary.alwaysCount, summary.neverCount});
         }
     }
 
@@ -140,8 +163,9 @@ public class FunctionsPanel extends JPanel {
     private JPanel createFunctionControlPanel(FunctionInfo fi) {
         FunctionDeclaration fd = fi.declaration;
         
+        String title = String.format("<html><b>%s</b> (%s)</html>", fi.method.getName(), FileUtils.byteCountToDisplaySize(fi.getSize()));
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("<html><b>" + fi.method.getName() + "</b></html>"));
+        panel.setBorder(BorderFactory.createTitledBorder(title));
         
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
@@ -166,8 +190,10 @@ public class FunctionsPanel extends JPanel {
         JPanel collapsiblePanel = new JPanel(new BorderLayout());
         collapsiblePanel.setVisible(false);
         
-        // Display the full JSON of the FunctionDeclaration
-        String jsonSchema = "<html><pre>" + GsonUtils.prettyPrint(fd.toJson()).replace("\n", "<br>").replace(" ", "&nbsp;") + "</pre></html>";
+        // Display the full JSON of the FunctionDeclaration using its own toJson() method.
+        String rawJson = fd.toJson();
+        String prettyJson = GsonUtils.prettyPrint(rawJson);
+        String jsonSchema = "<html><pre>" + prettyJson.replace("\n", "<br>").replace(" ", "&nbsp;") + "</pre></html>";
         collapsiblePanel.add(new JLabel(jsonSchema), BorderLayout.CENTER);
         
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -226,6 +252,7 @@ public class FunctionsPanel extends JPanel {
     @AllArgsConstructor
     private static class ClassPermissionSummary {
         String className;
+        long totalSize;
         int promptCount;
         int alwaysCount;
         int neverCount;

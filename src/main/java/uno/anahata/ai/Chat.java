@@ -280,16 +280,20 @@ public class Chat {
 
         // Always create a feedback message if there were any tool calls proposed.
         if (!processingResult.getOutcomes().isEmpty()) {
-            String feedback = processingResult.getOutcomes().stream()
+            String toolFeedback = processingResult.getOutcomes().stream()
                 .map(outcome -> {
                     String toolName = outcome.getIdentifiedCall().getCall().name().orElse("unknown");
                     String id = outcome.getIdentifiedCall().getId();
                     String status = outcome.getStatus().name();
+                    if (outcome.getStatus() == ToolCallStatus.YES || outcome.getStatus() == ToolCallStatus.ALWAYS) {
+                        status = "";
+                    } 
+                    
                     return String.format("[%s id=%s %s]", toolName, id, status);
                 })
                 .collect(Collectors.joining(" "));
             
-            StringBuilder feedbackText = new StringBuilder("User Feedback: ").append(feedback);
+            StringBuilder feedbackText = new StringBuilder("Tool Feedback: ").append(toolFeedback);
             
             if (StringUtils.isNotBlank(processingResult.getUserComment())) {
                 feedbackText.append("\nUser Comment: '").append(processingResult.getUserComment()).append("'");

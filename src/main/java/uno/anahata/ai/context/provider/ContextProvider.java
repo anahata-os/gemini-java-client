@@ -27,8 +27,6 @@ public abstract class ContextProvider {
         this.position = pos;
     }
     
-    
-
     /**
      * Determines where the context from this provider should be placed.
      * Defaults to {@code ContextPosition.SYSTEM_INSTRUCTIONS}.

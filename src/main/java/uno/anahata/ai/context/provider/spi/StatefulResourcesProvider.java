@@ -42,22 +42,15 @@ public class StatefulResourcesProvider extends ContextProvider {
         StringBuilder sb = new StringBuilder();
         sb.append("# Stateful Resources in Context\n");
         sb.append("The following stateful resources are tracked in the chat context. 'Status' indicates if the file on disk matches the version in context.\n **Consider either pruning or reloading any resources not market as VALID. **\n\n"); 
-        sb.append("| Resource ID | Ctx Last Mod | Ctx Size | Disk Last Mod | Disk Size | Status |\n");
-        sb.append("| :--- | ---: | ---: | ---: | ---: | :--- |\n");
+        sb.append("| Status | Ctx Last Mod | Resource ID | Ctx Size |\n");
+        sb.append("| :--- | ---: | :--- | ---: |\n");
 
         for (StatefulResourceStatus status : statuses) {
-            String contextTime = (status.getContextLastModified() > 0) ? String.valueOf(status.getContextLastModified()) : "N/A";
-            String diskTime = (status.getDiskLastModified() > 0) ? String.valueOf(status.getDiskLastModified()) : "N/A";
-            String contextSize = (status.getContextSize() > 0) ? String.valueOf(status.getContextSize()) : "N/A";
-            String diskSize = (status.getDiskSize() > 0) ? String.valueOf(status.getDiskSize()) : "N/A";
-            
-            sb.append(String.format("| %s | %s | %s | %s | %s | **%s** |\n",
+            sb.append(String.format("| **%s** | %d | %s | %d |\n",
+                    status.getStatus().name(),
+                    status.getContextLastModified(),
                     status.getResourceId(),
-                    contextTime,
-                    contextSize,
-                    diskTime,
-                    diskSize,
-                    status.getStatus().name()
+                    status.getContextSize()
             ));
         }
 

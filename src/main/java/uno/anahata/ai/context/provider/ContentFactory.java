@@ -43,7 +43,7 @@ public class ContentFactory {
                 int idx = 0;
                 for (Part part : generated) {
                     long partSize = PartUtils.calculateSizeInBytes(part);
-                    parts.add(Part.fromText("**" + provider.getId() + ": Part " + idx + " (/" + generated.size() + ") size=" + partSize + "**)"));
+                    parts.add(Part.fromText("Context Provider Id: **" + provider.getId() + "**: Part " + idx + " (/" + generated.size() + ") size=" + partSize + "**)"));
                     parts.addAll(generated);
                 }
             } catch (Exception e) {
@@ -54,7 +54,7 @@ public class ContentFactory {
 
         // Also list disabled providers for transparency
         for (ContextProvider provider : chat.getConfigManager().getContextProviders(position, false)) {
-            parts.add(Part.fromText("**Disabled** Provider: **" + provider.getDisplayName() + "** (id: **" + provider.getId() + "**): " + provider.getDescription()));
+            parts.add(Part.fromText("**Disabled** Context Provider: id:**" + provider.getId() + "** (display name: " + provider.getDisplayName()+ "): description: " + provider.getDescription()));
         }
         
         return parts;
