@@ -147,6 +147,6 @@ This project is the result of countless hours of passion and dedication. If you 
 
 The Anahata AI Assistant Framework is available under a dual-license model to accommodate both open-source and commercial needs.
 
--   **Open Source:** For use in open-source projects, the client is licensed under the **GNU Affero General Public License v3 (AGPLv3)**. See the [LICENSE](LICENSE) file for the full license text.
+-   **Open Source:** For use in open-source projects, the client is licensed under the **[Anahata Software License (ASL) V108, "The Immutable Edict" Edition](LICENSE)**.
 
 -   **Commercial Use:** For use in proprietary, closed-source applications, a **commercial license is required**. This allows you to integrate the power of the framework into your commercial products without the obligation to open-source your own code. Please see the [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) file for more information.
