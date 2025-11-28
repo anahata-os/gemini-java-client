@@ -12,13 +12,16 @@ import uno.anahata.ai.tools.spi.pojos.TextChunk;
 public class TextUtils {
 
     /**
-     * Processes a block of text with pagination, filtering, and line truncation.
+     * Processes a block of text with pagination, filtering, and line
+     * truncation.
      *
      * @param text The full text content to process.
-     * @param startIndex The starting line number (0-based) for pagination. Can be null.
+     * @param startIndex The starting line number (0-based) for pagination. Can
+     * be null.
      * @param pageSize The number of lines to return. Can be null for no limit.
      * @param grepPattern A regex pattern to filter lines. Can be null or empty.
-     * @param maxLineLength The maximum length of each line. Lines longer than this will be truncated. Can be null or 0 for no limit.
+     * @param maxLineLength The maximum length of each line. Lines longer than
+     * this will be truncated. Can be null or 0 for no limit.
      * @return A TextChunk object containing metadata and the processed text.
      */
     public static TextChunk processText(String text, Integer startIndex, Integer pageSize, String grepPattern, Integer maxLineLength) {
@@ -61,7 +64,7 @@ public class TextUtils {
                     .filter(line -> line.length() > maxLen)
                     .count();
         }
-        
+
         // Truncate the lines for the final output
         String processedText = pageLines.stream()
                 .map(line -> truncateLine(line, maxLen))
@@ -90,9 +93,10 @@ public class TextUtils {
         }
         return line;
     }
-    
+
     /**
      * Checks if an object is null, a blank string, or an empty collection/map.
+     *
      * @param value The object to check.
      * @return true if the object is considered null or empty.
      */
@@ -113,7 +117,9 @@ public class TextUtils {
     }
 
     /**
-     * Formats a value for display in a summary, escaping newlines and truncating in the middle if necessary.
+     * Formats a value for display in a summary, escaping newlines and
+     * truncating in the middle if necessary.
+     *
      * @param value The object to format.
      * @return A formatted, truncated string.
      */
@@ -121,8 +127,15 @@ public class TextUtils {
         if (value == null) {
             return "null";
         }
+        int maxLength = 64;
         String s = String.valueOf(value).replace("\n", "\\n").replace("\r", "");
         int totalChars = s.length();
-        return StringUtils.abbreviateMiddle(s, " (*..." + (totalChars - 64) + " more chars...*) " , 64);
+        String tag = " *(..." + (totalChars - maxLength) + " more chars...)* ";
+        if (totalChars > (maxLength + tag.length() + 8)) {
+            return StringUtils.abbreviateMiddle(s, tag, maxLength);
+        } else {
+            return s;
+        }
+
     }
 }

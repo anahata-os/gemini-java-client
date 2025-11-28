@@ -71,6 +71,11 @@ public class Chat {
     
     private final AtomicLong messageCounter = new AtomicLong(0);
 
+    public void resetMessageCounter(long value) {
+        log.info("Resetting message counter to {}", value);
+        messageCounter.set(value);
+    }
+    
     public Chat(
             ChatConfig config,
             FunctionPrompter prompter) {

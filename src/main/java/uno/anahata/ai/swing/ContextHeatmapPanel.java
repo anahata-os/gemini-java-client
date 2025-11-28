@@ -157,25 +157,20 @@ public class ContextHeatmapPanel extends JPanel {
         );
 
         if (choice == JOptionPane.YES_OPTION) {
-            Map<Long, List<Integer>> partsToPruneByMessage = new HashMap<>();
+            List<Part> partsToPrune = new ArrayList<>();
             for (int viewRow : selectedRows) {
                 int modelRow = partTable.convertRowIndexToModel(viewRow);
-                PartInfo info = tableModel.getPartInfo(modelRow);
-                partsToPruneByMessage.computeIfAbsent(info.getMessageSeqId(), k -> new ArrayList<>()).add(info.getPartIndex());
+                partsToPrune.add(tableModel.getPartInfo(modelRow).getPart());
             }
 
             new SwingWorker<Void, Void>() {
                 @Override
                 protected Void doInBackground() throws Exception {
-                    for (Map.Entry<Long, List<Integer>> entry : partsToPruneByMessage.entrySet()) {
-                        List<Number> partIndices = new ArrayList<>(entry.getValue());
-                        functionManager.getChat().getContextManager().pruneParts(
-                            entry.getKey(),
-                            partIndices,
+                    functionManager.getChat().getContextManager().prunePartsByReference(
+                            partsToPrune,
                             "Pruned by user from Context Heatmap"
                         );
-                    }
-                    return null;
+                                        return null;
                 }
 
                 @Override
@@ -276,6 +271,7 @@ public class ContextHeatmapPanel extends JPanel {
         private final String fullContentText;
         private final boolean isError;
         private final Color roleColor;
+        private final Part part;
 
         PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, ToolManager fm, SwingChatConfig.UITheme theme, Map<String, ResourceStatus> statusMap) {
             this.messageIndex = msgIdx;
@@ -284,6 +280,7 @@ public class ContextHeatmapPanel extends JPanel {
             this.role = msg.getContent().role().orElse("unknown");
             this.sizeInBytes = PartUtils.calculateSizeInBytes(part);
             this.roleColor = getRoleColor(theme, this.role);
+            this.part = part;
 
             String tempPartType = "Unknown";
             String tempFullContent = part.toString();

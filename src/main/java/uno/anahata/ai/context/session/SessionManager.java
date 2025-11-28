@@ -68,7 +68,31 @@ public class SessionManager {
         byte[] bytes = Files.readAllBytes(sessionFile);
         List<ChatMessage> loadedContext = KryoUtils.deserialize(bytes, ArrayList.class);
         contextManager.setContext(loadedContext);
-        log.info("Session '{}' loaded successfully.", id);
+
+        // Reset counters to avoid ID collisions
+        if (!loadedContext.isEmpty()) {
+            long highestMessageId = loadedContext.stream()
+                .mapToLong(ChatMessage::getSequentialId)
+                .max()
+                .orElse(0L);
+            contextManager.getChat().resetMessageCounter(highestMessageId + 1);
+
+            int highestToolId = loadedContext.stream()
+                .filter(msg -> msg.getContent() != null && msg.getContent().parts().isPresent())
+                .flatMap(msg -> msg.getContent().parts().get().stream())
+                .flatMap(part -> {
+                    Stream<String> fcIds = part.functionCall().flatMap(FunctionCall::id).stream();
+                    Stream<String> frIds = part.functionResponse().flatMap(FunctionResponse::id).stream();
+                    return Stream.concat(fcIds, frIds);
+                })
+                .filter(StringUtils::isNumeric)
+                .mapToInt(Integer::parseInt)
+                .max()
+                .orElse(0);
+            contextManager.getChat().getFunctionManager().resetIdCounter(highestToolId + 1);
+        }
+        
+        log.info("Session '{}' loaded successfully and counters have been reset.", id);
     }
 
     public void triggerAutobackup() {

@@ -151,7 +151,7 @@ public class ContextWindow {
     @AIToolMethod(
             value = "Enables / disables one or more context providers"
     )
-    public String toggleContextProviders(
+    public static String toggleContextProviders(
             @AIToolParam("Context provider id as in ") List<String> contextProviderIds,
             @AIToolParam("Context provider id as in ") boolean enabled) {
         String feedback = "";
@@ -166,11 +166,11 @@ public class ContextWindow {
                     } else {
                         feedback += ". No change, enabled flag was already : " + enabled;
                     }
+                    found = true; // Correctly set the flag
                 }
             }
             if (!found) {
                 feedback += "\n-Context Provider: " + contextProviderId + " was not found. ";
-                //throw new IllegalArgumentException("provider: " + contextProviderId + " was not found. ");
             }
         }
         return feedback;

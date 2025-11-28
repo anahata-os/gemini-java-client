@@ -50,6 +50,11 @@ public class ToolManager {
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
     
+    public void resetIdCounter(int value) {
+        log.info("Resetting tool call ID counter to {}", value);
+        idCounter.set(value);
+    }
+    
     public ToolManager(Chat chat, FunctionPrompter prompter) {
         this.chat = chat;
         this.config = chat.getConfig();
