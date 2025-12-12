@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.module.mrbean.MrBeanModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.swagger.v3.core.converter.AnnotatedType;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 public class SchemaProvider2 {
 
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .registerModule(new ParameterNamesModule())
             .registerModule(new MrBeanModule())
             .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
             .setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
