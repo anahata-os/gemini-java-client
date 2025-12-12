@@ -3,7 +3,6 @@ package uno.anahata.ai.swing;
 import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.Part;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -28,6 +27,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.swing.JButton;
@@ -37,7 +37,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
-import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -51,6 +50,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.context.stateful.ResourceStatus;
+import uno.anahata.ai.context.stateful.ResourceTracker;
 import uno.anahata.ai.context.stateful.StatefulResource;
 import uno.anahata.ai.tools.ContextBehavior;
 import uno.anahata.ai.tools.ToolManager;
@@ -307,14 +307,10 @@ public class ContextHeatmapPanel extends JPanel {
                 if (fm != null && fm.getContextBehavior(tempFuncName) == ContextBehavior.STATEFUL_REPLACE) {
                     Method toolMethod = fm.getToolMethod(tempFuncName);
                     if (toolMethod != null && StatefulResource.class.isAssignableFrom(toolMethod.getReturnType())) {
-                        try {
-                            JsonElement jsonTree = GSON.toJsonTree(fr.response().get());
-                            Class<? extends StatefulResource> statefulClass = toolMethod.getReturnType().asSubclass(StatefulResource.class);
-                            StatefulResource sr = GSON.fromJson(jsonTree, statefulClass);
-                            tempResourceId = sr.getResourceId();
+                        Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(fr, fm);
+                        if (resourceIdOpt.isPresent()) {
+                            tempResourceId = resourceIdOpt.get();
                             tempResourceStatus = statusMap.get(tempResourceId);
-                        } catch (Exception e) {
-                            log.warn("Error deserializing stateful resource for function {}", tempFuncName, e);
                         }
                     }
                 }
