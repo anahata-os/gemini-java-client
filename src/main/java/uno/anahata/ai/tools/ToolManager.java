@@ -1,11 +1,20 @@
 package uno.anahata.ai.tools;
 
-import com.google.genai.types.*;
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.genai.types.Content;
+import com.google.genai.types.FunctionCall;
+import com.google.genai.types.FunctionCallingConfig;
+import com.google.genai.types.FunctionCallingConfigMode;
+import com.google.genai.types.FunctionDeclaration;
+import com.google.genai.types.FunctionResponse;
+import com.google.genai.types.Part;
+import com.google.genai.types.Schema;
+import com.google.genai.types.Tool;
+import com.google.genai.types.ToolConfig;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -24,7 +33,7 @@ import static uno.anahata.ai.tools.FunctionConfirmation.NO;
 import static uno.anahata.ai.tools.FunctionConfirmation.YES;
 import uno.anahata.ai.tools.JobInfo.JobStatus;
 import uno.anahata.ai.tools.FunctionPrompter.PromptResult;
-import uno.anahata.ai.internal.GsonUtils;
+import uno.anahata.ai.internal.JacksonUtils;
 
 
 /**
@@ -32,8 +41,6 @@ import uno.anahata.ai.internal.GsonUtils;
  */
 @Slf4j
 public class ToolManager {
-
-    private static final Gson GSON = GsonUtils.getGson();
 
     @Getter
     private final Chat chat;
@@ -134,7 +141,7 @@ public class ToolManager {
                         
                         if (!properties.isEmpty()) {
                             Schema paramsSchema = Schema.builder()
-                                    .type(Type.Known.OBJECT)
+                                    .type(com.google.genai.types.Type.Known.OBJECT)
                                     .properties(properties)
                                     .required(requiredParams)
                                     .build();
@@ -197,7 +204,6 @@ public class ToolManager {
         
         // Step 3: Build the definitive list of outcomes for every proposed call.
         List<ToolCallOutcome> outcomes = new ArrayList<>();
-        List<IdentifiedFunctionCall> approvedCalls = new ArrayList<>();
 
         for (IdentifiedFunctionCall idc : identifiedCalls) {
             ToolCallStatus status;
@@ -213,11 +219,9 @@ public class ToolManager {
                     switch (confirmation) {
                         case ALWAYS:
                             status = ToolCallStatus.ALWAYS;
-                            approvedCalls.add(idc);
                             break;
                         case YES:
                             status = ToolCallStatus.YES;
-                            approvedCalls.add(idc);
                             break;
                         case NEVER:
                             status = ToolCallStatus.NEVER;
@@ -231,6 +235,11 @@ public class ToolManager {
             }
             outcomes.add(new ToolCallOutcome(idc, status));
         }
+        
+        List<IdentifiedFunctionCall> approvedCalls = outcomes.stream()
+                .filter(o -> o.getStatus() == ToolCallStatus.ALWAYS || o.getStatus() == ToolCallStatus.YES)
+                .map(ToolCallOutcome::getIdentifiedCall)
+                .collect(java.util.stream.Collectors.toList());
 
         if (approvedCalls.isEmpty()) {
             return new FunctionProcessingResult(Collections.emptyList(), outcomes, promptResult.userComment);
@@ -315,17 +324,10 @@ public class ToolManager {
     }
 
     private Map<String, Object> convertResultToMap(Object rawResult) {
-        if (rawResult == null) {
-            return Collections.singletonMap("output", "");
-        }
-        // Let Gson handle the conversion to a generic Map, which is what FunctionResponse expects.
-        JsonElement jsonElement = GSON.toJsonTree(rawResult);
-        if (jsonElement.isJsonObject()) {
-            return GSON.fromJson(jsonElement, Map.class);
-        } else {
-            // If the result is a primitive, string, or array, wrap it.
-            return Collections.singletonMap("output", rawResult);
-        }
+        log.info("Converting raw tool result of type {} to response map.", rawResult != null ? rawResult.getClass().getName() : "null");
+        Map<String, Object> responseMap = JacksonUtils.convertObjectToMap("output", rawResult);
+        log.info("Conversion result: {}", responseMap);
+        return responseMap;
     }
     
     private Object invokeFunctionMethod(Method method, Map<String, Object> argsFromModel) throws Exception {
@@ -336,16 +338,13 @@ public class ToolManager {
             Parameter p = parameters[i];
             String paramName = p.getName();
             Object argValueFromModel = argsFromModel.get(paramName);
-            Class<?> paramType = p.getType();
+            Type paramType = p.getParameterizedType(); // Use parameterized type for generics
 
             if (argValueFromModel == null) {
                 argsToInvoke[i] = null;
             } else {
-                // Let Gson handle all conversions. It's smart enough to convert
-                // a JSON number to the correct Java numeric type (e.g. Integer -> Long)
-                // and other objects from Map<String, Object> to their target type.
-                JsonElement jsonElement = GSON.toJsonTree(argValueFromModel);
-                argsToInvoke[i] = GSON.fromJson(jsonElement, paramType);
+                // Use Jackson to convert the generic Map/List structure into the target POJO/List<POJO>
+                argsToInvoke[i] = JacksonUtils.convertValue(argValueFromModel, paramType);
             }
         }
 
