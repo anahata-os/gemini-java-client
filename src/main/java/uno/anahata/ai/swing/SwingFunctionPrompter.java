@@ -39,16 +39,16 @@ import uno.anahata.ai.swing.render.InteractiveFunctionCallRenderer;
 @Slf4j
 public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
 
-    private final AnahataPanel anahataPanel;
+    private final ChatPanel chatPanel;
     private final List<InteractiveFunctionCallRenderer> interactiveRenderers = new ArrayList<>();
     
     private Map<FunctionCall, FunctionConfirmation> functionConfirmations = new LinkedHashMap<>();
     private String userComment = "";
     private boolean cancelled = false;
 
-    public SwingFunctionPrompter(AnahataPanel anahataPanel) {
-        super((JFrame) SwingUtilities.getWindowAncestor(anahataPanel), "Confirm Proposed Actions", true);
-        this.anahataPanel = anahataPanel;
+    public SwingFunctionPrompter(ChatPanel chatPanel) {
+        super((JFrame) SwingUtilities.getWindowAncestor(chatPanel), "Confirm Proposed Actions", true);
+        this.chatPanel = chatPanel;
     }
 
     @Override
@@ -83,16 +83,16 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     private void initComponents(ChatMessage modelMessage) {
         setContentPane(new JPanel(new BorderLayout(10, 10)));
         
-        ContentRenderer contentRenderer = new ContentRenderer(anahataPanel);
+        ContentRenderer contentRenderer = new ContentRenderer(chatPanel);
 
         final List<? extends Part> parts = modelMessage.getContent().parts().get();
         
-        UITheme theme = anahataPanel.getConfig().getTheme();
+        UITheme theme = chatPanel.getConfig().getTheme();
         
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {
                 FunctionCall fc = part.functionCall().get();
-                FunctionConfirmation preference = anahataPanel.getConfig().getFunctionConfirmation(fc);
+                FunctionConfirmation preference = chatPanel.getConfig().getFunctionConfirmation(fc);
                 InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, preference, theme);
                 interactiveRenderers.add(interactiveRenderer);
                 contentRenderer.registerRenderer(part, interactiveRenderer);
@@ -120,7 +120,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         JButton cancelButton = new JButton("Cancel");
 
         approveButton.addActionListener(e -> {
-            this.functionConfirmations = collectResultsFromInteractiveRenderers(anahataPanel.getConfig());
+            this.functionConfirmations = collectResultsFromInteractiveRenderers(chatPanel.getConfig());
             this.userComment = commentTextArea.getText();
             this.cancelled = false;
             setVisible(false);

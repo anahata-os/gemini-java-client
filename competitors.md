@@ -24,7 +24,7 @@ Our strategy is a direct assault on the market's biggest pain points, leveraging
 | **Primary Goal** | Deep integration of a standalone AI assistant into Java desktop/IDE applications. | Adding AI capabilities as a first-class citizen to the Spring Boot ecosystem. | Providing a modular, LLM-native toolkit for building complex AI/agentic workflows in any Java app. |
 | **Local Tool Calling** |  Yes (Annotation-driven `@AIToolMethod`) |  Yes (Annotation-driven) |  Yes (Annotation-driven `@Tool`) |
 | **Dynamic Code Execution** |  **Yes** (`RunningJVM` tool allows compiling and running Java code on-the-fly) |  No (Not a core feature) |  No (Not a core feature) |
-| **Embeddable UI** |  **Yes** (Pre-built, feature-rich `AnahataPanel` for Swing) |  No (Backend-focused framework) |  No (Backend-focused framework) |
+| **Embeddable UI** |  **Yes** (Pre-built, feature-rich `ChatPanel` for Swing) |  No (Backend-focused framework) |  No (Backend-focused framework) |
 | **Live Workspace (Screenshots)** |  **Yes** (Can visually see the application's JFrames) |  No |  No |
 | **Context Management** |  **Advanced** (Automatic, dependency-aware pruning; stateful resource tracking) |  **Yes** (Supports Chat Conversation Memory and RAG) |  **Yes** (Supports conversational memory and RAG) |
 | **Session Persistence** |  **Yes** (Kryo-based serialization of the entire chat session) |  No (Managed by the developer) |  No (Managed by the developer) |
@@ -42,7 +42,7 @@ While all three frameworks provide the core capability of connecting Java applic
 
 *   **Anahata AI Framework** carves out a unique and powerful niche focused on **deep, interactive integration into desktop and IDE environments**. Its standout features are:
     *   **The `RunningJVM` tool:** This is a significant differentiator, giving the AI the unprecedented ability to dynamically compile and execute code, enabling hot-reloading, live testing, and complex, on-the-fly computations that other frameworks cannot match.
-    *   **The pre-built Swing UI (`AnahataPanel`):** Providing a complete, embeddable UI out-of-the-box dramatically accelerates the development of AI-powered desktop applications.
+    *   **The pre-built Swing UI (`ChatPanel`):** Providing a complete, embeddable UI out-of-the-box dramatically accelerates the development of AI-powered desktop applications.
     *   **"Live Workspace" via Screenshots:** The ability for the AI to *see* the application it's controlling provides a level of contextual awareness that is unique among these frameworks.
     *   **Advanced Context and Session Management:** The automatic, dependency-aware pruning and full session serialization via Kryo are enterprise-grade features designed for robust, long-running assistant interactions.
 

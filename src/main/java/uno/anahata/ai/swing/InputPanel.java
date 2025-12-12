@@ -36,7 +36,7 @@ import uno.anahata.ai.media.util.Microphone;
 @Getter
 public class InputPanel extends JPanel {
 
-    private final AnahataPanel parentPanel;
+    private final ChatPanel parentPanel;
     private final Chat chat;
 
     // UI Components
@@ -48,7 +48,7 @@ public class InputPanel extends JPanel {
     private JButton captureFramesButton;
     private AttachmentsPanel attachmentsPanel;
 
-    public InputPanel(AnahataPanel parentPanel) {
+    public InputPanel(ChatPanel parentPanel) {
         // Use a simple BorderLayout. The JScrollPane in the CENTER will automatically fill available space.
         super(new BorderLayout(5, 5));
         this.parentPanel = parentPanel;

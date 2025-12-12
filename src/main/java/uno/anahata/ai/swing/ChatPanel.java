@@ -26,7 +26,7 @@ import uno.anahata.ai.status.StatusListener;
 
 @Slf4j
 @Getter
-public class AnahataPanel extends JPanel implements ContextListener, StatusListener {
+public class ChatPanel extends JPanel implements ContextListener, StatusListener {
 
     private Chat chat;
     private SwingChatConfig config;
@@ -47,16 +47,16 @@ public class AnahataPanel extends JPanel implements ContextListener, StatusListe
     private JTabbedPane tabbedPane;
     private JSplitPane mainSplitPane; // The new main layout component
 
-    private SystemInstructionsPanel systemInstructionsPanel;
+    private ContextProvidersPanel contextProvidersPanel;
     private GeminiKeysPanel geminiKeysPanel;
     private FunctionsPanel functionsPanel;
     private StatusPanel statusPanel;
 
-    public AnahataPanel() {
+    public ChatPanel() {
         this(new DefaultEditorKitProvider());
     }
 
-    public AnahataPanel(EditorKitProvider editorKitProvider) {
+    public ChatPanel(EditorKitProvider editorKitProvider) {
         super();
         this.editorKitProvider = editorKitProvider;
     }
@@ -145,23 +145,23 @@ public class AnahataPanel extends JPanel implements ContextListener, StatusListe
         heatmapPanel = new ContextHeatmapPanel();
         heatmapPanel.setFunctionManager(chat.getFunctionManager());
 
-        systemInstructionsPanel = new SystemInstructionsPanel(this);
+        contextProvidersPanel = new ContextProvidersPanel(this);
         geminiKeysPanel = new GeminiKeysPanel(config);
         functionsPanel = new FunctionsPanel(chat, config);
 
         tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Chat", chatPanel);
         tabbedPane.addTab("Context Heatmap", heatmapPanel);
-        tabbedPane.addTab("System Instructions", systemInstructionsPanel);
-        tabbedPane.addTab("Functions", functionsPanel);
+        tabbedPane.addTab("Context Providers", contextProvidersPanel);
+        tabbedPane.addTab("Tools", functionsPanel);
         tabbedPane.addTab("API Keys", geminiKeysPanel);
 
         tabbedPane.addChangeListener(e -> {
             Component selected = tabbedPane.getSelectedComponent();
             if (selected == heatmapPanel) {
                 heatmapPanel.updateContext(chat.getContext()); // Update heatmap when selected
-            } else if (selected == systemInstructionsPanel) {
-                systemInstructionsPanel.refresh();
+            } else if (selected == contextProvidersPanel) {
+                contextProvidersPanel.refresh();
             } else if (selected == functionsPanel) {
                 functionsPanel.refresh();
             }
@@ -271,7 +271,7 @@ public class AnahataPanel extends JPanel implements ContextListener, StatusListe
             protected void done() {
                 if (error != null) {
                     log.error("Failed to load autobackup session", error);
-                    JOptionPane.showMessageDialog(AnahataPanel.this, "Error loading backup: " + error.getMessage() + "\nStarting a new session.", "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(ChatPanel.this, "Error loading backup: " + error.getMessage() + "\nStarting a new session.", "Error", JOptionPane.ERROR_MESSAGE);
                     initFreshChatInSwingWorker();
                 } else {
                     finalizeUIInitialization();

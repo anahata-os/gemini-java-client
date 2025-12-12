@@ -8,9 +8,9 @@
  * <ul>
  *     <li><b>Main Entry Point:</b> {@link uno.anahata.ai.swing.Main} is the application's entry point,
  *     responsible for setting up the main {@link javax.swing.JFrame} and initializing the core
- *     {@link uno.anahata.ai.swing.AnahataPanel}.</li>
+ *     {@link uno.anahata.ai.swing.ChatPanel}.</li>
  *
- *     <li><b>Core UI Component:</b> {@link uno.anahata.ai.swing.AnahataPanel} is the central UI container,
+ *     <li><b>Core UI Component:</b> {@link uno.anahata.ai.swing.ChatPanel} is the central UI container,
  *     bringing together all the other panels (conversation, status, input, etc.) into a cohesive
  *     user experience.</li>
  *

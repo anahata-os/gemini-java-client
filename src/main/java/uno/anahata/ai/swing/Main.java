@@ -26,7 +26,7 @@ public class Main {
 
             // Use the new config and panel
             SwingChatConfig config = new SwingChatConfig();
-            AnahataPanel geminiPanel = new AnahataPanel(new DefaultEditorKitProvider());
+            ChatPanel geminiPanel = new ChatPanel(new DefaultEditorKitProvider());
             geminiPanel.init(config);
             geminiPanel.initComponents();
             frame.add(geminiPanel);

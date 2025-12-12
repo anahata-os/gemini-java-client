@@ -26,7 +26,7 @@ import uno.anahata.ai.swing.util.SwingUtils;
 @Getter
 public class ConversationPanel extends JPanel implements ContextListener, StatusListener {
 
-    private final AnahataPanel parentPanel;
+    private final ChatPanel parentPanel;
     private Chat chat;
     private EditorKitProvider editorKitProvider;
     private SwingChatConfig config;
@@ -39,7 +39,7 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
     private SwingUtils.ScrollState<ChatMessage> scrollStateToRestore;
     private boolean wasAtBottom = true;
 
-    public ConversationPanel(AnahataPanel parentPanel) {
+    public ConversationPanel(ChatPanel parentPanel) {
         super(new BorderLayout(5, 5));
         this.parentPanel = parentPanel;
         initComponents();

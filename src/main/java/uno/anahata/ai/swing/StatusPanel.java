@@ -29,7 +29,7 @@ public class StatusPanel extends JPanel {
     private static final SimpleDateFormat TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
     private static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance();
 
-    private final AnahataPanel parentPanel;
+    private final ChatPanel parentPanel;
     private final Timer refreshTimer;
     private ChatStatus lastStatus = null;
 
@@ -41,7 +41,7 @@ public class StatusPanel extends JPanel {
     private JLabel tokenDetailsLabel;
     private JToggleButton soundToggle;
 
-    public StatusPanel(AnahataPanel parentPanel) {
+    public StatusPanel(ChatPanel parentPanel) {
         super(new BorderLayout(10, 2));
         this.parentPanel = parentPanel;
         initComponents();

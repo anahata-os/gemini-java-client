@@ -335,7 +335,7 @@ public class Chat {
                 
                 List<Content> finalContext = new ArrayList<>(context);
 
-                List<Part> workspaceParts = contentFactory.produceParts(ContextPosition.AUGMENTED_WORKSPACE);
+                List<Part> workspaceParts = contentFactory.produceParts(ContextPosition.AUGMENTED_WORKSPACE, true);
                 if (!workspaceParts.isEmpty()) {
                     log.info("Augmenting context with {} parts from workspace providers.", workspaceParts.size());
                     List<Part> augmentedMessageParts = new ArrayList<>();
@@ -343,7 +343,19 @@ public class Chat {
                             + "The following is high-salience, just-in-time context provided by the host environment for this turn. "
                             + "It is not part of the permanent conversation history.\n"));
                     augmentedMessageParts.addAll(workspaceParts);
-                    finalContext.add(Content.builder().role("user").parts(augmentedMessageParts).build());
+
+                    Content ragContent = Content.builder().role("user").parts(augmentedMessageParts).build();
+
+                    // Check if the last message is a user message. It should be, but we check to be safe.
+                    if (!finalContext.isEmpty() && finalContext.get(finalContext.size() - 1).role().orElse("").equals("user")) {
+                        // The last message is the user's current input. We want to insert the RAG message before it.
+                        Content userMessage = finalContext.remove(finalContext.size() - 1);
+                        finalContext.add(ragContent);
+                        finalContext.add(userMessage);
+                    } else {
+                        // If the last message is not a user message (e.g., model or tool), or the context is empty, append.
+                        finalContext.add(ragContent);
+                    }
                 }
 
                 log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + finalContext.size() + " content elements. Functions enabled: " + functionsEnabled);

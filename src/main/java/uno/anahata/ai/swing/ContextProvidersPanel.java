@@ -22,7 +22,7 @@ import uno.anahata.ai.swing.render.ContentRenderer;
 @Slf4j
 public class ContextProvidersPanel extends JPanel {
 
-    private final ChatPanel anahataPanel;
+    private final ChatPanel chatPanel;
     private final Chat chat;
     private final SwingChatConfig config;
 
@@ -32,10 +32,10 @@ public class ContextProvidersPanel extends JPanel {
     private JLabel rightPanelStatusLabel;
     private SwingWorker<List<Part>, Void> contentDisplayWorker;
 
-    public ContextProvidersPanel(ChatPanel anahataPanel) {
-        this.anahataPanel = anahataPanel;
-        this.chat = anahataPanel.getChat();
-        this.config = anahataPanel.getConfig();
+    public ContextProvidersPanel(ChatPanel chatPanel) {
+        this.chatPanel = chatPanel;
+        this.chat = chatPanel.getChat();
+        this.config = chatPanel.getConfig();
         initComponents();
         refresh(); // Initial data load
     }
@@ -126,7 +126,7 @@ public class ContextProvidersPanel extends JPanel {
                         rightPanelStatusLabel.setText("Provider returned no content.");
                         rightPanel.add(rightPanelStatusLabel, BorderLayout.CENTER);
                     } else {
-                        ContentRenderer renderer = new ContentRenderer(anahataPanel);
+                        ContentRenderer renderer = new ContentRenderer(chatPanel);
                         Content content = Content.builder().role(provider.getPosition() == ContextPosition.AUGMENTED_WORKSPACE ? "USER" : "SYSTEM").parts(parts).build();
                         ChatMessage fakeMessage = ChatMessage.builder().content(content).build();
                         JComponent renderedContent = renderer.render(fakeMessage);

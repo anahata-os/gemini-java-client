@@ -26,7 +26,7 @@ public class ContextUsageBar extends JPanel {
     private static final int BAR_HEIGHT = 20;
     private static final int MIN_WIDTH = 250;
 
-    private final AnahataPanel parentPanel;
+    private final ChatPanel parentPanel;
     
     // State fields, updated in refresh()
     private int totalTokens = 0;
@@ -35,7 +35,7 @@ public class ContextUsageBar extends JPanel {
     private String usageText = "0% (0 / 0)";
     private ChatStatus status = ChatStatus.IDLE_WAITING_FOR_USER;
 
-    public ContextUsageBar(AnahataPanel parentPanel) {
+    public ContextUsageBar(ChatPanel parentPanel) {
         this.parentPanel = parentPanel;
         this.maxTokens = parentPanel.getChat().getContextManager().getTokenThreshold();
         setPreferredSize(new Dimension(MIN_WIDTH, BAR_HEIGHT));

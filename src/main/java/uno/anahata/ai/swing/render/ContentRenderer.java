@@ -30,7 +30,7 @@ import javax.swing.border.Border;
 import uno.anahata.ai.Chat;
 import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.context.ContextManager;
-import uno.anahata.ai.swing.AnahataPanel;
+import uno.anahata.ai.swing.ChatPanel;
 import uno.anahata.ai.swing.SwingChatConfig;
 import uno.anahata.ai.swing.TimeUtils;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
@@ -41,14 +41,14 @@ public class ContentRenderer {
     private final Map<Part, PartRenderer> instanceRendererMap;
     private final EditorKitProvider editorKitProvider;
     private final SwingChatConfig.UITheme theme;
-    private final AnahataPanel anahataPanel;
+    private final ChatPanel chatPanel;
     private final Chat chat;
 
-    public ContentRenderer(AnahataPanel anahataPanel) {
-        this.anahataPanel = anahataPanel;
-        this.chat = anahataPanel.getChat();
-        this.editorKitProvider = anahataPanel.getEditorKitProvider();
-        this.theme = anahataPanel.getConfig().getTheme();
+    public ContentRenderer(ChatPanel chatPanel) {
+        this.chatPanel = chatPanel;
+        this.chat = chatPanel.getChat();
+        this.editorKitProvider = chatPanel.getEditorKitProvider();
+        this.theme = chatPanel.getConfig().getTheme();
         this.typeRendererMap = new HashMap<>();
         this.instanceRendererMap = new HashMap<>();
 
