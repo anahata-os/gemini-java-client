@@ -103,10 +103,11 @@ public class ContentFactory {
             for (Part part : generated) {
                 long partSize = PartUtils.calculateSizeInBytes(part);
                 parts.add(Part.fromText("Part:" + (idx + 1) + "/" + generated.size() + ", size=" + partSize + " bytes " + " (Context Provider Id: **" + provider.getId() + "**)"));
+                parts.add(part);
                 idx++;
             }
 
-            parts.addAll(generated);
+            //parts.addAll(generated);
         } catch (Exception e) {
             // Log with placeholder for cleaner output
             log.warn("ContextProvider {} threw an exception", provider.getId(), e);
