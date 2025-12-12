@@ -42,7 +42,7 @@ public class ConfigManager {
      */
     public List<ContextProvider> getContextProviders(ContextPosition position, boolean enabled) {
         return chat.getConfig().getContextProviders().stream()
-                .filter(p -> p.isEnabled() && p.getPosition() == position)
+                .filter(p -> p.isEnabled() == enabled && p.getPosition() == position)
                 .collect(Collectors.toList());
     }
 

@@ -91,7 +91,7 @@ public class ContentFactory {
 
             parts.add(Part.fromText(
                     "Provider: **" + provider.getDisplayName() + "**"
-                    + "\nId: **" + provider.getId() + "**):"
+                    + "\nId: **" + provider.getId() + "**:"
                     + "\nDescription: " + provider.getDescription()
                     + "\nClass: " + provider.getClass() + "\n"
                     + "\nTotal Parts: " + generated.size() + " parts"
@@ -102,7 +102,7 @@ public class ContentFactory {
             int idx = 0;
             for (Part part : generated) {
                 long partSize = PartUtils.calculateSizeInBytes(part);
-                parts.add(Part.fromText("Part:" + (idx + 1) + "/" + generated.size() + ", size=" + partSize + "b** " + " (Context Provider Id: **" + provider.getId() + "**)"));
+                parts.add(Part.fromText("Part:" + (idx + 1) + "/" + generated.size() + ", size=" + partSize + " bytes " + " (Context Provider Id: **" + provider.getId() + "**)"));
                 idx++;
             }
 

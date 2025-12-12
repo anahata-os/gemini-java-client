@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import uno.anahata.ai.Chat;
 import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.context.ContextManager;
+import uno.anahata.ai.context.provider.ContextPosition;
 import uno.anahata.ai.context.provider.ContextProvider;
 import uno.anahata.ai.context.stateful.StatefulResourceStatus;
 import uno.anahata.ai.internal.PartUtils;
@@ -24,6 +25,10 @@ import uno.anahata.ai.internal.TextUtils;
 
 public class ContextSummaryProvider extends ContextProvider {
 
+    public ContextSummaryProvider() {
+        super(ContextPosition.AUGMENTED_WORKSPACE);
+    }
+    
     @Override
     public String getId() {
         return "core-context-summary";
