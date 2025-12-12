@@ -1,10 +1,7 @@
 package uno.anahata.ai.context.stateful;
 
-import uno.anahata.ai.ChatMessage;
 import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.Part;
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,15 +15,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.context.ContextManager;
+import uno.anahata.ai.internal.JacksonUtils;
 import uno.anahata.ai.tools.ContextBehavior;
 import uno.anahata.ai.tools.ToolManager;
-import uno.anahata.ai.internal.GsonUtils;
 
 @Slf4j
 public class ResourceTracker {
 
-    private static final Gson GSON = GsonUtils.getGson();
     private final ContextManager contextManager;
 
     public ResourceTracker(ContextManager contextManager) {
@@ -51,15 +48,34 @@ public class ResourceTracker {
         try {
             Method toolMethod = functionManager.getToolMethod(toolName);
             if (toolMethod != null && StatefulResource.class.isAssignableFrom(toolMethod.getReturnType())) {
-                JsonElement jsonTree = GSON.toJsonTree(fr.response().get());
-                Object pojo = GSON.fromJson(jsonTree, toolMethod.getReturnType());
-                String resourceId = ((StatefulResource) pojo).getResourceId();
+                Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
+                
+                // DIAGNOSTIC LOGGING
+                log.info("Attempting to deserialize for resource tracking. Response map: {}", responseMap);
+
+                // If the "output" key exists, it's a wrapped primitive/array, not a complex StatefulResource object.
+                if (responseMap.size() == 1 && responseMap.containsKey("output")) {
+                    return Optional.empty();
+                }
+                
+                // There was an exception
+                if (responseMap.size() == 1 && responseMap.containsKey("error")) {
+                    return Optional.empty();
+                }
+
+                // The entire map is the serialized object.
+                StatefulResource pojo = JacksonUtils.convertMapToObject(responseMap, (Class<StatefulResource>) toolMethod.getReturnType());
+                if (pojo == null) {
+                    return Optional.empty();
+                }
+                
+                String resourceId = pojo.getResourceId();
                 return Optional.ofNullable(resourceId);
             }
         } catch (Exception e) {
-            // Log this? For now, returning empty is safe.
+            log.warn("Could not determine resource ID for stateful tool: " + toolName, e);
         }
-        
+
         return Optional.empty();
     }
 
@@ -146,8 +162,18 @@ public class ResourceTracker {
         }
 
         try {
-            // Deserialize the response payload into the expected POJO which is a StatefulResource
-            StatefulResource resource = (StatefulResource) GSON.fromJson(GSON.toJsonTree(fr.response().get()), toolMethod.getReturnType());
+            Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
+            
+            // If the "output" key exists, it's a wrapped primitive/array, not a complex StatefulResource object.
+            if (responseMap.containsKey("output")) {
+                return Optional.empty();
+            }
+
+            // The entire map is the serialized object.
+            StatefulResource resource = JacksonUtils.convertMapToObject(responseMap, (Class<StatefulResource>) toolMethod.getReturnType());
+            if (resource == null) {
+                return Optional.empty();
+            }
 
             String resourceId = resource.getResourceId();
             if (resourceId == null) {
