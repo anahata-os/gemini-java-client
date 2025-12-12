@@ -84,15 +84,15 @@ public class ContextSummaryProvider extends ContextProvider {
                 chat.getContextManager().getTokenThreshold()
         ));
         sb.append("\n");
-        sb.append("The following table is the Output of ContextWindow.listEntries() with the unique id of every message in this conversation and a list of all parts so you can compress the context as needed or as instructed by the user."
-                + "\n\nIf the user asks you to **compress** the context or you are approaching max context window usage (max tokens), you must:\n"
-                + "\n1) summarize everything you are prunning onto an actual text part in your next response (not just the message on the prune tool).  \n"
-                + "\n2) use the prune tools in ContextWindow to remove: "
-                + "    \n\ta) entire messages, "
-                + "    \n\tb) specific parts "
-                + "    \n\tc) tool calls (call/response pairs)."
+        sb.append("The following table is the Output of ContextWindow.listEntries() with the unique id of every part, every resource and every tool call pair (request response) in this conversation so you can compress the context *as-you-go* or when explicitely instructed by the user. Dont expect the user to instruct you explicitely to compress the context and dont expect the user to perform context compression either."
+                + "You have to work with the total token count and the threshold to work out how far you can go in adding to the context window."
+                + "Prune straight away whenever ANY part (regardless of the type, the role or the position in the history) becomes redundant (i.e. a task that has been resolved/completed, a duplicate message, a hallucination, etc) OR its semantic meaning can be compressed (i.e. the matter being discussed has been clarified and can be kept in context in much more synthetized manner like when it is part of a resolved trial-and-error process and just the 'gist' of it needs to stay in context). Every token in the context window is -ultimately- your responsability."
+                + "Your ultimate optimal goal is to ensure that a conversation can run indefinetly with the most relevant information in context, without ever hitting input token limits and without the user having to do manual prunning or asking you to compress the context.\n\n"
+                + "\n\nIf the user explicitely asks you to **compress** the context you must:\n"
+                + "\n1) Work with the user to see what discussions / resources / tool calls to keep and what to discard.  \n"
+                + "\n2) Use the prune tools in ContextWindow like you normally do when you prune-as-you-go"
                 + "\n\n"
-                + "Some prune tools have a reason parameter which is mainly for debugging and pruning logic improvement and diagnostics but will disappear from the conversation like every other ephemeral tool call. The Compressed content must be in your 'spoken' response.\n"
+                + "Some prune tools have a reason parameter which is mainly for debugging, pruning logic improvements, diagnostics etc... but will disappear from the conversation like every other ephemeral tool call. The *compressed* content of anything you are prunning must be in the text parts from your 'spoken' response.\n"
                 + "\n\n Use your discrimination when choosing prunning tools but take into consideration that:"
                 + "\na) Some Parts have logical dependencies (e.g. FunctionCall <-> FunctionResponse)"
                 + "\nb) Pruning a message will prune ALL the parts on that message and ALL dependencies of ALL those parts."
