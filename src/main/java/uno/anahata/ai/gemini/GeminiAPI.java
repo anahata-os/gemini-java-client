@@ -18,6 +18,10 @@ public class GeminiAPI {
 
     private static final List<String> AVAILABLE_MODEL_IDS = Arrays.asList(
             "gemini-pro-latest",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-3-pro",
+            "gemini-3-pro-preview",
             "gemini-flash-latest",            
             "gemini-flash-lite-latest",            
             "gemini-2.5-flash-image"
