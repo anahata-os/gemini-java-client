@@ -30,6 +30,10 @@ public class SwingChatConfig extends ChatConfig {
     
     private boolean audioFeedbackEnabled = true; // Default to ON, no persistence.
 
+    public SwingChatConfig() {
+        providers.add(new ApplicationFramesContextProvider());
+    }
+    
     @Override
     public String getSessionId() {
         return "standalone";
@@ -45,13 +49,7 @@ public class SwingChatConfig extends ChatConfig {
         return ret;
     }
 
-    @Override
-    public List<ContextProvider> getContextProviders() {
-        List<ContextProvider> ret = super.getContextProviders(); 
-        ret.add(new ApplicationFramesContextProvider());
-        return ret;
-    }
-
+    
     public static Color getColor(ChatStatus status) {
         switch (status) {
             case API_CALL_IN_PROGRESS:
