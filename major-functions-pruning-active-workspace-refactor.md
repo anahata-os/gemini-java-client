@@ -64,7 +64,7 @@ This phase implements the core "Whiteboard" concept for state management.
 These are larger-scale explorations for the health of the project.
 
 ### 4.1. Project Modularity
-- **`gemini-java-client-swing`:** Explore splitting all Swing/UI-related classes (`GeminiPanel`, `SwingFunctionPrompter`, etc.) into a separate project. This would leave `gemini-java-client` as a pure, headless library that can be used in any environment.
+- **`gemini-java-client-swing`:** Explore splitting all Swing/UI-related classes (`ChatPanel`, `SwingFunctionPrompter`, etc.) into a separate project. This would leave `gemini-java-client` as a pure, headless library that can be used in any environment.
 
 ### 4.2. Java Version Upgrade
 - **Current State:** The project compiles to Java 8.

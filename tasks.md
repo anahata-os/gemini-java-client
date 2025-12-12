@@ -27,7 +27,7 @@ This document is the single source of truth for all actionable work items, techn
 -   [ ] **Redesign `FunctionsPanel`** with the two-panel layout.
 -   [ ] **Refactor `StatusListener`** to use a rich `ChatStatusEvent` object.
 -   [ ] **UI Polish:** Add the `explanation` text to the `proposeChange` diff dialog.
--   [ ] **Status Bar Integration:** Fully integrate the new status bar and progress bar components into `GeminiPanel`.
+-   [ ] **Status Bar Integration:** Fully integrate the new status bar and progress bar components into `ChatPanel`.
 -   [ ] **Detailed Status Reporting:** The status bar must clearly display state, latency, retries, and token counts.
 
 ## Phase 4: Long-Term & Ecosystem

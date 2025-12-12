@@ -39,7 +39,7 @@ Integrate a rich, modern chat interface into any desktop application with a sing
 | Feature | Description | Benefit |
 | :--- | :--- | :--- |
 | **Live Workspace Feature** | **The AI can see your application.** Automatically captures and sends screenshots of all application JFrames to the model on every turn. | Gives the AI **visual context** of the user's current task and application state. |
-| **`GeminiPanel`** | A self-contained Swing component ready for embedding. | **Fastest path** to a fully functional AI chat interface. |
+| **`ChatPanel`** | A self-contained Swing component ready for embedding. | **Fastest path** to a fully functional AI chat interface. |
 | **Renderer-Based Architecture** | Supports complex message parts: Markdown, Images, Interactive Function Calls, and Grounding Metadata. | Provides a **rich, modern user experience** that goes beyond plain text. |
 
 ##  Getting Started: A Comprehensive Example

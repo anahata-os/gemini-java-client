@@ -26,18 +26,18 @@ public class Main {
 
             // Use the new config and panel
             SwingChatConfig config = new SwingChatConfig();
-            ChatPanel geminiPanel = new ChatPanel(new DefaultEditorKitProvider());
-            geminiPanel.init(config);
-            geminiPanel.initComponents();
-            frame.add(geminiPanel);
+            ChatPanel chatPanel = new ChatPanel(new DefaultEditorKitProvider());
+            chatPanel.init(config);
+            chatPanel.initComponents();
+            frame.add(chatPanel);
             
             frame.pack();
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
             
             
-            geminiPanel.checkAutobackupOrStartupContent();
-            //geminiPanel.init(config);
+            chatPanel.checkAutobackupOrStartupContent();
+            //chatPanel.init(config);
             
         });
         
