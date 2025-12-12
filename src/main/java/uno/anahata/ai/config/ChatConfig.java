@@ -40,6 +40,17 @@ public abstract class ChatConfig {
 
     private final transient Preferences prefs = Preferences.userNodeForPackage(ChatConfig.class);
 
+    protected final List<ContextProvider> providers = new ArrayList<>();
+
+    public ChatConfig() {
+        providers.add(new CoreSystemInstructionsMdFileProvider());
+        providers.add(new ChatStatusProvider());
+        providers.add(new ContextSummaryProvider());
+        providers.add(new SystemPropertiesProvider());
+        providers.add(new EnvironmentVariablesProvider());
+        providers.add(new StatefulResourcesProvider());
+    }
+
     public GeminiAPI getApi() {
         return api;
     }
@@ -52,15 +63,6 @@ public abstract class ChatConfig {
     }
 
     public List<ContextProvider> getContextProviders() {
-        List<ContextProvider> providers = new ArrayList<>();
-        // Core Providers
-        providers.add(new CoreSystemInstructionsMdFileProvider());
-        providers.add(new ChatStatusProvider());
-        providers.add(new ContextSummaryProvider());
-        providers.add(new SystemPropertiesProvider());
-        providers.add(new EnvironmentVariablesProvider());
-        providers.add(new StatefulResourcesProvider());
-
         return providers;
     }
 
@@ -85,12 +87,10 @@ public abstract class ChatConfig {
         }
     }
 
-    
-
     /**
-     * Core System tools. 
-     * 
-     * @return 
+     * Core System tools.
+     *
+     * @return
      */
     public List<Class<?>> getToolClasses() {
         List<Class<?>> allClasses = new ArrayList<>();
