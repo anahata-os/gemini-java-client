@@ -126,11 +126,15 @@ public class ResourceTracker {
                 continue;
             }
 
+            int partIndex = 0; // Initialize part index
             for (Part part : message.getContent().parts().get()) {
                 if (part.functionResponse().isPresent()) {
                     FunctionResponse fr = part.functionResponse().get();
-                    getResourceStatus(fr, fm).ifPresent(statuses::add);
+                    String toolCallId = fr.id().orElse(null); // Use orElse(null) for safety
+                    String partId = message.getSequentialId() + "/" + partIndex; // Construct partId
+                    getResourceStatus(fr, fm, toolCallId, partId).ifPresent(statuses::add);
                 }
+                partIndex++; // Increment part index
             }
         }
 
@@ -150,10 +154,12 @@ public class ResourceTracker {
      * @return An Optional containing the status, or empty if the response is not a valid stateful resource.
      */
     public Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr) {
-        return getResourceStatus(fr, contextManager.getFunctionManager());
+        // This method is for external calls that don't have the toolCallId and partId readily available.
+        // It will call the internal method with nulls.
+        return getResourceStatus(fr, contextManager.getFunctionManager(), null, null);
     }
 
-    private Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr, ToolManager fm) {
+    private Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr, ToolManager fm, String toolCallId, String partId) {
         String toolName = fr.name().orElse("");
         Method toolMethod = fm.getToolMethod(toolName);
 
@@ -180,7 +186,7 @@ public class ResourceTracker {
                 return Optional.empty();
             }
 
-            return Optional.of(checkDiskStatus(resource));
+            return Optional.of(checkDiskStatus(resource, toolCallId, partId));
 
         } catch (Exception e) {
             log.warn("Failed to deserialize stateful resource from tool response: " + toolName, e);
@@ -188,7 +194,7 @@ public class ResourceTracker {
         }
     }
 
-    private StatefulResourceStatus checkDiskStatus(StatefulResource resource) {
+    private StatefulResourceStatus checkDiskStatus(StatefulResource resource, String toolCallId, String partId) {
         String resourceId = resource.getResourceId();
         long contextLastModified = resource.getLastModified();
         long contextSize = resource.getSize();
@@ -220,7 +226,7 @@ public class ResourceTracker {
             status = ResourceStatus.ERROR;
         }
 
-        return new StatefulResourceStatus(resourceId, contextLastModified, contextSize, diskLastModified, diskSize, status, resource);
+        return new StatefulResourceStatus(resourceId, contextLastModified, contextSize, diskLastModified, diskSize, status, resource, partId, toolCallId);
     }
 
     public void pruneStatefulResources(List<String> resourceIds) {
@@ -248,8 +254,6 @@ public class ResourceTracker {
 
         if (!partsToPrune.isEmpty()) {
             contextManager.prunePartsByReference(new ArrayList<>(partsToPrune), "User requested pruning of stateful resources.");
-        } else {
-            log.warn("No parts found for the specified stateful resource IDs: {}", resourceIds);
         }
     }
 }

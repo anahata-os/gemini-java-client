@@ -33,4 +33,10 @@ public class StatefulResourceStatus {
     
     /** A transient reference to the actual resource object from the context. */
     public final transient StatefulResource resource;
+    
+    /** The unique ID of the FunctionResponse Part that introduced this stateful resource into the context (messageId/partIndex). */
+    public final String partId;
+    
+    /** The ID of the FunctionCall/FunctionResponse pair that introduced this stateful resource into the context. */
+    public final String toolCallId;
 }
