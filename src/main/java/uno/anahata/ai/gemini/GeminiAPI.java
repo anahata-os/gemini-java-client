@@ -17,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 public class GeminiAPI {
 
     private static final List<String> AVAILABLE_MODEL_IDS = Arrays.asList(
+            "gemini-3-flash-preview",
+            "gemini-3-flash",
             "gemini-pro-latest",
             "gemini-2.5-pro",
             "gemini-2.5-flash",
