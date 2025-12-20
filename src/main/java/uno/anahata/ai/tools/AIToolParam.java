@@ -17,4 +17,11 @@ public @interface AIToolParam {
      * @return The description.
      */
     String value();
+
+    /**
+     * Indicates whether this parameter is required by the tool.
+     * Defaults to true.
+     * @return True if required, false otherwise.
+     */
+    boolean required() default true;
 }

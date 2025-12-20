@@ -102,20 +102,26 @@ public class ToolManager {
                             Schema paramSchema = GeminiAdapter.getGeminiSchema(p.getParameterizedType());
 
                             AIToolParam paramAnnotation = p.getAnnotation(AIToolParam.class);
-                            if (paramAnnotation != null && StringUtils.isNotBlank(paramAnnotation.value())) {
-                                String paramDescription = paramAnnotation.value();
-                                String typeDescription = paramSchema.description().orElse("");
-                                
-                                String combinedDescription = paramDescription;
-                                if (StringUtils.isNotBlank(typeDescription)) {
-                                    combinedDescription += "\n\n(Details: " + typeDescription + ")";
+                            boolean isRequired = true;
+                            if (paramAnnotation != null) {
+                                isRequired = paramAnnotation.required();
+                                if (StringUtils.isNotBlank(paramAnnotation.value())) {
+                                    String paramDescription = paramAnnotation.value();
+                                    String typeDescription = paramSchema.description().orElse("");
+
+                                    String combinedDescription = paramDescription;
+                                    if (StringUtils.isNotBlank(typeDescription)) {
+                                        combinedDescription += "\n\n(Details: " + typeDescription + ")";
+                                    }
+
+                                    paramSchema = paramSchema.toBuilder().description(combinedDescription).build();
                                 }
-                                
-                                paramSchema = paramSchema.toBuilder().description(combinedDescription).build();
                             }
 
                             properties.put(paramName, paramSchema);
-                            requiredParams.add(paramName);
+                            if (isRequired) {
+                                requiredParams.add(paramName);
+                            }
                         }
                         
                         // Append the full FQN method signature to the description
@@ -340,7 +346,7 @@ public class ToolManager {
             Object argValueFromModel = argsFromModel.get(paramName);
             Type paramType = p.getParameterizedType(); // Use parameterized type for generics
 
-            if (argValueFromModel == null) {
+            if (argValueFromModel == null || "null".equals(argValueFromModel)) {
                 argsToInvoke[i] = null;
             } else {
                 // Use Jackson to convert the generic Map/List structure into the target POJO/List<POJO>

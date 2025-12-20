@@ -20,7 +20,7 @@ public class Main {
         }
 
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("AI Assistant");
+            JFrame frame = new JFrame("Anahata");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setPreferredSize(new Dimension(800, 600));
 

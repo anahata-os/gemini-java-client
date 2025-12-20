@@ -27,7 +27,7 @@ public class ContextManager {
     private int totalTokenCount = 0;
     @Getter
     @Setter
-    private int tokenThreshold = 108_000;
+    private int tokenThreshold = 250_000;
     private Instant lastMessageTimestamp = Instant.now();
 
     // Delegated classes
