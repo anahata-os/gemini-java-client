@@ -52,6 +52,7 @@ public class ToolManager {
     private final ToolConfig toolConfig;
     private final FailureTracker failureTracker;
     private final List<FunctionInfo> functionInfos = new ArrayList<>();
+    @Getter
     private final AtomicInteger idCounter = new AtomicInteger(1);
 
     private final Set<String> alwaysApproveFunctions = new HashSet<>();

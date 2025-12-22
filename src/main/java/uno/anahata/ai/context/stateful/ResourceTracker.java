@@ -51,9 +51,6 @@ public class ResourceTracker {
             if (toolMethod != null && StatefulResource.class.isAssignableFrom(toolMethod.getReturnType())) {
                 Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
                 
-                // DIAGNOSTIC LOGGING
-                log.info("Attempting to deserialize for resource tracking. Response map: {}", responseMap);
-
                 // If the "output" key exists, it's a wrapped primitive/array, not a complex StatefulResource object.
                 if (responseMap.size() == 1 && responseMap.containsKey("output")) {
                     return Optional.empty();
@@ -63,6 +60,9 @@ public class ResourceTracker {
                 if (responseMap.size() == 1 && responseMap.containsKey("error")) {
                     return Optional.empty();
                 }
+
+                // DIAGNOSTIC LOGGING
+                log.info("Attempting to deserialize for resource tracking. Response map: {}", responseMap.keySet());
 
                 // The entire map is the serialized object.
                 StatefulResource pojo = JacksonUtils.convertMapToObject(responseMap, (Class<StatefulResource>) toolMethod.getReturnType());

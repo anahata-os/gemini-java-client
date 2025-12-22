@@ -187,8 +187,6 @@ public class ContextSummaryProvider extends ContextProvider {
                 boolean isStateful = statusOpt.isPresent();
                 String toolCallId = GeminiAdapter.getToolCallId(part).orElse("");
                 boolean isToolCall = !toolCallId.isEmpty();
-                System.out.println("PArt: " + part.toJson());
-                System.out.println("Sateful: " + isStateful + " Tool Call:" + isToolCall + " " + statusOpt);
 
                 List<String> row = new ArrayList<>();
                 row.add(i == 0 ? age : ""); // Only show age for the first part of a message
@@ -250,15 +248,11 @@ public class ContextSummaryProvider extends ContextProvider {
                         StatefulResourceStatus srs = statusOpt.get();
                         String fileName = new File(srs.getResourceId()).getName();
                         String statusStr = srs.getStatus().name();
-                        System.out.println("Working out stateful summary for " + statusStr + " " + fileName);
                         if (srs.getStatus() == ResourceStatus.VALID) {
                             contentSummary = String.format("%s %s %s %d", toolName, fileName, statusStr, srs.getContextLastModified());
-                            System.out.println("A" + contentSummary);
                         } else {
                             contentSummary = String.format("%s %s %s", toolName, fileName, statusStr);
-                            System.out.println("B" + contentSummary);
                         }
-                        System.out.println(contentSummary);
                     } else {
                         contentSummary = toolName + ": " + TextUtils.formatValue(fr.response().orElse(Collections.emptyMap()));
                     }
@@ -277,8 +271,6 @@ public class ContextSummaryProvider extends ContextProvider {
                 }
                 
                 String contentColumn = typePrefix + " " + contentSummary.replace("\n", " ").replaceAll("\\s+", " ").trim();
-                System.out.println("Content summary " + contentSummary);
-                System.out.println("Content column " + contentColumn);
                 row.add(contentColumn);
                 row.add(String.format("%.1f", partSize / 1024.0));
 

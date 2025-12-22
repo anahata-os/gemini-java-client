@@ -23,7 +23,6 @@ public class GeminiAdapter {
     private static final Gson GSON = new Gson();
     private static final Map<Class<?>, Type.Known> PRIMITIVE_MAP = new HashMap<>();
     private static final Schema VOID_SCHEMA = Schema.builder().build();
-    private static final AtomicInteger functionCallIdCounter = new AtomicInteger(1);
 
     static {
         PRIMITIVE_MAP.put(String.class, Type.Known.STRING);
@@ -136,9 +135,10 @@ public class GeminiAdapter {
      * entire Content object to include it, preserving all other metadata.
      *
      * @param originalContent The raw content received from the model.
+     * @param idCounter The atomic counter to use for generating new IDs.
      * @return The original content if no changes were needed, or a new, patched Content object.
      */
-    public static Content sanitize(Content originalContent) {
+    public static Content sanitize(Content originalContent, AtomicInteger idCounter) {
         if (originalContent == null || !originalContent.parts().isPresent()) {
             return originalContent;
         }
@@ -151,7 +151,7 @@ public class GeminiAdapter {
             if (originalPart.functionCall().isPresent() && originalPart.functionCall().get().id().isEmpty()) {
                 wasModified = true;
                 FunctionCall originalFc = originalPart.functionCall().get();
-                String newId = String.valueOf(functionCallIdCounter.getAndIncrement());
+                String newId = String.valueOf(idCounter.getAndIncrement());
 
                 // Refactored to use toBuilder() for robustness
                 FunctionCall newFc = originalFc.toBuilder()

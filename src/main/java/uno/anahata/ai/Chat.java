@@ -195,7 +195,7 @@ public class Chat {
 
             Content originalContent = cand.content().get();
             // Sanitize the content to ensure all FunctionCalls have an ID before adding to context.
-            Content sanitizedContent = GeminiAdapter.sanitize(originalContent);
+            Content sanitizedContent = GeminiAdapter.sanitize(originalContent, functionManager.getIdCounter());
 
             ChatMessage modelMessage = buildChatMessage(
                 sanitizedContent, 
