@@ -238,6 +238,24 @@ public class ContextPruner {
         }
     }
     
+    public void pruneEphemeralToolCall(String toolCallId, String reason) {
+        log.info("Pruning ephemeral tool call by ID: {}. Reason: {}", toolCallId, reason);
+        if (contextManager.getResourceTracker().isStatefulToolCall(toolCallId)) {
+            throw new IllegalArgumentException("Tool call ID '" + toolCallId + "' is associated with a STATEFUL resource. Use pruneStatefulResources instead.");
+        }
+        pruneToolCall(toolCallId, reason);
+    }
+
+    public void pruneOther(List<Part> parts, String reason) {
+        log.info("Pruning other parts. Reason: {}", reason);
+        for (Part part : parts) {
+            if (part.functionCall().isPresent() || part.functionResponse().isPresent()) {
+                throw new IllegalArgumentException("Generic pruning is not allowed for tool calls. Use pruneEphemeralToolCall or pruneStatefulResources.");
+            }
+        }
+        prunePartsByReference(parts, reason);
+    }
+
     public void pruneToolCall(String toolCallId, String reason) {
         log.info("Pruning tool call by ID: {}. Reason: {}", toolCallId, reason);
         List<Part> partsToPrune = new ArrayList<>();

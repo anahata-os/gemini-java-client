@@ -23,7 +23,7 @@ public class ContextManager {
     private final Chat chat;
     private final ChatConfig config;
     private final List<ContextListener> listeners = new CopyOnWriteArrayList<>();
-    private final ToolManager functionManager;
+    private final ToolManager toolManager;
     private int totalTokenCount = 0;
     @Getter
     @Setter
@@ -38,7 +38,7 @@ public class ContextManager {
     public ContextManager(Chat chat) {
         this.chat = chat;
         this.config = chat.getConfig();
-        this.functionManager = chat.getFunctionManager();
+        this.toolManager = chat.getFunctionManager();
 
         this.sessionManager = new SessionManager(this);
         this.resourceTracker = new ResourceTracker(this);
@@ -74,7 +74,7 @@ public class ContextManager {
         message.setElapsedTimeMillis(elapsed);
         lastMessageTimestamp = now;
 
-        resourceTracker.handleStatefulReplace(message, functionManager);
+        resourceTracker.handleStatefulReplace(message, toolManager);
         context.add(message);
 
         if (message.getUsageMetadata() != null) {
@@ -82,7 +82,7 @@ public class ContextManager {
         }
 
         if (isUserMessage(message)) {
-            contextPruner.pruneEphemeralToolCalls(functionManager);
+            contextPruner.pruneEphemeralToolCalls(toolManager);
         }
 
         notifyHistoryChange();

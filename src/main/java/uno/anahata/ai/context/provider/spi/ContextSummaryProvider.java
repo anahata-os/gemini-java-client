@@ -19,7 +19,10 @@ import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.context.ContextManager;
 import uno.anahata.ai.context.provider.ContextPosition;
 import uno.anahata.ai.context.provider.ContextProvider;
+import uno.anahata.ai.context.stateful.ResourceStatus;
+import uno.anahata.ai.context.stateful.ResourceTracker;
 import uno.anahata.ai.context.stateful.StatefulResourceStatus;
+import uno.anahata.ai.gemini.GeminiAdapter;
 import uno.anahata.ai.internal.PartUtils;
 import uno.anahata.ai.internal.TextUtils;
 
@@ -89,7 +92,7 @@ public class ContextSummaryProvider extends ContextProvider {
                 chat.getContextManager().getTokenThreshold()
         ));
         sb.append("\n");
-        sb.append("The following table is the Output of ContextWindow.listEntries() with the unique id of every part, every stateful resource and every tool call pair (request response) in this conversation so you can compress the context *as-you-go* or when explicitely instructed by the user. Dont expect the user to instruct you explicitely and dont expect the user to perform manual prunning either."
+        sb.append("The following table is the Output of ContextWindow.getContextSummary() with the unique id of every part, every stateful resource and every tool call pair (request response) in this conversation so you can compress the context *as-you-go* or when explicitely instructed by the user. Dont expect the user to instruct you explicitely and dont expect the user to perform manual prunning either."
                 + "You have to work with the total token count (as given by the api on the last turn) and the threshold (max tokens) to work out how far you can go in adding to the context window."
                 + "Your ultimate optimal goal is to ensure that a conversation can "
                 + "\na)Run indefinetly (without ever hitting max tokens) with the most relevant information in the most relevant postion of the context"
@@ -110,10 +113,11 @@ public class ContextSummaryProvider extends ContextProvider {
                 + "Some prune tools have a reason parameter which is mainly for debugging, pruning logic improvements, diagnostics etc... but will disappear from the conversation -like every other ephemeral tool call- after 5 user turns so dont exepct a reason parameter to stay in context. The *compressed* content of anything you are prunning must be in the text parts from your 'spoken' response (i.e. text parts of this turn).\n"
                 + "\n\n Use your discrimination when choosing prunning tools but take into consideration that some Parts have logical dependencies (e.g. FunctionCall <-> FunctionResponse)"
                 + "\n"
-                + "\nIn Other words:"
-                + "\n\t1) Pruning a FunctionResponse will automatically prune its corresponding FunctionCall"
-                + "\n\t2) Pruning a FunctionCall will automatically prune its corresponding FunctionResponse"
-                + "\n\t3) Pruning a FunctionResponse **OR** a FunctionCall of a STATEFULE_REPLACE tool that returned an actual Stateful Resource will remove the resource itself from context (as the very content of this resource is in fhe FunctionResponse part itself, there is no separate 'processed' state)"
+                + "\n**STRICT PRUNING PROTOCOL**:"
+                + "\n\t1) **Type O (Other)**: Use `pruneOther` for non-tool content (Text, Blob, CodeExecutionResult or ExecutableCode parts). Specify the 'Pruning ID' (MessageId/PartId)."
+                + "\n\t2) **Type E (Ephemeral)**: Use `pruneEphemeralToolCall` for non-stateful tool calls. Specify the 'Pruning ID' (Tool Call ID)."
+                + "\n\t3) **Type S (Stateful)**: Use `pruneStatefulResources` ONLY when you explicitly intend to remove a file's content from your context. Specify the 'Pruning ID' (Full Resource Path) from the FR row."
+                + "\n\t4) Pruning a FunctionResponse will automatically prune its corresponding FunctionCall (and vice versa)."
                 + "\n"
                 + "\nRemember that you can also offload a summary of the conversation to an .md file on disk so it is always up to you and the user whether you want to offload to disk or just onto a simple text part in your next turn"
                 + "\nDo not give text parts less weight than tool calls, if you can summarise all your text parts from the last five or ten turns (or whatever number of turns) onto a single one, that can also help a lot in reducing the total number of tokens (is not always just about pruning stateful resources or tool calls)"
@@ -152,23 +156,22 @@ public class ContextSummaryProvider extends ContextProvider {
         sb.append("**Legend:**\n");
         sb.append("  - **Roles**: u=user, m=model, t=tool\n");
         sb.append("  - **Names**: ").append(nameAbbreviations.entrySet().stream().map(e -> e.getValue() + "=" + e.getKey()).collect(Collectors.joining(", "))).append("\n");
-        sb.append("  - **Parts**: T=Text, FC=FunctionCall, FR=FunctionResponse, B=BLOB\n\n");
+        sb.append("  - **Types**: **O**=Other (Text/Blob/Code), **E**=Ephemeral (Non-stateful tool), **S**=Stateful (File content)\n\n");
 
         // --- Table ---
         List<String> headers = new ArrayList<>();
         headers.add("Age");
         headers.add("Name");
-        headers.add("Part Id");
-        headers.add("Part Type");
-        headers.add("Size (KB)");
-        // headers.add("Role"); // Commented out as requested
+        headers.add("Type");
+        headers.add("Pruning ID");
         headers.add("Content");
-        headers.add("Dependencies");
+        headers.add("Size (KB)");
 
         sb.append("| ").append(String.join(" | ", headers)).append(" |\n");
-        sb.append("|:---|:---|:---|:---|---:|:---|:---|\n");
+        sb.append("|:---|:---|:---|:---|:---|---:|\n");
 
         Instant now = Instant.now();
+        ResourceTracker rt = chat.getContextManager().getResourceTracker();
 
         for (ChatMessage msg : messages) {
             List<Part> parts = msg.getContent().parts().orElse(Collections.emptyList());
@@ -178,19 +181,106 @@ public class ContextSummaryProvider extends ContextProvider {
 
             for (int i = 0; i < parts.size(); i++) {
                 Part part = parts.get(i);
-                String[] partSummary = describePart(part, chat.getContextManager());
-                String dependencies = summarizeDependencies(part, chat.getContextManager());
                 long partSize = PartUtils.calculateSizeInBytes(part);
+                
+                Optional<StatefulResourceStatus> statusOpt = rt.getResourceStatus(part, msg);
+                boolean isStateful = statusOpt.isPresent();
+                String toolCallId = GeminiAdapter.getToolCallId(part).orElse("");
+                boolean isToolCall = !toolCallId.isEmpty();
+                System.out.println("PArt: " + part.toJson());
+                System.out.println("Sateful: " + isStateful + " Tool Call:" + isToolCall + " " + statusOpt);
 
                 List<String> row = new ArrayList<>();
                 row.add(i == 0 ? age : ""); // Only show age for the first part of a message
                 row.add(i == 0 ? nameAbbr : ""); // Only show name for the first part
-                row.add(msg.getSequentialId() + "/" + i);
-                row.add(partSummary[0]);
+                
+                // Type Column
+                String typeCode = isStateful ? "**S**" : (isToolCall ? "**E**" : "**O**");
+                row.add(typeCode);
+                
+                // Pruning ID Column
+                String pruningId = "";
+                if (isStateful) {
+                    if (part.functionResponse().isPresent()) {
+                        pruningId = "**" + statusOpt.get().getResourceId() + "**";
+                    }
+                } else if (isToolCall) {
+                    pruningId = "**" + toolCallId + "**";
+                } else {
+                    pruningId = "**" + msg.getSequentialId() + "/" + i + "**";
+                }
+                row.add(pruningId);
+                
+                String typePrefix;
+                String contentSummary;
+
+                if (part.text().isPresent()) {
+                    typePrefix = "T";
+                    contentSummary = TextUtils.formatValue(part.text().get());
+                } else if (part.functionCall().isPresent()) {
+                    FunctionCall fc = part.functionCall().get();
+                    typePrefix = "FC";
+                    String toolName = fc.name().get();
+                    
+                    if (isStateful) {
+                        StatefulResourceStatus srs = statusOpt.get();
+                        String fileName = new File(srs.getResourceId()).getName();
+                        contentSummary = String.format("%s %s", toolName, fileName);
+                    } else {
+                        StringBuilder summary = new StringBuilder(toolName);
+                        Map<String, Object> args = fc.args().orElse(Collections.emptyMap());
+                        if (!args.isEmpty()) {
+                            String argsString = args.entrySet().stream()
+                                    .filter(entry -> !TextUtils.isNullOrEmpty(entry.getValue()))
+                                    .map(entry -> entry.getKey() + "=" + TextUtils.formatValue(entry.getValue()))
+                                    .collect(Collectors.joining(", ", "(", ")"));
+                            if (!"()".equals(argsString)) {
+                                summary.append(argsString);
+                            }
+                        }
+                        contentSummary = summary.toString();
+                    }
+                    
+                } else if (part.functionResponse().isPresent()) {
+                    FunctionResponse fr = part.functionResponse().get();
+                    typePrefix = "FR";
+                    String toolName = fr.name().orElse("unknown");
+                    
+                    if (isStateful) {
+                        StatefulResourceStatus srs = statusOpt.get();
+                        String fileName = new File(srs.getResourceId()).getName();
+                        String statusStr = srs.getStatus().name();
+                        System.out.println("Working out stateful summary for " + statusStr + " " + fileName);
+                        if (srs.getStatus() == ResourceStatus.VALID) {
+                            contentSummary = String.format("%s %s %s %d", toolName, fileName, statusStr, srs.getContextLastModified());
+                            System.out.println("A" + contentSummary);
+                        } else {
+                            contentSummary = String.format("%s %s %s", toolName, fileName, statusStr);
+                            System.out.println("B" + contentSummary);
+                        }
+                        System.out.println(contentSummary);
+                    } else {
+                        contentSummary = toolName + ": " + TextUtils.formatValue(fr.response().orElse(Collections.emptyMap()));
+                    }
+                } else if (part.inlineData().isPresent()) {
+                    typePrefix = "B";
+                    contentSummary = part.inlineData().get().mimeType() + " " + PartUtils.calculateSizeInBytes(part) + " bytes";
+                } else if (part.executableCode().isPresent()) {
+                    typePrefix = "EC";
+                    contentSummary = "Executable Code (" + part.executableCode().get().language() + ")";
+                } else if (part.codeExecutionResult().isPresent()) {
+                    typePrefix = "ER";
+                    contentSummary = "Code Execution Result (" + part.codeExecutionResult().get().outcome() + ")";
+                } else {
+                    typePrefix = "?";
+                    contentSummary = "Unknown part type";
+                }
+                
+                String contentColumn = typePrefix + " " + contentSummary.replace("\n", " ").replaceAll("\\s+", " ").trim();
+                System.out.println("Content summary " + contentSummary);
+                System.out.println("Content column " + contentColumn);
+                row.add(contentColumn);
                 row.add(String.format("%.1f", partSize / 1024.0));
-                // row.add(roleAbbr); // Commented out as requested
-                row.add(partSummary[1].replace("\n", " ").replaceAll("\\s+", " ").trim());
-                row.add(dependencies);
 
                 sb.append("| ").append(String.join(" | ", row)).append(" |\n");
             }
@@ -211,89 +301,5 @@ public class ContextSummaryProvider extends ContextProvider {
             default:
                 return System.getProperty("user.name");
         }
-    }
-
-    private String summarizeDependencies(Part part, ContextManager contextManager) {
-        Set<String> dependencySummaries = new HashSet<>();
-        List<ChatMessage> context = contextManager.getContext();
-
-        for (ChatMessage scanMsg : context) {
-            if (scanMsg.getDependencies() == null) {
-                continue;
-            }
-
-            for (Map.Entry<Part, List<Part>> entry : scanMsg.getDependencies().entrySet()) {
-                Part sourcePart = entry.getKey();
-                List<Part> dependentParts = entry.getValue();
-
-                // Forward dependency: This part is the source
-                if (sourcePart == part) {
-                    for (Part dependentPart : dependentParts) {
-                        contextManager.getChatMessageForPart(dependentPart).ifPresent(depMsg -> {
-                            int partIndex = depMsg.getContent().parts().get().indexOf(dependentPart);
-                            dependencySummaries.add(String.format("%d/%d", depMsg.getSequentialId(), partIndex));
-                        });
-                    }
-                }
-
-                // Reverse dependency: This part is a dependent
-                if (dependentParts.contains(part)) {
-                    contextManager.getChatMessageForPart(sourcePart).ifPresent(srcMsg -> {
-                        int partIndex = srcMsg.getContent().parts().get().indexOf(sourcePart);
-                        dependencySummaries.add(String.format("%d/%d", srcMsg.getSequentialId(), partIndex));
-                    });
-                }
-            }
-        }
-        return dependencySummaries.stream().sorted().collect(Collectors.joining(" "));
-    }
-
-    private String[] describePart(Part p, ContextManager contextManager) {
-        String type;
-        String contentSummary;
-
-        if (p.text().isPresent()) {
-            type = "T";
-            contentSummary = TextUtils.formatValue(p.text().get());
-        } else if (p.functionCall().isPresent()) {
-            FunctionCall fc = p.functionCall().get();
-            type = "FC" + fc.id().map(id -> " " + id).orElse("");
-            
-            StringBuilder summary = new StringBuilder(fc.name().get());
-            Map<String, Object> args = fc.args().orElse(Collections.emptyMap());
-            if (!args.isEmpty()) {
-                String argsString = args.entrySet().stream()
-                        .filter(entry -> !TextUtils.isNullOrEmpty(entry.getValue()))
-                        .map(entry -> entry.getKey() + "=" + TextUtils.formatValue(entry.getValue()))
-                        .collect(Collectors.joining(", ", "(", ")"));
-                if (!"()".equals(argsString)) {
-                    summary.append(argsString);
-                }
-            }
-            contentSummary = summary.toString();
-            
-        } else if (p.functionResponse().isPresent()) {
-            FunctionResponse fr = p.functionResponse().get();
-            type = "FR" + fr.id().map(id -> " " + id).orElse("");
-            StringBuilder summary = new StringBuilder(fr.name().orElse("unknown"));
-            Optional<StatefulResourceStatus> statusOpt = contextManager.getResourceTracker().getResourceStatus(fr);
-            if (statusOpt.isPresent()) {
-                StatefulResourceStatus srs = statusOpt.get();
-                String fileName = new File(srs.getResourceId()).getName();
-                summary.append(String.format(":STATEFUL:%s (%s)", fileName, srs.getStatus().name()));
-            } else {
-                summary.append(": ").append(TextUtils.formatValue(fr.response().orElse(Collections.emptyMap())));
-            }
-            contentSummary = summary.toString();
-        } else if (p.inlineData().isPresent()) {
-            type = "B";
-            contentSummary = p.inlineData().get().mimeType() + " " + PartUtils.calculateSizeInBytes(p) + " bytes";
-        } else {
-            type = "?";
-            contentSummary = "Unknown part type";
-        }
-
-        String finalContent = contentSummary.replace("\n", "\\n").replace("\r", "").replace("|", "\\|");
-        return new String[]{type, finalContent};
     }
 }

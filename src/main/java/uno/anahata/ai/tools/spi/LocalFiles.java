@@ -9,10 +9,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import uno.anahata.ai.Chat;
+import uno.anahata.ai.context.stateful.ResourceStatus;
 import uno.anahata.ai.context.stateful.ResourceTracker;
+import uno.anahata.ai.context.stateful.StatefulResourceStatus;
 import uno.anahata.ai.tools.ContextBehavior;
 import uno.anahata.ai.tools.MultiPartResponse;
 
@@ -63,6 +66,15 @@ public class LocalFiles {
         }
         if (Files.isDirectory(filePath)) {
             throw new IOException("Path is a directory, not a file: " + path);
+        }
+
+        // Redundant Read Check
+        ResourceTracker rt = Chat.getCallingInstance().getContextManager().getResourceTracker();
+        Optional<StatefulResourceStatus> status = rt.getStatefulResourcesOverview().stream()
+                .filter(s -> s.getResourceId().equals(path))
+                .findFirst();
+        if (status.isPresent() && status.get().getStatus() == ResourceStatus.VALID) {
+             throw new RuntimeException("Redundant Read: The file at " + path + " is already VALID in your context. Do not reload it.");
         }
 
         String content = Files.readString(filePath);
@@ -131,7 +143,7 @@ public class LocalFiles {
             throw new IOException("File not found: " + path);
         }
         Files.delete(filePath);
-        Chat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(path));
+        Chat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(path), "File deleted via LocalFiles.deleteFile");
         return "Successfully deleted file: " + path;
     }
 
@@ -149,7 +161,7 @@ public class LocalFiles {
             Files.createDirectories(target.getParent());
         }
         Files.move(source, target);
-        Chat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(sourcePath));
+        Chat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(sourcePath), "File moved via LocalFiles.moveFile");
         return readFile(targetPath);
     }
 
@@ -162,11 +174,11 @@ public class LocalFiles {
         if (!Files.exists(source)) {
             throw new IOException("Source file not found: " + sourcePath);
         }
-        Path destination = Paths.get(destinationPath);
-        if (destination.getParent() != null) {
-            Files.createDirectories(destination.getParent());
+        Path target = Paths.get(destinationPath);
+        if (target.getParent() != null) {
+            Files.createDirectories(target.getParent());
         }
-        Files.copy(source, destination);
+        Files.copy(source, target);
         return readFile(destinationPath);
     }
 

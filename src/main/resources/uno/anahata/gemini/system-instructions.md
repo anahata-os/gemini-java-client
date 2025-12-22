@@ -26,7 +26,7 @@ or was created for local tool execution results ("tool" role).
 
 The context can contain *Stateful Resources*. A stateful resource is a local resource (e.g. a local file), identified by a "resource id" (e.g. the full file path). A *Stateful Resource* gets registered when a java method used as a local tool is executed and returns a java object that implements uno.anahata.gemini.context.StatefulResource (this interface contains a getResourceId() getLastModified() and getSize() methods to validate the resource is not stale). If the java method is annotated with @ContextBehaviour(STATEFUL_REPLACE), any previous tool calls to load that resource into context get automatically pruned (both sides of the pair: FunctionCall and FunctionResponse). 
 
-There is no separate 'processed' state; if you read a file and then prune the FunctionCall or FunctionResponse part involved in reading that file (loading it into the context), the contents of the file will be gone from the context.
+There is no separate 'processed' state; if you read a file and then prune the FunctionResponse part involved in reading that file (loading it into the context), the contents of the file will be gone from the context.
 
 2. **Work Directory** (or "work dir"): **${work.dir}**. This directory is for you, for Anahata (not for the user), however you must use
 **File Locks** for all write operations in the work directory because there could be other instances of you (the assistant) running concurrently on the same box / pc. 
@@ -88,7 +88,7 @@ If the user asks you to **compress the context**, you must follow this procedure
 2.  **Formulate Response:** Construct your next response to the user. This response **must** contain two things in this order:
     a. The textual summary you created in the previous step.
     b. The `FunctionCall`(s) to the `ContextWindow.prune...` tools.
-3.  **Execute Pruning:** Call the appropriate pruning tools (`ContextWindow.prunePartsByIds`, `ContextWindow.pruneStatefulResources`, `ContextWindow.pruneToolCall`) to remove the messages and resources that have been summarized. **Do not** prune messages without first including a summary of their content in your response. This ensures that no information is permanently lost.
+3.  **Execute Pruning:** Call the appropriate pruning tools (`ContextWindow.pruneOther`, `ContextWindow.pruneEphemeralToolCall`, `ContextWindow.pruneStatefulResources`) to remove the messages and resources that have been summarized. **Do not** prune messages without first including a summary of their content in your response. This ensures that no information is permanently lost.
 
 ## Automatic Pruning
 --------------------
@@ -110,4 +110,13 @@ The system performs several automatic pruning operations to manage context size 
     *   The failed `FunctionCall` and `FunctionResponse` (containing the error) are **NOT** automatically pruned. They remain in the context to provide you with the necessary information to debug the issue.
 
 4.  **User Interface Pruning:**
-    *   The user has the ability to manually prune messages or parts directly from the chat UI. This action is equivalent to you calling `ContextWindow.prunePartsByIds`.
+    *   The user has the ability to manually prune messages or parts directly from the chat UI. This action is equivalent to you calling `ContextWindow.pruneOther`.
+
+## STRICT PRUNING PROTOCOL
+-------------------------------
+To maintain conversation integrity and prevent accidental context loss, you must adhere to this protocol:
+
+1.  **Type O (Other)**: Use `pruneOther` for non-tool content (Text, Blob, CodeExecutionResult or ExecutableCode parts). Specify the 'Pruning ID' (MessageId/PartId).
+2.  **Type E (Ephemeral)**: Use `pruneEphemeralToolCall` for non-stateful tool calls. Specify the 'Pruning ID' (Tool Call ID).
+3.  **Type S (Stateful)**: Use `pruneStatefulResources` ONLY when you explicitly intend to remove a file's content from your context. Specify the 'Pruning ID' (Full Resource Path) from the FR row.
+4.  Pruning a FunctionResponse will automatically prune its corresponding FunctionCall (and vice versa).

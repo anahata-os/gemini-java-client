@@ -20,6 +20,7 @@ import uno.anahata.ai.context.ContextManager;
 import uno.anahata.ai.internal.JacksonUtils;
 import uno.anahata.ai.tools.ContextBehavior;
 import uno.anahata.ai.tools.ToolManager;
+import uno.anahata.ai.gemini.GeminiAdapter;
 
 @Slf4j
 public class ResourceTracker {
@@ -79,6 +80,81 @@ public class ResourceTracker {
         return Optional.empty();
     }
 
+    /**
+     * Checks if a specific tool call ID is associated with a stateful resource in the current context.
+     * 
+     * @param toolCallId The tool call ID to check.
+     * @return true if the tool call produced a stateful resource.
+     */
+    public boolean isStatefulToolCall(String toolCallId) {
+        if (toolCallId == null) return false;
+        ToolManager fm = contextManager.getToolManager();
+        for (ChatMessage message : contextManager.getContext()) {
+            for (Part part : message.getContent().parts().orElse(Collections.emptyList())) {
+                if (part.functionResponse().isPresent()) {
+                    FunctionResponse fr = part.functionResponse().get();
+                    if (toolCallId.equals(fr.id().orElse(null))) {
+                        return getResourceIdIfStateful(fr, fm).isPresent();
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks if a specific Part is associated with a stateful resource interaction.
+     * This includes both the FunctionCall and the FunctionResponse.
+     * 
+     * @param part The part to check.
+     * @param message The message the part belongs to.
+     * @return true if the part is part of a stateful resource interaction.
+     */
+    public boolean isStatefulPart(Part part, ChatMessage message) {
+        return getResourceStatus(part, message).isPresent();
+    }
+
+    /**
+     * Gets the status of a stateful resource associated with a part.
+     * This method handles both FunctionCall and FunctionResponse parts.
+     * 
+     * @param part The part to check.
+     * @param message The message the part belongs to.
+     * @return An Optional containing the status if the part is stateful.
+     */
+    public Optional<StatefulResourceStatus> getResourceStatus(Part part, ChatMessage message) {
+        if (part == null || message == null) return Optional.empty();
+        
+        if (part.functionResponse().isPresent()) {
+            return getResourceStatus(part.functionResponse().get());
+        }
+        
+        if (part.functionCall().isPresent()) {
+            String callId = part.functionCall().get().id().orElse(null);
+            if (callId != null && message.getDependencies() != null) {
+                // Robust lookup: find the entry in dependencies that matches this part's tool call ID.
+                // This avoids issues with object identity after serialization/deserialization.
+                List<Part> deps = null;
+                for (Map.Entry<Part, List<Part>> entry : message.getDependencies().entrySet()) {
+                    if (GeminiAdapter.getToolCallId(entry.getKey()).filter(callId::equals).isPresent()) {
+                        deps = entry.getValue();
+                        break;
+                    }
+                }
+                
+                if (deps != null) {
+                    for (Part dep : deps) {
+                        if (dep.functionResponse().isPresent() && callId.equals(dep.functionResponse().get().id().orElse(null))) {
+                            return getResourceStatus(dep.functionResponse().get());
+                        }
+                    }
+                }
+            }
+        }
+        
+        return Optional.empty();
+    }
+
     public void handleStatefulReplace(ChatMessage newMessage, ToolManager functionManager) {
         if (functionManager == null) {
             return;
@@ -119,7 +195,7 @@ public class ResourceTracker {
 
     public List<StatefulResourceStatus> getStatefulResourcesOverview() {
         List<StatefulResourceStatus> statuses = new ArrayList<>();
-        ToolManager fm = contextManager.getFunctionManager();
+        ToolManager fm = contextManager.getToolManager();
 
         for (ChatMessage message : contextManager.getContext()) {
             if (message.getContent() == null || !message.getContent().parts().isPresent()) {
@@ -156,7 +232,7 @@ public class ResourceTracker {
     public Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr) {
         // This method is for external calls that don't have the toolCallId and partId readily available.
         // It will call the internal method with nulls.
-        return getResourceStatus(fr, contextManager.getFunctionManager(), null, null);
+        return getResourceStatus(fr, contextManager.getToolManager(), null, null);
     }
 
     private Optional<StatefulResourceStatus> getResourceStatus(FunctionResponse fr, ToolManager fm, String toolCallId, String partId) {
@@ -229,13 +305,13 @@ public class ResourceTracker {
         return new StatefulResourceStatus(resourceId, contextLastModified, contextSize, diskLastModified, diskSize, status, resource, partId, toolCallId);
     }
 
-    public void pruneStatefulResources(List<String> resourceIds) {
-        ToolManager functionManager = contextManager.getFunctionManager();
+    public void pruneStatefulResources(List<String> resourceIds, String reason) {
+        ToolManager functionManager = contextManager.getToolManager();
         if (resourceIds == null || resourceIds.isEmpty() || functionManager == null) {
             return;
         }
 
-        log.info("Attempting to prune stateful resources: {}.", resourceIds);
+        log.info("Attempting to prune stateful resources: {}. Reason: {}", resourceIds, reason);
 
         Set<Part> partsToPrune = new HashSet<>();
         for (ChatMessage message : contextManager.getContext()) {
@@ -253,7 +329,7 @@ public class ResourceTracker {
         }
 
         if (!partsToPrune.isEmpty()) {
-            contextManager.prunePartsByReference(new ArrayList<>(partsToPrune), "User requested pruning of stateful resources.");
+            contextManager.prunePartsByReference(new ArrayList<>(partsToPrune), reason);
         }
     }
 }
