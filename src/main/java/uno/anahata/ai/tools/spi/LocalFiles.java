@@ -106,7 +106,7 @@ public class LocalFiles {
 
         Files.writeString(filePath, sanitize(content));
 
-        return readFile(path);
+        return new FileInfo(path);
     }
 
     @AIToolMethod(value = "Creates a new file with the given content, creating parent directories if necessary. Throws an IOException if a file or directory already exists at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)

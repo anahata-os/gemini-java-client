@@ -239,11 +239,17 @@ public class ContextPruner {
     }
     
     public void pruneEphemeralToolCall(String toolCallId, String reason) {
-        log.info("Pruning ephemeral tool call by ID: {}. Reason: {}", toolCallId, reason);
-        if (contextManager.getResourceTracker().isStatefulToolCall(toolCallId)) {
-            throw new IllegalArgumentException("Tool call ID '" + toolCallId + "' is associated with a STATEFUL resource. Use pruneStatefulResources instead.");
+        pruneEphemeralToolCalls(Collections.singletonList(toolCallId), reason);
+    }
+
+    public void pruneEphemeralToolCalls(List<String> toolCallIds, String reason) {
+        log.info("Pruning ephemeral tool calls by IDs: {}. Reason: {}", toolCallIds, reason);
+        for (String toolCallId : toolCallIds) {
+            if (contextManager.getResourceTracker().isStatefulToolCall(toolCallId)) {
+                throw new IllegalArgumentException("Tool call ID '" + toolCallId + "' is associated with a STATEFUL resource. Use pruneStatefulResources instead.");
+            }
         }
-        pruneToolCall(toolCallId, reason);
+        pruneToolCalls(toolCallIds, reason);
     }
 
     public void pruneOther(List<Part> parts, String reason) {
@@ -257,23 +263,28 @@ public class ContextPruner {
     }
 
     public void pruneToolCall(String toolCallId, String reason) {
-        log.info("Pruning tool call by ID: {}. Reason: {}", toolCallId, reason);
+        pruneToolCalls(Collections.singletonList(toolCallId), reason);
+    }
+
+    public void pruneToolCalls(List<String> toolCallIds, String reason) {
+        log.info("Pruning tool calls by IDs: {}. Reason: {}", toolCallIds, reason);
+        Set<String> idsToPrune = new HashSet<>(toolCallIds);
         List<Part> partsToPrune = new ArrayList<>();
         for (ChatMessage message : contextManager.getContext()) {
             for (Part part : message.getContent().parts().orElse(Collections.emptyList())) {
                 String id = GeminiAdapter.getToolCallId(part).orElse(null);
-                if (toolCallId.equals(id)) {
+                if (id != null && idsToPrune.contains(id)) {
                     partsToPrune.add(part);
                 }
             }
         }
         
         if (partsToPrune.isEmpty()) {
-            log.warn("No parts found with tool call ID '{}'. No action taken.", toolCallId);
+            log.warn("No parts found with tool call IDs {}. No action taken.", toolCallIds);
             return;
         }
         
-        log.info("Found {} parts with tool call ID '{}'. Delegating to prunePartsByReference.", partsToPrune.size(), toolCallId);
+        log.info("Found {} parts with tool call IDs {}. Delegating to prunePartsByReference.", partsToPrune.size(), toolCallIds);
         prunePartsByReference(partsToPrune, reason);
     }
 

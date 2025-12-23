@@ -400,10 +400,16 @@ public class Chat {
     }
 
     private List<Content> buildApiContext(List<ChatMessage> chatHistory) {
-        return chatHistory.stream()
+        List<Content> context = chatHistory.stream()
                 .map(ChatMessage::getContent)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        if (context.isEmpty() || !context.get(0).role().orElse("").equals("user")) {
+            context.add(0, Content.builder().role("user").parts(Part.fromText("")).build());
+        }
+
+        return context;
     }
 
     public Client getGoogleGenAIClient() {

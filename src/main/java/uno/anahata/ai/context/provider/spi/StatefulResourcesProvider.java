@@ -54,13 +54,13 @@ public class StatefulResourcesProvider extends ContextProvider {
             String lastModifiedDisplay = status.getStatus() == ResourceStatus.VALID ? String.valueOf(status.getContextLastModified()) : "N/A";
             String sizeDisplay = status.getStatus() == ResourceStatus.VALID ? String.valueOf(status.getContextSize()) : "N/A";
             sb.append(String.format("| %s | %s | %s | %s |\n",
+                    status.getResourceId(),
                     status.getStatus().name(),
                     lastModifiedDisplay,
                     /*
                     status.getPartId() != null ? status.getPartId() : "N/A",
                     status.getToolCallId() != null ? status.getToolCallId() : "N/A",
                     */
-                    status.getResourceId(),
                     sizeDisplay
             ));
         }

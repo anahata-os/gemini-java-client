@@ -1,6 +1,10 @@
 package uno.anahata.ai.tools.spi.pojos;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Value;
@@ -30,6 +34,15 @@ public class FileInfo implements StatefulResource {
 
     @Schema(description = "The size of the file in bytes.")
     long size;
+
+    public FileInfo(String path) throws IOException {
+        Path filePath = Paths.get(path);
+        this.path = path;
+        this.content = Files.readString(filePath);
+        this.lastModified = Files.getLastModifiedTime(filePath).toMillis();
+        this.size = Files.size(filePath);
+        this.contentLines = this.content.lines().count();
+    }
 
     @Override
     public String toString() {

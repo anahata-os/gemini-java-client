@@ -117,6 +117,7 @@ The system performs several automatic pruning operations to manage context size 
 To maintain conversation integrity and prevent accidental context loss, you must adhere to this protocol:
 
 1.  **Type O (Other)**: Use `pruneOther` for non-tool content (Text, Blob, CodeExecutionResult or ExecutableCode parts). Specify the 'Pruning ID' (MessageId/PartId).
-2.  **Type E (Ephemeral)**: Use `pruneEphemeralToolCall` for non-stateful tool calls. Specify the 'Pruning ID' (Tool Call ID).
-3.  **Type S (Stateful)**: Use `pruneStatefulResources` ONLY when you explicitly intend to remove a file's content from your context. Specify the 'Pruning ID' (Full Resource Path) from the FR row.
+2.  **Type S (Stateful)**: Use `pruneStatefulResources` ONLY when you explicitly intend to remove a file's content from your context. Specify the 'Pruning ID' (Full Resource Path) from the FR row.
+3.  **Type E (Ephemeral)**: Use `pruneEphemeralToolCall` for non-stateful tool calls before they get automatically pruned (e.g. it is very large or the context window size is approaching max tokens and is not worth waiting 5 user turns with that tool call in context). Specify the 'Pruning ID' (Tool Call ID).
 4.  Pruning a FunctionResponse will automatically prune its corresponding FunctionCall (and vice versa).
+5.  Pruning tools are generally auto-approved (and hence the response sent back to the model immediatly) so do whatever you can to avoid 'wasting a turn' with just pruning calls. As a general thing always wait until there are other tool calls to make.

@@ -77,13 +77,15 @@ public class ContextWindow {
     }
 
     @AIToolMethod(
-            value = "Prunes an ephemeral (non-stateful) tool call and its associated response using the Tool Call ID."
+            value = "Prunes one or more ephemeral (non-stateful) tool calls and their associated responses using the Tool Call IDs."
+                    + "\nWhile ephemeral tool calls are already automatically prunned after 5 user turns, this tool can be used to"
+                    + "prune (large) ephemeral too calls before they get automatically pruned"
     )
-    public static String pruneEphemeralToolCall(
-            @AIToolParam(value = "The tool call ID as shown in the 'Tool Call ID' column of the context summary.") String toolCallId,
-            @AIToolParam(value = "A brief rationale for why the tool call is being removed.") String reason) throws Exception {
-        ContextManager.getCallingInstance().getContextPruner().pruneEphemeralToolCall(toolCallId, reason);
-        return "Pruning request for ephemeral tool call ID '" + toolCallId + "' has been processed.";
+    public static String pruneEphemeralToolCalls(
+            @AIToolParam(value = "A list of tool call IDs as shown in the 'Tool Call ID' column of the context summary.") List<String> toolCallIds,
+            @AIToolParam(value = "A brief rationale for why the tool calls are being removed.") String reason) throws Exception {
+        ContextManager.getCallingInstance().getContextPruner().pruneEphemeralToolCalls(toolCallIds, reason);
+        return "Pruning request for ephemeral tool call IDs " + toolCallIds + " has been processed.";
     }
 
     @AIToolMethod(

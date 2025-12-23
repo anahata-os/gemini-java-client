@@ -351,6 +351,7 @@ public class ToolManager {
                 argsToInvoke[i] = null;
             } else {
                 // Use Jackson to convert the generic Map/List structure into the target POJO/List<POJO>
+                log.info("Converting arg value from model" + argValueFromModel.getClass() + " " + argValueFromModel);
                 argsToInvoke[i] = JacksonUtils.convertValue(argValueFromModel, paramType);
             }
         }
