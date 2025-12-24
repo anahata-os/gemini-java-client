@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides the core classes and subpackages for managing the chat conversation's state and history.
  * <p>

@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * This package contains a set of concrete implementations of the {@link uno.anahata.ai.context.provider.ContextProvider}
  * interface, each designed to inject a specific type of information into the system prompt, creating a rich and

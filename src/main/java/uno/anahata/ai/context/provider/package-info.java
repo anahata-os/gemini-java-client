@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Defines the framework for dynamically injecting contextual information into the AI model's prompt.
  *

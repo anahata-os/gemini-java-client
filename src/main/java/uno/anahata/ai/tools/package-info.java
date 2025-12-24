@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides the core framework for defining and managing local tools (functions) that the AI model can execute.
  * <p>

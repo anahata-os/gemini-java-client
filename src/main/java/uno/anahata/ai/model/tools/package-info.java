@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Defines the domain model for the tool (function) calling subsystem.
  * <p>

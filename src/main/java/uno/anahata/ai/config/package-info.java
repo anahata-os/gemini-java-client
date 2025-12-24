@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides the core configuration framework for chat sessions.
  * <p>

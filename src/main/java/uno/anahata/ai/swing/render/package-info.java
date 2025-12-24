@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides a framework of specialized renderers for displaying different types of message parts.
  * <p>

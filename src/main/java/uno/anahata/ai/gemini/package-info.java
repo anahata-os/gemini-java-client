@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * This package serves as the primary bridge between the application and the Google Gemini API.
  * It encapsulates all direct interactions with the {@code com.google.genai} client library,

@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides a robust, event-driven framework for monitoring and broadcasting the
  * real-time operational status of the chat application.

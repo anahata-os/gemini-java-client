@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides a Service Provider Interface (SPI) with a collection of pre-built, general-purpose local tools.
  * <p>

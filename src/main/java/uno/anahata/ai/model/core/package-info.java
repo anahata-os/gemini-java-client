@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Defines the core domain model for the AI assistant, providing a model-agnostic
  * representation of the conversation and its components.

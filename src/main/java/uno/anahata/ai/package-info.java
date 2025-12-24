@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides the core, high-level classes that orchestrate the AI chat application.
  * <p>

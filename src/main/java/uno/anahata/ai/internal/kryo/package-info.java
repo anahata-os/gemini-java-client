@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Contains custom serializers for the Kryo serialization framework.
  * <p>

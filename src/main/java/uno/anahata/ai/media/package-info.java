@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides a comprehensive framework for handling audio and other media,
  * neatly separating high-level, AI-callable tools from their low-level

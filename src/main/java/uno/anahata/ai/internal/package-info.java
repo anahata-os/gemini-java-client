@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides a comprehensive suite of internal utility classes that support the core functionalities of the Gemini client.
  * <p>

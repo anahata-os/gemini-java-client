@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Contains Plain Old Java Objects (POJOs) used as data transfer objects for the tools in the SPI.
  * <p>

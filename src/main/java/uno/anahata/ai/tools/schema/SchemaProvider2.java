@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 package uno.anahata.ai.tools.schema;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;

@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * Provides the logic for generating JSON schemas from Java classes and methods.
  * <p>

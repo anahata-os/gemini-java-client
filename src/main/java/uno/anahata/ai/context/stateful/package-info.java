@@ -1,3 +1,4 @@
+/* Licensed under the Apache License, Version 2.0 */
 /**
  * This package provides a robust framework for managing "stateful resources"  local
  * resources, primarily files, whose state can change independently of the chat
