@@ -1,10 +1,10 @@
-# Project Overview: anahata-ai (formerly gemini-java-client)
+# Project Overview: gemini-java-client (v1)
 
-This document provides the essential, high-level overview of the `anahata-ai` project. It is the stable, "always-in-context" guide to the project's purpose, architecture, and core principles.
+This document provides the essential, high-level overview of the `gemini-java-client` project. It is the stable, "always-in-context" guide to the project's purpose, architecture, and core principles.
 
 ## 1. High-Level Summary
 
-`anahata-ai` is a **pure-Java, enterprise-grade client framework** for building sophisticated, context-aware AI assistants. Its core strength is the **annotation-driven local tool system**, which enables the AI to execute arbitrary Java code, interact with the local file system, and manage the application's state. The project includes a complete, embeddable **Swing UI** for a rich, interactive chat experience, making it ideal for integration into IDEs or standalone desktop applications.
+`gemini-java-client ` is a **pure-Java, enterprise-grade Gemini client framework** for building sophisticated, context-aware AI assistants. Its core strength is the **annotation-driven local tool system**, which enables the AI to execute arbitrary Java code, interact with the local file system, and manage the application's state. The project includes a complete, embeddable **Swing UI** for a rich, interactive chat experience, making it ideal for integration into IDEs or standalone desktop applications.
 
 ## 2. Architectural Overview
 

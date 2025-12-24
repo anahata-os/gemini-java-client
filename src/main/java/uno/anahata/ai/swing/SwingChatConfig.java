@@ -14,6 +14,7 @@ import uno.anahata.ai.config.ChatConfig;
 import uno.anahata.ai.context.provider.ContextProvider;
 import uno.anahata.ai.internal.PartUtils;
 import uno.anahata.ai.media.functions.spi.AudioTool;
+import uno.anahata.ai.media.functions.spi.DJTool;
 import uno.anahata.ai.media.functions.spi.PianoTool;
 import uno.anahata.ai.media.functions.spi.RadioTool;
 import uno.anahata.ai.status.ChatStatus;
@@ -46,6 +47,7 @@ public class SwingChatConfig extends ChatConfig {
         ret.add(AudioTool.class);
         ret.add(RadioTool.class);
         ret.add(PianoTool.class);
+        ret.add(DJTool.class);
         return ret;
     }
 
