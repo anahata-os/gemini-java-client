@@ -24,13 +24,13 @@ public class DJWindow extends JFrame {
         setSize(700, 600);
         setLocationRelativeTo(null);
         setAlwaysOnTop(true);
-        setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                // We don't stop the engine on hide, just hide the window.
-                // The 'Stop' button in the UI or the 'stop' tool will handle shutdown.
+                // When the window is closed, we stop the engine and release resources.
+                DJTool.stop();
             }
         });
     }
