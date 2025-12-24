@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
@@ -58,6 +59,7 @@ public class GeminiAPI {
         } catch (IOException e) {
             log.error("Failed to load Gemini API keys from " + keysFilePath, e);
         }
+        Collections.shuffle(keys);
         this.keyPool = keys.toArray(new String[0]);
     }
 
