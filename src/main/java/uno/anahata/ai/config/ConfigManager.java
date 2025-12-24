@@ -4,6 +4,7 @@ import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GoogleSearch;
 import com.google.genai.types.Part;
+import com.google.genai.types.ThinkingConfig;
 import com.google.genai.types.Tool;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +56,7 @@ public class ConfigManager {
     public GenerateContentConfig makeGenerateContentConfig() {
         GenerateContentConfig.Builder builder = GenerateContentConfig.builder()
                 .systemInstruction(buildSystemInstructions())
+                .thinkingConfig(ThinkingConfig.builder().includeThoughts(true))
                 .temperature(0f);
 
         if (chat.isFunctionsEnabled()) {
