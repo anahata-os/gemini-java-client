@@ -29,14 +29,6 @@ import uno.anahata.ai.tools.MultiPartResponse;
  */
 public class LocalFiles {
 
-    private static String sanitize(String content) {
-        if (content == null) {
-            return "";
-        }
-        String normalized = content.replaceAll("\\r\\n", "\\n").replaceAll("\\r", "\\n");
-        return normalized.replaceAll("[^\\p{Print}\\t\\n]", "");
-    }
-    
     @AIToolMethod(value = "Adds the contents of the specified paths as a blobs part to the user feedback message that follows the tool message.\n"
             , requiresApproval = true, 
             behavior = ContextBehavior.EPHEMERAL)
@@ -105,7 +97,7 @@ public class LocalFiles {
                     + " was expected to exist with timestamp " + lastModified + " but it has been deleted.");
         }
 
-        Files.writeString(filePath, sanitize(content));
+        Files.writeString(filePath, content);
 
         return new FileInfo(path);
     }
@@ -122,8 +114,8 @@ public class LocalFiles {
         if (filePath.getParent() != null) {
             Files.createDirectories(filePath.getParent());
         }
-        Files.writeString(filePath, sanitize(content));
-        return readFile(path);
+        Files.writeString(filePath, content);
+        return new FileInfo(path);
     }
 
     @AIToolMethod(value = "Appends content to the end of a file. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
@@ -131,8 +123,8 @@ public class LocalFiles {
             @AIToolParam("The absolute path of the file to append to.") String path,
             @AIToolParam("The content to append.") String content
     ) throws IOException {
-        Files.writeString(Paths.get(path), sanitize(content), java.nio.file.StandardOpenOption.APPEND, java.nio.file.StandardOpenOption.CREATE);
-        return readFile(path);
+        Files.writeString(Paths.get(path), content, java.nio.file.StandardOpenOption.APPEND, java.nio.file.StandardOpenOption.CREATE);
+        return new FileInfo(path);
     }
 
     @AIToolMethod(value = "Deletes a file at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)
@@ -148,8 +140,8 @@ public class LocalFiles {
         return "Successfully deleted file: " + path;
     }
 
-    @AIToolMethod(value = "Moves or renames a file, creating parent directories for the destination if they don't exist. The operation will fail if the target file already exists. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
-    public static FileInfo moveFile(
+    @AIToolMethod(value = "Moves or renames a file, creating parent directories for the destination if they don't exist. The operation will fail if the target file already exists.", behavior = ContextBehavior.EPHEMERAL)
+    public static String moveFile(
             @AIToolParam("The absolute path of the file to move.") String sourcePath,
             @AIToolParam("The absolute path of the destination.") String targetPath
     ) throws IOException {
@@ -163,11 +155,11 @@ public class LocalFiles {
         }
         Files.move(source, target);
         Chat.getCallingInstance().getContextManager().getResourceTracker().pruneStatefulResources(Collections.singletonList(sourcePath), "File moved via LocalFiles.moveFile");
-        return readFile(targetPath);
+        return String.format("Successfully moved %s to %s", sourcePath, targetPath);
     }
 
-    @AIToolMethod(value = "Copies a file from a source path to a destination path, creating parent directories for the destination if they don't exist. The operation will fail if the target file already exists. Returns the FileInfo of the new file.", behavior = ContextBehavior.STATEFUL_REPLACE)
-    public static FileInfo copyFile(
+    @AIToolMethod(value = "Copies a file from a source path to a destination path, creating parent directories for the destination if they don't exist. The operation will fail if the target file already exists.", behavior = ContextBehavior.EPHEMERAL)
+    public static String copyFile(
             @AIToolParam("The absolute path of the source file.") String sourcePath,
             @AIToolParam("The absolute path of the destination file.") String destinationPath
     ) throws IOException {
@@ -180,7 +172,8 @@ public class LocalFiles {
             Files.createDirectories(target.getParent());
         }
         Files.copy(source, target);
-        return readFile(destinationPath);
+        long size = Files.size(target);
+        return String.format("Successfully copied %d bytes from %s to %s", size, sourcePath, destinationPath);
     }
 
     @AIToolMethod("Creates all non-existent parent directories for the given path.")
@@ -198,9 +191,8 @@ public class LocalFiles {
     ) {
         return Files.exists(Paths.get(path));
     }
-    //Commeting until we find a proper FileSystemEntry implementation.
-/*
-    @AIToolMethod(value = "Lists the contents (files and subdirectories) of a given directory.", requiresApproval = false)
+
+    @AIToolMethod(value = "Lists the contents of a directory with basic metadata (name, type, size).", requiresApproval = false)
     public static List<String> listDirectory(
             @AIToolParam("The absolute path of the directory to list.") String path
     ) throws IOException {
@@ -209,8 +201,15 @@ public class LocalFiles {
             throw new IOException("Path is not a directory: " + path);
         }
         try (Stream<Path> stream = Files.list(dirPath)) {
-            return stream.map(Path::toString).collect(Collectors.toList());
+            return stream.map(p -> {
+                try {
+                    String type = Files.isDirectory(p) ? "[DIR]" : "[FILE]";
+                    long size = Files.isDirectory(p) ? 0 : Files.size(p);
+                    return String.format("%-6s %-10d %s", type, size, p.getFileName().toString());
+                } catch (IOException e) {
+                    return "[ERROR] " + p.getFileName().toString();
+                }
+            }).collect(Collectors.toList());
         }
     }
-     */
 }
