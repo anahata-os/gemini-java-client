@@ -36,18 +36,18 @@ public class ResourceTracker {
      * and if so, extracts the resource ID.
      *
      * @param fr The FunctionResponse to check.
-     * @param functionManager The ToolManager to query for tool behavior.
+     * @param toolManager The ToolManager to query for tool behavior.
      * @return An Optional containing the resource ID if the response is stateful,
      * otherwise an empty Optional.
      */
-    public static Optional<String> getResourceIdIfStateful(FunctionResponse fr, ToolManager functionManager) {
+    public static Optional<String> getResourceIdIfStateful(FunctionResponse fr, ToolManager toolManager) {
         String toolName = fr.name().orElse("");
-        if (functionManager.getContextBehavior(toolName) != ContextBehavior.STATEFUL_REPLACE) {
+        if (toolManager.getContextBehavior(toolName) != ContextBehavior.STATEFUL_REPLACE) {
             return Optional.empty();
         }
 
         try {
-            Method toolMethod = functionManager.getToolMethod(toolName);
+            Method toolMethod = toolManager.getToolMethod(toolName);
             if (toolMethod != null && StatefulResource.class.isAssignableFrom(toolMethod.getReturnType())) {
                 Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
                 
@@ -155,14 +155,14 @@ public class ResourceTracker {
         return Optional.empty();
     }
 
-    public void handleStatefulReplace(ChatMessage newMessage, ToolManager functionManager) {
-        if (functionManager == null) {
+    public void handleStatefulReplace(ChatMessage newMessage, ToolManager toolManager) {
+        if (toolManager == null) {
             return;
         }
 
         List<String> newResourceIds = newMessage.getContent().parts().orElse(Collections.emptyList()).stream()
                 .filter(part -> part.functionResponse().isPresent())
-                .map(part -> ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), functionManager))
+                .map(part -> ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), toolManager))
                 .flatMap(Optional::stream)
                 .distinct()
                 .collect(Collectors.toList());
@@ -177,7 +177,7 @@ public class ResourceTracker {
         for (ChatMessage message : contextManager.getContext()) {
             for (Part part : message.getContent().parts().orElse(Collections.emptyList())) {
                 if (part.functionResponse().isPresent()) {
-                    Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), functionManager);
+                    Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), toolManager);
                     if (resourceIdOpt.isPresent() && newResourceIds.contains(resourceIdOpt.get())) {
                         partsToPrune.add(part);
                         if (message.getDependencies() != null) {
@@ -306,8 +306,8 @@ public class ResourceTracker {
     }
 
     public void pruneStatefulResources(List<String> resourceIds, String reason) {
-        ToolManager functionManager = contextManager.getToolManager();
-        if (resourceIds == null || resourceIds.isEmpty() || functionManager == null) {
+        ToolManager toolManager = contextManager.getToolManager();
+        if (resourceIds == null || resourceIds.isEmpty() || toolManager == null) {
             return;
         }
 
@@ -317,7 +317,7 @@ public class ResourceTracker {
         for (ChatMessage message : contextManager.getContext()) {
             for (Part part : message.getContent().parts().orElse(Collections.emptyList())) {
                 if (part.functionResponse().isPresent()) {
-                    Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), functionManager);
+                    Optional<String> resourceIdOpt = ResourceTracker.getResourceIdIfStateful(part.functionResponse().get(), toolManager);
                     if (resourceIdOpt.isPresent() && resourceIds.contains(resourceIdOpt.get())) {
                         partsToPrune.add(part);
                         if (message.getDependencies() != null) {

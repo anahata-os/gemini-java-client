@@ -33,7 +33,7 @@ import uno.anahata.ai.tools.FunctionConfirmation;
 import uno.anahata.ai.tools.FunctionInfo;
 import uno.anahata.ai.internal.GsonUtils;
 
-public class FunctionsPanel extends JPanel {
+public class ToolsPanel extends JPanel {
     private final Chat chat;
     private final SwingChatConfig config;
     private final JTable classTable;
@@ -41,10 +41,10 @@ public class FunctionsPanel extends JPanel {
     private final JPanel detailPanel;
     private final List<FunctionInfo> functionInfos;
 
-    public FunctionsPanel(Chat chat, SwingChatConfig config) {
+    public ToolsPanel(Chat chat, SwingChatConfig config) {
         this.chat = chat;
         this.config = config;
-        this.functionInfos = chat.getFunctionManager().getFunctionInfos();
+        this.functionInfos = chat.getToolManager().getFunctionInfos();
         setLayout(new BorderLayout());
 
         // Left side: Table of classes

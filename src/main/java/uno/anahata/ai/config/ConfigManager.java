@@ -59,8 +59,8 @@ public class ConfigManager {
 
         if (chat.isFunctionsEnabled()) {
             builder
-                    .tools(chat.getFunctionManager().getFunctionTool())
-                    .toolConfig(chat.getFunctionManager().getToolConfig());
+                    .tools(chat.getToolManager().getFunctionTool())
+                    .toolConfig(chat.getToolManager().getToolConfig());
         } else {
             Tool googleTools = Tool.builder().googleSearch(GoogleSearch.builder().build()).build();
             builder.tools(googleTools);

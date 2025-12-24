@@ -40,7 +40,7 @@ public class Chat {
     private static final Gson GSON = GsonUtils.getGson();
     public static final ThreadLocal<Chat> callingInstance = new ThreadLocal<>();
 
-    private final ToolManager functionManager;
+    private final ToolManager toolManager;
     private final ChatConfig config;
     private final ContextManager contextManager;
     @Getter
@@ -81,7 +81,7 @@ public class Chat {
             FunctionPrompter prompter) {
         this.config = config;
         this.executor = AnahataExecutors.newCachedThreadPoolExecutor(config.getSessionId());
-        this.functionManager = new ToolManager(this, prompter);
+        this.toolManager = new ToolManager(this, prompter);
         this.contextManager = new ContextManager(this);
         this.configManager = new ConfigManager(this);
         this.contentFactory = new ContentFactory(this);
@@ -195,7 +195,7 @@ public class Chat {
 
             Content originalContent = cand.content().get();
             // Sanitize the content to ensure all FunctionCalls have an ID before adding to context.
-            Content sanitizedContent = GeminiAdapter.sanitize(originalContent, functionManager.getIdCounter());
+            Content sanitizedContent = GeminiAdapter.sanitize(originalContent, toolManager.getIdCounter());
 
             ChatMessage modelMessage = buildChatMessage(
                 sanitizedContent, 
@@ -234,7 +234,7 @@ public class Chat {
 
         statusManager.setStatus(ChatStatus.TOOL_EXECUTION_IN_PROGRESS);
 
-        FunctionProcessingResult processingResult = functionManager.processFunctionCalls(modelMessageWithCalls);
+        FunctionProcessingResult processingResult = toolManager.processFunctionCalls(modelMessageWithCalls);
         List<ExecutedToolCall> executedCalls = processingResult.getExecutedCalls();
 
         Map<Part, List<Part>> modelDependencies = new HashMap<>();

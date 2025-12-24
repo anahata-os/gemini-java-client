@@ -32,7 +32,7 @@ public class ChatStatusProvider extends ContextProvider {
         chatStatusBlock.append("- Session Id: ").append(chat.getConfig().getSessionId()).append("\n");
         chatStatusBlock.append("- Model Id: ").append(chat.getConfig().getApi().getModelId()).append("\n");
         chatStatusBlock.append("- ContextManager: ").append(chat.getContextManager()).append("\n");
-        chatStatusBlock.append("- FunctionManager: ").append(chat.getFunctionManager()).append("\n");
+        chatStatusBlock.append("- ToolManager: ").append(chat.getToolManager()).append("\n");
         chatStatusBlock.append("- ConfigManager: ").append(chat.getConfigManager()).append("\n");
         chatStatusBlock.append("- StatusManager: ").append(chat.getStatusManager()).append("\n");
         chatStatusBlock.append("- Session Start time: ").append(chat.getStartTime()).append("\n");

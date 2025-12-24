@@ -73,9 +73,9 @@ public class ToolManager {
         if (prompter != null && config.getToolClasses() != null) {
             allClasses.addAll(config.getToolClasses());
         }
-        log.info("FunctionManager scanning classes for @AIToolMethod: " + allClasses);
+        log.info("ToolManager scanning classes for @AIToolMethod: " + allClasses);
         this.coreTools = makeFunctionsTool(allClasses.toArray(new Class<?>[0]));
-        log.info("FunctionManager created. Total Function Declarations: " + coreTools.functionDeclarations().get().size());
+        log.info("ToolManager created. Total Function Declarations: " + coreTools.functionDeclarations().get().size());
 
         this.toolConfig = makeToolConfigForFunctionCalling();
     }

@@ -49,7 +49,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
 
     private ContextProvidersPanel contextProvidersPanel;
     private GeminiKeysPanel geminiKeysPanel;
-    private FunctionsPanel functionsPanel;
+    private ToolsPanel functionsPanel;
     private StatusPanel statusPanel;
 
     public ChatPanel() {
@@ -143,11 +143,11 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         // --- CENTER Panel (Tabs) ---
         chatPanel = new ConversationPanel(this);
         heatmapPanel = new ContextHeatmapPanel();
-        heatmapPanel.setFunctionManager(chat.getFunctionManager());
+        heatmapPanel.setToolManager(chat.getToolManager());
 
         contextProvidersPanel = new ContextProvidersPanel(this);
         geminiKeysPanel = new GeminiKeysPanel(config);
-        functionsPanel = new FunctionsPanel(chat, config);
+        functionsPanel = new ToolsPanel(chat, config);
 
         tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Chat", chatPanel);

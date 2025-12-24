@@ -38,7 +38,7 @@ public class ContextManager {
     public ContextManager(Chat chat) {
         this.chat = chat;
         this.config = chat.getConfig();
-        this.toolManager = chat.getFunctionManager();
+        this.toolManager = chat.getToolManager();
 
         this.sessionManager = new SessionManager(this);
         this.resourceTracker = new ResourceTracker(this);

@@ -338,13 +338,13 @@ public class ContextPruner {
      * Implements the new, more robust logic for automatically pruning old tool calls based on our expanded definition of "ephemeral".
      * This method now only collects the initial candidates and delegates the full dependency traversal and removal.
      *
-     * @param functionManager The ToolManager, needed to check tool metadata.
+     * @param toolManager The ToolManager, needed to check tool metadata.
      */
-    public void pruneEphemeralToolCalls(ToolManager functionManager) {
+    public void pruneEphemeralToolCalls(ToolManager toolManager) {
         final int turnsToKeep = 5;
         log.info("Starting pruneEphemeralToolCalls (" + turnsToKeep + "-Turn Rule check).");
-        if (functionManager == null) {
-            log.warn("FunctionManager is null. Aborting ephemeral pruning.");
+        if (toolManager == null) {
+            log.warn("ToolManager is null. Aborting ephemeral pruning.");
             return;
         }
         List<ChatMessage> context = contextManager.getContext();
@@ -402,7 +402,7 @@ public class ContextPruner {
                 String reasonCode = "";
 
                 // Condition 1: Is the tool explicitly marked as @AIToolMethod(behavior = EPHEMERAL)?
-                if (isPartNaturallyEphemeral(part, functionManager)) {
+                if (isPartNaturallyEphemeral(part, toolManager)) {
                     isEphemeral = true;
                     reasonCode = "NATURALLY_EPHEMERAL";
                     // Condition 2: Is it a FunctionCall that has no corresponding FunctionResponse in our map? (Orphan)
@@ -410,7 +410,7 @@ public class ContextPruner {
                     isEphemeral = true;
                     reasonCode = "ORPHANED_CALL";
                     // Condition 3: Is it a FunctionResponse from a STATEFUL tool that failed to produce a valid resource?
-                } else if (part.functionResponse().isPresent() && isFailedStatefulResponse(part.functionResponse().get(), functionManager)) {
+                } else if (part.functionResponse().isPresent() && isFailedStatefulResponse(part.functionResponse().get(), toolManager)) {
                     isEphemeral = true;
                     reasonCode = "FAILED_STATEFUL_RESPONSE";
                 }
@@ -435,25 +435,25 @@ public class ContextPruner {
     /**
      * Helper to check if a part is associated with a tool marked as EPHEMERAL.
      */
-    private boolean isPartNaturallyEphemeral(Part part, ToolManager functionManager) {
+    private boolean isPartNaturallyEphemeral(Part part, ToolManager toolManager) {
         String toolName = "";
         if (part.functionCall().isPresent()) {
             toolName = part.functionCall().get().name().orElse("");
         } else if (part.functionResponse().isPresent()) {
             toolName = part.functionResponse().get().name().orElse("");
         }
-        return !toolName.isEmpty() && functionManager.getContextBehavior(toolName) == ContextBehavior.EPHEMERAL;
+        return !toolName.isEmpty() && toolManager.getContextBehavior(toolName) == ContextBehavior.EPHEMERAL;
     }
 
     /**
      * Helper to check if a FunctionResponse is from a STATEFUL_REPLACE tool but failed to return a valid resource ID.
      */
-    private boolean isFailedStatefulResponse(FunctionResponse fr, ToolManager functionManager) {
+    private boolean isFailedStatefulResponse(FunctionResponse fr, ToolManager toolManager) {
         String toolName = fr.name().orElse("");
         // Only check if the tool was *supposed* to be stateful.
-        if (functionManager.getContextBehavior(toolName) == ContextBehavior.STATEFUL_REPLACE) {
+        if (toolManager.getContextBehavior(toolName) == ContextBehavior.STATEFUL_REPLACE) {
             // If it was stateful, but we can't get a resource ID from its response, it's a "failed" stateful response.
-            return ResourceTracker.getResourceIdIfStateful(fr, functionManager).isEmpty();
+            return ResourceTracker.getResourceIdIfStateful(fr, toolManager).isEmpty();
         }
         return false;
     }

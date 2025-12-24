@@ -7,7 +7,7 @@
  *
  * <h2>Key Components:</h2>
  * <ul>
- *   <li>{@link uno.anahata.gemini.functions.FunctionManager}: The main orchestrator for tool management. It discovers
+ *   <li>{@link uno.anahata.gemini.functions.ToolManager}: The main orchestrator for tool management. It discovers
  *       tools via annotations, generates the necessary JSON schema for the Gemini API, executes function calls,
  *       and handles the user confirmation workflow.</li>
  *

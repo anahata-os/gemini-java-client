@@ -66,7 +66,7 @@ public class ContextHeatmapPanel extends JPanel {
     private PieChartPanel pieChartPanel;
     private JLabel statusLabel;
     private SwingWorker<List<PartInfo>, Void> worker;
-    private ToolManager functionManager;
+    private ToolManager toolManager;
     private SwingChatConfig.UITheme theme;
 
     private ScrollableTooltipPopup tooltipPopup;
@@ -75,8 +75,8 @@ public class ContextHeatmapPanel extends JPanel {
         initComponents();
     }
 
-    public void setFunctionManager(ToolManager functionManager) {
-        this.functionManager = functionManager;
+    public void setToolManager(ToolManager toolManager) {
+        this.toolManager = toolManager;
         this.theme = new SwingChatConfig.UITheme();
     }
 
@@ -166,7 +166,7 @@ public class ContextHeatmapPanel extends JPanel {
             new SwingWorker<Void, Void>() {
                 @Override
                 protected Void doInBackground() throws Exception {
-                    functionManager.getChat().getContextManager().prunePartsByReference(
+                    toolManager.getChat().getContextManager().prunePartsByReference(
                             partsToPrune,
                             "Pruned by user from Context Heatmap"
                         );
@@ -236,8 +236,8 @@ public class ContextHeatmapPanel extends JPanel {
     }
 
     private List<PartInfo> buildPartInfoList(List<ChatMessage> context) {
-        Map<String, ResourceStatus> statusMap = functionManager != null && functionManager.getChat().getContextManager() != null
-            ? functionManager.getChat().getContextManager().getResourceTracker().getStatefulResourcesOverview()
+        Map<String, ResourceStatus> statusMap = toolManager != null && toolManager.getChat().getContextManager() != null
+            ? toolManager.getChat().getContextManager().getResourceTracker().getStatefulResourcesOverview()
                 .stream()
                 .collect(Collectors.toMap(srs -> srs.resource.getResourceId(), srs -> srs.status))
             : Collections.emptyMap();
@@ -248,7 +248,7 @@ public class ContextHeatmapPanel extends JPanel {
             if (msg.getContent() != null && msg.getContent().parts().isPresent()) {
                 List<Part> parts = msg.getContent().parts().get();
                 for (int j = 0; j < parts.size(); j++) {
-                    infos.add(new PartInfo(i, j, msg, parts.get(j), functionManager, theme, statusMap));
+                    infos.add(new PartInfo(i, j, msg, parts.get(j), toolManager, theme, statusMap));
                 }
             }
         }

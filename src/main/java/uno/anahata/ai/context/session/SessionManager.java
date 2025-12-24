@@ -89,7 +89,7 @@ public class SessionManager {
                 .mapToInt(Integer::parseInt)
                 .max()
                 .orElse(0);
-            contextManager.getChat().getFunctionManager().resetIdCounter(highestToolId + 1);
+            contextManager.getChat().getToolManager().resetIdCounter(highestToolId + 1);
         }
         
         log.info("Session '{}' loaded successfully and counters have been reset.", id);
