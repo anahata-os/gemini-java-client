@@ -15,6 +15,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JPanel;
+import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 import javax.swing.text.html.StyleSheet;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
@@ -36,8 +37,10 @@ public class TextPartRenderer implements PartRenderer {
     @Override
     public JComponent render(Part part, EditorKitProvider editorKitProvider) {
         String markdownText = part.text().orElse("");
+        boolean isThought = part.thought().orElse(false);
+        
         if (!CODE_BLOCK_PATTERN.matcher(markdownText).find()) {
-            return createHtmlPane(htmlRenderer.render(markdownParser.parse(markdownText)));
+            return createHtmlPane(htmlRenderer.render(markdownParser.parse(markdownText)), isThought);
         }
 
         JPanel panel = new JPanel();
@@ -49,7 +52,7 @@ public class TextPartRenderer implements PartRenderer {
         while (matcher.find()) {
             if (matcher.start() > lastEnd) {
                 String textSegment = markdownText.substring(lastEnd, matcher.start());
-                panel.add(createHtmlPane(htmlRenderer.render(markdownParser.parse(textSegment))));
+                panel.add(createHtmlPane(htmlRenderer.render(markdownParser.parse(textSegment)), isThought));
             }
             String language = matcher.group(1);
             String code = matcher.group(2);
@@ -61,24 +64,39 @@ public class TextPartRenderer implements PartRenderer {
 
         if (lastEnd < markdownText.length()) {
             String textSegment = markdownText.substring(lastEnd);
-            panel.add(createHtmlPane(htmlRenderer.render(markdownParser.parse(textSegment))));
+            panel.add(createHtmlPane(htmlRenderer.render(markdownParser.parse(textSegment)), isThought));
         }
         return panel;
     }
 
-    private JComponent createHtmlPane(String html) {
+    private JComponent createHtmlPane(String html, boolean isThought) {
         JEditorPane editorPane = new ContentRenderer.WrappingEditorPane();
         editorPane.setEditable(false);
         editorPane.setContentType("text/html");
         editorPane.setOpaque(false); 
         
         HTMLEditorKit kit = new HTMLEditorKit();
-        editorPane.setEditorKit(kit);
-        StyleSheet sheet = kit.getStyleSheet();
-        sheet.addRule("body { word-wrap: break-word; font-family: sans-serif; font-size: 14px; background-color: transparent; }");
+        
+        // Create a local stylesheet to avoid polluting the global HTMLEditorKit stylesheet
+        StyleSheet sheet = new StyleSheet();
+        sheet.addStyleSheet(kit.getStyleSheet());
+        
+        String bodyRule = "body { word-wrap: break-word; font-family: sans-serif; font-size: 14px; background-color: transparent; ";
+        if (isThought) {
+            bodyRule += "font-style: italic; color: #777777; ";
+        }
+        bodyRule += "}";
+        
+        sheet.addRule(bodyRule);
         sheet.addRule("table { border-collapse: collapse; width: 100%; }");
         sheet.addRule("th, td { border: 1px solid #dddddd; text-align: left; padding: 8px; }");
         sheet.addRule("th { background-color: #f2f2f2; }");
+        
+        // Correct way to set a per-instance stylesheet: pass it to the HTMLDocument constructor
+        HTMLDocument doc = new HTMLDocument(sheet);
+        editorPane.setEditorKit(kit);
+        editorPane.setDocument(doc);
+        
         editorPane.setText("<html><body>" + html + "</body></html>");
         editorPane.setAlignmentX(JComponent.LEFT_ALIGNMENT);
         
