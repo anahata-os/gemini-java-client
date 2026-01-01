@@ -43,12 +43,12 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>central</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+            <id>local-snapshot</id>
+            <url>file://${project.build.directory}/mvn-repo</url>
         </snapshotRepository>
         <repository>
-            <id>central</id>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>local-release</id>
+            <url>file://${project.build.directory}/mvn-repo</url>
         </repository>
     </distributionManagement>
 
