@@ -2,7 +2,8 @@
 package uno.anahata.ai.context.provider;
 
 /**
- * Defines the possible locations where a {@link ContextProvider} can inject its content.
+ * Defines the possible locations where a {@link ContextProvider} can inject its content
+ * into the model's prompt.
  */
 public enum ContextPosition {
     /**

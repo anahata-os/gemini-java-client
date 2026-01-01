@@ -7,6 +7,11 @@ import lombok.Getter;
 /**
  * A data class that holds the complete status of a stateful resource,
  * comparing its state in the chat context versus its state on the physical disk.
+ * <p>
+ * This is used by the {@link ResourceTracker} to determine if a resource in
+ * the context is valid, stale, or deleted, and to provide this information
+ * to the model and UI.
+ * </p>
  *
  * @author Anahata
  */

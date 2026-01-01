@@ -14,11 +14,15 @@ import java.util.Optional;
  * JavaSerializer relies on it. This serializer handles Optional by writing a
  * boolean to indicate if a value is present, followed by the value itself if it
  * exists.
+ * </p>
  *
  * @author Anahata
  */
 public class OptionalSerializer extends Serializer<Optional<?>> {
 
+    /**
+     * Constructs a new OptionalSerializer and marks it as immutable.
+     */
     public OptionalSerializer() {
         setImmutable(true);
     }
