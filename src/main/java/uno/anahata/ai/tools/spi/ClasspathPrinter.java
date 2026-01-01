@@ -8,7 +8,12 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A helper class to print classpaths in a readable, grouped format.
+ * A utility class for formatting complex Java classpaths into a readable,
+ * hierarchical tree structure.
+ * <p>
+ * This is especially useful for debugging "hot-reload" issues or inspecting
+ * the environment of a running JVM.
+ * </p>
  */
 public class ClasspathPrinter {
 

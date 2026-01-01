@@ -13,8 +13,33 @@ import java.util.concurrent.Future;
 import uno.anahata.ai.tools.AIToolMethod;
 import uno.anahata.ai.tools.AIToolParam;
 
+/**
+ * A tool provider that allows the AI model to execute commands in the local
+ * bash shell.
+ * <p>
+ * This tool is powerful and should be used with caution. It captures standard
+ * output, standard error, and execution metadata.
+ * </p>
+ */
 public class LocalShell {
 
+    /**
+     * Executes a shell command using {@code bash -c}.
+     *
+     * @param command The shell command to execute.
+     * @return A map containing execution results:
+     * <ul>
+     *   <li>{@code threadId}: The name of the thread that initiated the command.</li>
+     *   <li>{@code pid}: The process ID of the shell command.</li>
+     *   <li>{@code startTime}: ISO-8601 start timestamp.</li>
+     *   <li>{@code endTime}: ISO-8601 end timestamp.</li>
+     *   <li>{@code executionTimeMs}: Total duration in milliseconds.</li>
+     *   <li>{@code exitCode}: The process exit code (0 for success).</li>
+     *   <li>{@code stdout}: The captured standard output.</li>
+     *   <li>{@code stderr}: The captured standard error.</li>
+     * </ul>
+     * @throws Exception if the command fails to start or execution is interrupted.
+     */
     @AIToolMethod("Runs a shell command with bash -c: <command> and returns a map with the following values:\n"
             + " \n\tthreadId (it of the thread that executed the shell command, "
             + " \n\tpid, process id"

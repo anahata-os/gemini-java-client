@@ -15,10 +15,22 @@ import uno.anahata.ai.tools.AIToolMethod;
 import uno.anahata.ai.tools.AIToolParam;
 
 /**
- * A Core Function provider that groups all functions for generating images.
+ * A tool provider for generating images using the Gemini API.
+ * <p>
+ * This class leverages the {@code gemini-2.5-flash-image} model to create
+ * visual content based on text prompts.
+ * </p>
  */
 public class Images {
 
+    /**
+     * Generates a single image from a text prompt and saves it to the local file system.
+     *
+     * @param prompt   A detailed description of the image to generate.
+     * @param filePath The absolute path where the resulting PNG image should be saved.
+     * @return A success or failure message.
+     * @throws Exception if the API call fails or an I/O error occurs.
+     */
     @AIToolMethod("Generates a single image based on a text prompt and saves it to a specified file path.")
     public static String create(
         @AIToolParam("The text prompt to describe the desired image.") String prompt,

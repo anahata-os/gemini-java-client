@@ -31,37 +31,83 @@ import uno.anahata.ai.tools.AIToolMethod;
 import uno.anahata.ai.tools.AIToolParam;
 
 /**
- * Provides functions for the model to compile and execute java code in the
- * current JVM.
+ * Provides tools for the AI model to compile and execute Java source code
+ * within the application's running JVM.
+ * <p>
+ * This enables a powerful "hot-reload" workflow where the model can write,
+ * test, and run code dynamically. It uses an in-memory file manager and a
+ * custom classloader to ensure that newly compiled classes take precedence.
+ * </p>
  *
  * @author anahata
  */
 @Slf4j
 public class RunningJVM {
 
+    /**
+     * A thread-safe map that can be used by the model to persist state across
+     * multiple dynamic code executions.
+     */
     public static Map chatTemp = Collections.synchronizedMap(new HashMap());
+    
+    /**
+     * The default classpath used by the compiler.
+     */
     public static String defaultCompilerClasspath = initDefaultCompilerClasspath();
 
+    /**
+     * Initializes the default compiler classpath from the system property.
+     *
+     * @return The system classpath.
+     */
     public static String initDefaultCompilerClasspath() {
         defaultCompilerClasspath = System.getProperty("java.class.path");
         return System.getProperty("java.class.path");
     }
 
+    /**
+     * Gets the current default compiler classpath.
+     *
+     * @return The classpath string.
+     */
     @AIToolMethod("The classpath of the compiler used by RunningJVM. tools that require compilation")
     public static String getDefaultCompilerClasspath() {
         return defaultCompilerClasspath;
     }
 
+    /**
+     * Sets a new default compiler classpath.
+     *
+     * @param defaultCompilerClasspath The new classpath string.
+     */
     @AIToolMethod("Sets the classpath of the compiler used by RunningJVM. tools")
     public static void setDefaultCompilerClasspath(@AIToolParam("The default classpath for all code compiled by RunningJVM tools") String defaultCompilerClasspath) {
         RunningJVM.defaultCompilerClasspath = defaultCompilerClasspath;
     }
     
+    /**
+     * Returns a pretty-printed, tree-like representation of the default classpath.
+     *
+     * @return The formatted classpath string.
+     */
     @AIToolMethod(value = "Gets a formatted string of the default compiler classpath, grouped by directory.", requiresApproval = false)
     public static String getPrettyPrintedDefaultCompilerClasspath() {
         return ClasspathPrinter.prettyPrint(defaultCompilerClasspath);
     }
 
+    /**
+     * Compiles Java source code in memory and returns the resulting Class object.
+     *
+     * @param sourceCode      The Java source code to compile.
+     * @param className       The fully qualified name of the class.
+     * @param extraClassPath  Additional classpath entries to include.
+     * @param compilerOptions Additional options for the Java compiler.
+     * @return The compiled Class object.
+     * @throws ClassNotFoundException    if the class cannot be found after compilation.
+     * @throws NoSuchMethodException     if a required constructor is missing.
+     * @throws IllegalAccessException    if the class or constructor is not accessible.
+     * @throws InvocationTargetException if the constructor throws an exception.
+     */
     @AIToolMethod("Compiles the source code of a java class with whatever classpath is defined in RunningJVM.getDefaultCompilerClassPath")
     public static Class compileJava(
             @AIToolParam("The source code") String sourceCode,
@@ -225,6 +271,15 @@ public class RunningJVM {
         return reloadingClassLoader.loadClass(className);
     }
 
+    /**
+     * Compiles and executes a Java class named {@code Anahata} that implements {@link Callable}.
+     *
+     * @param sourceCode      The Java source code.
+     * @param extraClassPath  Additional classpath entries.
+     * @param compilerOptions Additional compiler options.
+     * @return The result of the {@code call()} method, ensured to be JSON-serializable.
+     * @throws Exception if compilation or execution fails.
+     */
     @AIToolMethod(
             value = "Compiles and executes Java source code in the users JVM.\n"
             + "The compiler will use the classpath set in the public static field 'uno.anahata.ai.tools.spi.RunningJVM.defaultCompilerClasspath' plus any extra classpath explicitely passed as an argument to the function (if any).\n"

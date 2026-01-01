@@ -13,10 +13,19 @@ import uno.anahata.ai.tools.AIToolMethod;
 import uno.anahata.ai.tools.AIToolParam;
 
 /**
- * A set of tools for inspecting and managing the chat context window.
+ * A set of tools for inspecting and managing the AI's conversation context window.
+ * <p>
+ * These tools allow the model to monitor its own token usage, prune redundant
+ * information, and toggle dynamic context providers.
+ * </p>
  */
 public class ContextWindow {
 
+    /**
+     * Generates a detailed Markdown summary of all messages and parts in the context.
+     *
+     * @return The context summary string.
+     */
     @AIToolMethod(
             value = "Lists all entries (messages) in the context including their stable Message IDs, roles, and all their parts"
     )
@@ -24,6 +33,14 @@ public class ContextWindow {
         return ContextManager.getCallingInstance().getSessionManager().getSummaryAsString();
     }
 
+    /**
+     * Prunes specific non-tool parts from the context.
+     *
+     * @param partIds A list of part identifiers in 'messageId/partIndex' format.
+     * @param reason  The rationale for removal.
+     * @return A status message indicating the result of the pruning.
+     * @throws Exception if pruning fails.
+     */
     @AIToolMethod(
             value = "Prunes one or more non-tool parts (Text, Blob, CodeExecutionResult or ExecutableCode) from the context using the 'messageId/partIndex' notation."
     )
@@ -77,6 +94,14 @@ public class ContextWindow {
         return response.toString();
     }
 
+    /**
+     * Prunes ephemeral tool calls and their responses by ID.
+     *
+     * @param toolCallIds A list of tool call IDs.
+     * @param reason      The rationale for removal.
+     * @return A success message.
+     * @throws Exception if pruning fails.
+     */
     @AIToolMethod(
             value = "Prunes one or more ephemeral (non-stateful) tool calls and their associated responses using the Tool Call IDs."
                     + "\nWhile ephemeral tool calls are already automatically prunned after 5 user turns, this tool can be used to"
@@ -89,6 +114,14 @@ public class ContextWindow {
         return "Pruning request for ephemeral tool call IDs " + toolCallIds + " has been processed.";
     }
 
+    /**
+     * Prunes all parts associated with specific stateful resources.
+     *
+     * @param resourceIds A list of resource IDs (full paths).
+     * @param reason      The rationale for removal.
+     * @return A success message.
+     * @throws Exception if pruning fails.
+     */
     @AIToolMethod(
             value = "Prunes all FunctionCall and FunctionResponse parts associated with the given stateful resource IDs (full paths)."
     )
@@ -99,6 +132,12 @@ public class ContextWindow {
         return "Pruning request for " + resourceIds.size() + " stateful resources has been processed.";
     }
 
+    /**
+     * Gets the current total token count in the context window.
+     *
+     * @return The token count.
+     * @throws Exception if the count cannot be retrieved.
+     */
     @AIToolMethod(
             value = "Gets the current total token count in the context window as shown to the user. This is the total token count received on the last api call (prompt + candidate)"
     )
@@ -106,6 +145,11 @@ public class ContextWindow {
         return ContextManager.getCallingInstance().getTotalTokenCount();
     }
 
+    /**
+     * Gets the current token threshold.
+     *
+     * @return The token threshold.
+     */
     @AIToolMethod(
             value = "Gets the current token threshold. This is the maximum number of total tokens (prompt + candidate) that the user can / is keen to work with due to his own budget or api / model constraints."
     )
@@ -113,6 +157,12 @@ public class ContextWindow {
         return ContextManager.getCallingInstance().getTokenThreshold();
     }
 
+    /**
+     * Sets a new token threshold.
+     *
+     * @param newThreshold The new threshold value.
+     * @return A success message.
+     */
     @AIToolMethod(
             value = "Sets the token threshold. See getTokenThreshold"
     )
@@ -123,6 +173,13 @@ public class ContextWindow {
         return "Token threshold set to " + newThreshold;
     }
 
+    /**
+     * Enables or disables specific context providers.
+     *
+     * @param contextProviderIds A list of provider IDs.
+     * @param enabled            The desired state.
+     * @return A feedback message listing the updated providers.
+     */
     @AIToolMethod(
             value = "Enables / disables one or more context providers"
     )
