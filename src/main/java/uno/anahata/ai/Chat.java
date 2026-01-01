@@ -291,9 +291,10 @@ public class Chat {
                     String toolName = outcome.getIdentifiedCall().getCall().name().orElse("unknown");
                     String id = outcome.getIdentifiedCall().getId();
                     String status = outcome.getStatus().name();
+                    /*
                     if (outcome.getStatus() == ToolCallStatus.YES || outcome.getStatus() == ToolCallStatus.ALWAYS) {
                         status = "";
-                    } 
+                    } */
                     
                     return String.format("[%s id=%s %s]", toolName, id, status);
                 })

@@ -15,13 +15,13 @@
 
     <organization>
         <name>Anahata</name>
-        <url>http://anahata.uno</url>
+        <url>https://anahata.uno</url>
     </organization>
 
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -31,7 +31,7 @@
             <name>Priyadarshi</name>
             <email>p@anahata.uno</email>
             <organization>Anahata</organization>
-            <organizationUrl>http://anahata.uno</organizationUrl>
+            <organizationUrl>https://anahata.uno</organizationUrl>
         </developer>
     </developers>
 
@@ -242,6 +242,46 @@
                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                         </manifest>
                     </archive>
+                </configuration>
+            </plugin>
+            
+            <!-- Source plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Javadoc plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doclint>none</doclint>
+                    <bottom><![CDATA[
+                        <div style="padding: 15px; background: #1a202c; color: #e2e8f0; border-top: 3px solid #2c7a7b; text-align: center;">
+                            <img src="https://anahata.uno/assets/logo-horizontal.png" alt="Anahata Logo" style="height: 35px; vertical-align: middle; margin-right: 20px;">
+                            <span style="font-size: 1.1em; font-weight: bold;">Força Barça!</span> 
+                            <a href="https://github.com/sponsors/anahata-os" style="color: #db61a2; margin-left: 20px; text-decoration: none; font-weight: bold;">Please Donate ❤️</a>
+                        </div>
+                    ]]></bottom>
                 </configuration>
             </plugin>
         </plugins>

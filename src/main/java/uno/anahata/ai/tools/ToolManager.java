@@ -196,16 +196,16 @@ public class ToolManager {
             return new FunctionProcessingResult(Collections.emptyList(), Collections.emptyList(), "");
         }
         
-        // Step 2: Determine if we can bypass the UI prompt (autopilot).
+        // Step 2: Determine if we can bypass the UI prompt (all were ALWAYS preapproved).
         boolean allAlwaysApproved = identifiedCalls.stream()
             .allMatch(ic -> config.getFunctionConfirmation(ic.getCall()) == FunctionConfirmation.ALWAYS);
 
         PromptResult promptResult;
         if (allAlwaysApproved) {
-            log.info("Autopilot: All function calls are pre-approved. Skipping confirmation dialog.");
+            log.info("All function calls are pre-approved. Skipping confirmation dialog.");
             Map<FunctionCall, FunctionConfirmation> confirmations = new LinkedHashMap<>();
             identifiedCalls.forEach(ic -> confirmations.put(ic.getCall(), FunctionConfirmation.ALWAYS));
-            promptResult = new PromptResult(confirmations, "Autopilot", false);
+            promptResult = new PromptResult(confirmations, "user did not have a chance to comment as all tools calls were pre approved", false);
         } else {
             promptResult = prompter.prompt(modelResponseMessage, this.chat);
         }
