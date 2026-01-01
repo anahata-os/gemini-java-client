@@ -81,9 +81,11 @@ public class TextPartRenderer implements PartRenderer {
         StyleSheet sheet = new StyleSheet();
         sheet.addStyleSheet(kit.getStyleSheet());
         
-        String bodyRule = "body { word-wrap: break-word; font-family: sans-serif; font-size: 14px; background-color: transparent; ";
+        String bodyRule = "body { word-wrap: break-word; font-family: sans-serif; font-size: 12px; background-color: transparent; ";
         if (isThought) {
-            bodyRule += "font-style: italic; color: #777777; ";
+            bodyRule += "font-style: italic; color: #707070; ";
+        } else {
+            bodyRule += "font-style: normal; ";
         }
         bodyRule += "}";
         
