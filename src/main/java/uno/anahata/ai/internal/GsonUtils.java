@@ -14,10 +14,23 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
+/**
+ * Utility class for GSON-based JSON operations.
+ * <p>
+ * This class provides a centrally configured {@link Gson} instance that
+ * correctly handles Java 8 {@link Optional} types, which are extensively
+ * used in the Google GenAI library.
+ * </p>
+ */
 public final class GsonUtils {
     private static final Gson GSON = createGson(false);
     private static final Gson PRETTY_PRINT_GSON = createGson(true);
 
+    /**
+     * Gets the default, compact GSON instance.
+     *
+     * @return The GSON instance.
+     */
     public static Gson getGson() {
         return GSON;
     }

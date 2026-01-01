@@ -15,9 +15,20 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Manages the connection to the Gemini API, including API key rotation and model selection.
+ * <p>
+ * This class loads API keys from a configuration file and provides a round-robin
+ * mechanism for selecting a key for each request, helping to distribute load
+ * and stay within rate limits.
+ * </p>
+ */
 @Slf4j
 public class GeminiAPI {
 
+    /**
+     * The list of Gemini model IDs supported by this client.
+     */
     private static final List<String> AVAILABLE_MODEL_IDS = Arrays.asList(
             "gemini-3-flash-preview",
             "gemini-3-flash",
@@ -36,6 +47,11 @@ public class GeminiAPI {
     private String[] keyPool;
     private int round = 0;
 
+    /**
+     * Constructs a new GeminiAPI instance and loads API keys from the configuration.
+     *
+     * @param config The chat configuration.
+     */
     public GeminiAPI(ChatConfig config) {
         loadApiKeys(config);
         if (keyPool.length > 0) {
@@ -64,6 +80,12 @@ public class GeminiAPI {
         this.keyPool = keys.toArray(new String[0]);
     }
 
+    /**
+     * Gets a new {@link Client} instance using the next available API key in the pool.
+     *
+     * @return A configured Gemini Client.
+     * @throws IllegalStateException if no API keys are available.
+     */
     public synchronized Client getClient() {
         if (keyPool.length == 0) {
             throw new IllegalStateException("No API keys available. Cannot create Gemini client.");
@@ -74,15 +96,30 @@ public class GeminiAPI {
         return new Client.Builder().apiKey(key).build();
     }
 
+    /**
+     * Gets the currently selected model ID.
+     *
+     * @return The model ID.
+     */
     public String getModelId() {
         return modelId;
     }
 
+    /**
+     * Sets the model ID to be used for subsequent requests.
+     *
+     * @param modelId The new model ID.
+     */
     public void setModelId(String modelId) {
         this.modelId = modelId;
         log.info("Gemini model ID set to: {}", modelId);
     }
 
+    /**
+     * Gets the list of all available model IDs.
+     *
+     * @return The list of model IDs.
+     */
     public List<String> getAvailableModelIds() {
         return AVAILABLE_MODEL_IDS;
     }

@@ -17,6 +17,18 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.internal.kryo.OptionalSerializer;
 
+/**
+ * Utility class for high-performance object serialization using the Kryo library.
+ * <p>
+ * This class is primarily used for saving and loading conversation history.
+ * It uses a {@code ThreadLocal} to manage Kryo instances, ensuring thread safety
+ * while avoiding the overhead of frequent instance creation.
+ * </p>
+ * <p>
+ * It pre-registers common Gemini API types and JDK/Guava collections to optimize
+ * the serialized output size.
+ * </p>
+ */
 public class KryoUtils {
 
     private static final ThreadLocal<Kryo> kryoThreadLocal = ThreadLocal.withInitial(() -> {
@@ -52,10 +64,21 @@ public class KryoUtils {
         return kryo;
     });
 
+    /**
+     * Gets the Kryo instance associated with the current thread.
+     *
+     * @return The thread-local Kryo instance.
+     */
     public static Kryo getKryo() {
         return kryoThreadLocal.get();
     }
 
+    /**
+     * Serializes an object into a byte array.
+     *
+     * @param object The object to serialize.
+     * @return The serialized byte array.
+     */
     public static byte[] serialize(Object object) {
         Kryo kryo = getKryo();
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -65,6 +88,14 @@ public class KryoUtils {
         return byteArrayOutputStream.toByteArray();
     }
 
+    /**
+     * Deserializes an object from a byte array.
+     *
+     * @param <T>   The expected type of the object.
+     * @param bytes The serialized byte array.
+     * @param clazz The class of the expected type.
+     * @return The deserialized object.
+     */
     public static <T> T deserialize(byte[] bytes, Class<T> clazz) {
         Kryo kryo = getKryo();
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);

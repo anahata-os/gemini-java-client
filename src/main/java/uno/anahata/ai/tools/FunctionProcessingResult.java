@@ -6,18 +6,32 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * The result of a function call prompt containing the prompt for several functions.
- * It summarizes the outcome of the entire user interaction and execution phase for a given turn.
+ * Summarizes the outcome of the entire user interaction and execution phase
+ * for a given turn where tool calls were proposed.
+ * <p>
+ * It contains the list of successfully executed calls, the definitive outcomes
+ * for all proposed calls, and any feedback provided by the user.
+ * </p>
  *
  * @author anahata
  */
 @Getter
 @AllArgsConstructor
 public class FunctionProcessingResult {
-    /** A list of all the successfully executed tool calls for the turn. */
+    /**
+     * A list of all tool calls that were approved and successfully executed
+     * during this turn.
+     */
     public final List<ExecutedToolCall> executedCalls;
-    /** A definitive list of outcomes for every tool call proposed by the model in this turn. */
+    
+    /**
+     * A definitive list of outcomes for every tool call proposed by the model
+     * in this turn, including those that were denied or cancelled.
+     */
     public final List<ToolCallOutcome> outcomes;
-    /** Any text the user entered in the comment box of the confirmation dialog. */
+    
+    /**
+     * Any text the user entered in the comment box of the confirmation dialog.
+     */
     public final String userComment;
 }

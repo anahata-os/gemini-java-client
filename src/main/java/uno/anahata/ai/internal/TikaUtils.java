@@ -10,6 +10,13 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 
+/**
+ * Utility class for file type detection and content extraction using Apache Tika.
+ * <p>
+ * This class provides methods to identify the MIME type of a file and to
+ * extract its text content, supporting a wide range of formats (PDF, DOCX, etc.).
+ * </p>
+ */
 public final class TikaUtils {
 
     private static final Tika TIKA = new Tika();
@@ -27,6 +34,10 @@ public final class TikaUtils {
 
     /**
      * Detects the file type and parses the text content from a given file.
+     * <p>
+     * This method uses Tika's auto-detection to choose the appropriate parser
+     * for the file format.
+     * </p>
      *
      * @param file The file to parse.
      * @return The extracted text content.

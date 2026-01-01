@@ -7,18 +7,31 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * Represents a FunctionCall that has been assigned a short, unique, turn-specific ID.
- * This provides a stable reference for tracking a call through the confirmation and execution lifecycle.
+ * Represents a {@link FunctionCall} that has been assigned a short, unique,
+ * turn-specific ID.
+ * <p>
+ * This provides a stable reference for tracking a call through the
+ * confirmation and execution lifecycle, especially when the model fails
+ * to provide its own ID.
+ * </p>
  *
  * @author anahata
  */
 @Getter
 @AllArgsConstructor
 public class IdentifiedFunctionCall {
-    /** The original FunctionCall object from the model. */
+    /**
+     * The original {@link FunctionCall} object received from the model.
+     */
     private final FunctionCall call;
-    /** The short, sequential ID assigned to this call for this turn. */
+    
+    /**
+     * The short, sequential ID assigned to this call for the current turn.
+     */
     private final String id;
-    /** The message Part that this call originated from. */
+    
+    /**
+     * The message {@link Part} that this call originated from.
+     */
     private final Part sourcePart;
 }

@@ -4,7 +4,12 @@ package uno.anahata.ai;
 import java.io.File;
 
 /**
- * Gllobal Anahata Working directory stuff.
+ * Manages the global configuration and working directory for the Anahata AI framework.
+ * <p>
+ * This class is responsible for ensuring the existence of the application's
+ * root working directory (typically {@code ~/.anahata/ai-assistant}) and
+ * providing access to its subfolders.
+ * </p>
  * 
  * @author anahata
  */
@@ -18,6 +23,13 @@ public class AnahataConfig {
         }
     }
     
+    /**
+     * Gets a subfolder within the application's root working directory.
+     * If the folder does not exist, it is created.
+     *
+     * @param name The name of the subfolder.
+     * @return The subfolder File.
+     */
     public static File getWorkingFolder(String name) {
         File f = new File(getWorkingFolder(), name);
         if (!f.exists()) {
@@ -26,6 +38,14 @@ public class AnahataConfig {
         return f;
     }
 
+    /**
+     * Gets the application's root working directory.
+     * <p>
+     * The default location is {@code .anahata/ai-assistant} within the user's home directory.
+     * </p>
+     *
+     * @return The root working directory File.
+     */
     public static File getWorkingFolder() {
         File f = new File(System.getProperty("user.home") + File.separator + ".anahata" + File.separator + "ai-assistant");
         if (!f.exists()) {

@@ -6,15 +6,24 @@ import lombok.Getter;
 
 /**
  * A data class that represents the final outcome of a single proposed tool call.
- * It links a uniquely identified function call to its definitive status for the turn.
+ * <p>
+ * It links a uniquely identified function call to its definitive status for
+ * the turn, providing a clear record of what was proposed and what actually
+ * happened.
+ * </p>
  *
  * @author anahata
  */
 @Getter
 @AllArgsConstructor
 public class ToolCallOutcome {
-    /** The function call, wrapped with its unique, turn-specific ID. */
+    /**
+     * The function call, wrapped with its unique, turn-specific ID.
+     */
     private final IdentifiedFunctionCall identifiedCall;
-    /** The final status of the call after user interaction. */
+    
+    /**
+     * The final status of the call after user interaction (e.g., YES, NO, ALWAYS).
+     */
     private final ToolCallStatus status;
 }

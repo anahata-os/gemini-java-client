@@ -7,27 +7,48 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Describes a method that can be called by the AI model.
- * This annotation should be placed on the static method itself.
+ * Annotation used to mark a static method as a tool (function) that can be
+ * called by the AI model.
+ * <p>
+ * Methods annotated with {@code @AIToolMethod} are automatically discovered
+ * by the {@link ToolManager} and exposed to the Gemini API as function
+ * declarations.
+ * </p>
+ *
+ * @author Anahata
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface AIToolMethod {
     /**
-     * A detailed description of what the tool does.
-     * @return The description.
+     * A detailed, human-readable description of what the tool does.
+     * This description is sent to the model to help it understand when and
+     * how to use the tool.
+     *
+     * @return The tool description.
      */
     String value();
 
     /**
-     * Whether the user should be prompted for approval before this tool is executed.
-     * Set to false for safe, read-only operations.
-     * @return True if approval is required, false otherwise.
+     * Determines whether the user must explicitly approve the execution of
+     * this tool via a confirmation dialog.
+     * <p>
+     * Set to {@code false} for safe, read-only operations (e.g., reading a file).
+     * Defaults to {@code true} for safety.
+     * </p>
+     *
+     * @return {@code true} if approval is required, {@code false} otherwise.
      */
     boolean requiresApproval() default true;
     
     /**
      * Defines how the output of this tool should be treated within the chat context.
+     * <p>
+     * Use {@link ContextBehavior#EPHEMERAL} for one-off actions and
+     * {@link ContextBehavior#STATEFUL_REPLACE} for tools that return persistent
+     * resources like file contents.
+     * </p>
+     *
      * @return The context behavior.
      */
     ContextBehavior behavior() default ContextBehavior.EPHEMERAL;

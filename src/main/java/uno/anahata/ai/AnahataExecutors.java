@@ -9,9 +9,12 @@ import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 
 /**
  * A utility class for creating and managing named {@link ExecutorService} instances
- * for various asynchronous tasks within the Anahata AI framework. This ensures
- * that all threads are properly named, configured as daemons, and managed
- * consistently.
+ * for various asynchronous tasks within the Anahata AI framework. 
+ * <p>
+ * This class ensures that all threads are properly named, configured as daemons, 
+ * and managed consistently to prevent resource leaks and ensure clean application 
+ * shutdown.
+ * </p>
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AnahataExecutors {
