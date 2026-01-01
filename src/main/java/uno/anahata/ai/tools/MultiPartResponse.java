@@ -15,6 +15,7 @@ import lombok.Setter;
  * This is primarily used for tools that generate files (like screenshots or
  * other media) and need to return the file paths to the client application,
  * which will then construct and send the actual file content as new Parts.
+ * </p>
  *
  * @author Anahata
  */

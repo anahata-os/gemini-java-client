@@ -9,6 +9,14 @@ import java.util.stream.Collectors;
 import uno.anahata.ai.Chat;
 import uno.anahata.ai.context.provider.ContextProvider;
 
+/**
+ * A context provider that injects the current system environment variables
+ * into the model's prompt.
+ * <p>
+ * This helps the model understand the host environment (e.g., PATH, HOME,
+ * shell configuration).
+ * </p>
+ */
 public class EnvironmentVariablesProvider extends ContextProvider {
 
     @Override

@@ -13,6 +13,14 @@ import uno.anahata.ai.Chat;
 import uno.anahata.ai.config.ChatConfig;
 import uno.anahata.ai.context.provider.ContextProvider;
 
+/**
+ * A context provider that loads the core system instructions from a Markdown
+ * file in the classpath.
+ * <p>
+ * These instructions define the AI's identity, core principles, and general
+ * operational guidelines.
+ * </p>
+ */
 public class CoreSystemInstructionsMdFileProvider extends ContextProvider {
     private static final String SYSTEM_INSTRUCTIONS;
 

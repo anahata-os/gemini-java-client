@@ -7,6 +7,10 @@ import lombok.Value;
 /**
  * A record to hold structured information about a single API error event,
  * including retry context.
+ * <p>
+ * This is used by the {@link StatusManager} to track the history of errors
+ * and provide diagnostic information to the user.
+ * </p>
  *
  * @author AI
  */

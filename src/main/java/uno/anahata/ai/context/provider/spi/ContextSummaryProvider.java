@@ -27,8 +27,21 @@ import uno.anahata.ai.gemini.GeminiAdapter;
 import uno.anahata.ai.internal.PartUtils;
 import uno.anahata.ai.internal.TextUtils;
 
+/**
+ * A critical context provider that injects a detailed, machine-readable summary
+ * of the entire conversation history into the model's prompt.
+ * <p>
+ * This summary includes unique IDs for every message and part, allowing the
+ * model to perform precise context pruning and management. It also provides
+ * instructions on the "Prune-As-You-Go" protocol.
+ * </p>
+ */
 public class ContextSummaryProvider extends ContextProvider {
 
+    /**
+     * Constructs a new ContextSummaryProvider, targeting the
+     * {@link ContextPosition#AUGMENTED_WORKSPACE} position.
+     */
     public ContextSummaryProvider() {
         super(ContextPosition.AUGMENTED_WORKSPACE);
     }

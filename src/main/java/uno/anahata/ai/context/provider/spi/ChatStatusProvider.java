@@ -9,6 +9,14 @@ import uno.anahata.ai.Chat;
 import uno.anahata.ai.context.provider.ContextProvider;
 import uno.anahata.ai.status.ApiExceptionRecord;
 
+/**
+ * A context provider that injects high-level information about the current
+ * chat session's state into the model's prompt.
+ * <p>
+ * This includes session IDs, model IDs, tool configuration, and a history
+ * of recent API errors.
+ * </p>
+ */
 public class ChatStatusProvider extends ContextProvider {
 
     @Override

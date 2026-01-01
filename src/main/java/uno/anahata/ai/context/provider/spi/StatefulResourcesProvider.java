@@ -11,8 +11,21 @@ import uno.anahata.ai.context.provider.ContextPosition;
 import uno.anahata.ai.context.provider.ContextProvider;
 import uno.anahata.ai.context.stateful.ResourceStatus;
 
+/**
+ * A context provider that injects a table of all stateful resources (e.g., files)
+ * currently tracked in the conversation context.
+ * <p>
+ * This table includes the resource ID, its status relative to the disk version
+ * (VALID, STALE, etc.), and its size. This helps the model maintain an
+ * accurate "Active Workspace" view.
+ * </p>
+ */
 public class StatefulResourcesProvider extends ContextProvider {
 
+    /**
+     * Constructs a new StatefulResourcesProvider, targeting the
+     * {@link ContextPosition#AUGMENTED_WORKSPACE} position.
+     */
     public StatefulResourcesProvider() {
         super(ContextPosition.AUGMENTED_WORKSPACE);
     }

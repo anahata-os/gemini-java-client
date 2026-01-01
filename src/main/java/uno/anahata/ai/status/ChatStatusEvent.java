@@ -7,7 +7,10 @@ import uno.anahata.ai.Chat;
 
 /**
  * An event object that provides rich, contextual information about a change in the Chat's status.
- * This is used to notify listeners of state transitions in a structured way.
+ * <p>
+ * This is used to notify {@link StatusListener}s of state transitions in a structured way,
+ * including the duration of the previous state and any associated exceptions or tool names.
+ * </p>
  */
 @Value
 @Builder

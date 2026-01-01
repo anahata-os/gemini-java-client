@@ -14,6 +14,14 @@ import uno.anahata.ai.Chat;
 import uno.anahata.ai.context.provider.ContextProvider;
 import uno.anahata.ai.internal.TextUtils;
 
+/**
+ * A context provider that injects the current JVM system properties into the
+ * model's prompt.
+ * <p>
+ * Properties are grouped by prefix (e.g., java., netbeans., user.) for better
+ * readability and context organization.
+ * </p>
+ */
 public class SystemPropertiesProvider extends ContextProvider {
 
     @Override
