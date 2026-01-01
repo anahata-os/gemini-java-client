@@ -13,7 +13,7 @@ import uno.anahata.ai.Chat;
  * function calls. This decouples the core function-calling logic from any
  * specific UI implementation (e.g., Swing, command-line).
  *
- * @author pablo-ai
+ * @author anahata
  */
 public interface FunctionPrompter {
 

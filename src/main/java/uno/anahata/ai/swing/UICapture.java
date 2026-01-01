@@ -22,7 +22,7 @@ import uno.anahata.ai.config.ChatConfig;
 
 /**
  *
- * @author pablo
+ * @author anahata
  */
 @Slf4j
 public class UICapture {

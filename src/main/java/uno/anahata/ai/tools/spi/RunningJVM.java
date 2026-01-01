@@ -34,7 +34,7 @@ import uno.anahata.ai.tools.AIToolParam;
  * Provides functions for the model to compile and execute java code in the
  * current JVM.
  *
- * @author pablo
+ * @author anahata
  */
 @Slf4j
 public class RunningJVM {
@@ -227,10 +227,10 @@ public class RunningJVM {
 
     @AIToolMethod(
             value = "Compiles and executes Java source code in the users JVM.\n"
-            + "The compiler will use the classpath set in the public static field 'uno.anahata.gemini.functions.spi.RunningJVM.defaultCompilerClasspath' plus any extra classpath explicitely passed as an argument to the function (if any).\n"
+            + "The compiler will use the classpath set in the public static field 'uno.anahata.ai.functions.spi.RunningJVM.defaultCompilerClasspath' plus any extra classpath explicitely passed as an argument to the function (if any).\n"
             + "The call() method will be executed and a FunctionResponse will be sent back to the model inmediatly with either 'output' (if success) or 'error' (if an exception occurs during compilation or execution).\n"
             + "If the returend value is 'null', an empty string will be sent as the 'result' field of FunctionResponse.\n"
-            + "The model can also use a temporary public static Map located at: 'uno.anahata.gemini.functions.spi.RunningJVM.chatTemp' to persist state across multiple calls.",
+            + "The model can also use a temporary public static Map located at: 'uno.anahata.ai.functions.spi.RunningJVM.chatTemp' to persist state across multiple calls.",
             requiresApproval = true
     )
     public static Object compileAndExecuteJava(

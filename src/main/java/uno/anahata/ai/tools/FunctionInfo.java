@@ -9,7 +9,7 @@ import uno.anahata.ai.internal.GsonUtils;
 /**
  * Maps a FunctionDeclaration to its declaring method.
  *
- * @author pablo-ai
+ * @author anahata
  */
 @AllArgsConstructor
 public class FunctionInfo {

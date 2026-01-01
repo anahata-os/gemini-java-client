@@ -17,7 +17,7 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
  * Renders the content of an ExecutableCode part, which is a request from the
  * model to execute a block of code.
  *
- * @author pablo-ai
+ * @author anahata
  */
 public class ExecutableCodePartRenderer implements PartRenderer {
 

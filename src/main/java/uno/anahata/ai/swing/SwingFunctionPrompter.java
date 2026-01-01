@@ -35,7 +35,7 @@ import uno.anahata.ai.swing.render.InteractiveFunctionCallRenderer;
 /**
  * A combined JDialog and FunctionPrompter implementation for Swing.
  *
- * @author pablo-ai
+ * @author anahata
  */
 @Slf4j
 public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {

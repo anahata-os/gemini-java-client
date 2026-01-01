@@ -6,7 +6,7 @@ import java.util.concurrent.ThreadFactory;
 
 /**
  *
- * @author pablo
+ * @author anahata
  */
 public class Executors {
     private static volatile int idx = 0;

@@ -9,7 +9,7 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
  * An interface for rendering a specific {@link Part} of a model's response
  * into a JComponent. This is part of the V3 "Swing Native" rendering pipeline.
  *
- * @author pablo-ai
+ * @author anahata
  */
 public interface PartRenderer {
 

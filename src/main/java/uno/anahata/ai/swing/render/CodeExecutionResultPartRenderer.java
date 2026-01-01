@@ -17,7 +17,7 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 /**
  * Renders the content of a CodeExecutionResult part as plain text.
  *
- * @author pablo-ai
+ * @author anahata
  */
 public class CodeExecutionResultPartRenderer implements PartRenderer {
 

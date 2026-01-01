@@ -15,7 +15,7 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
  * A utility class responsible for creating syntax-highlighted code block
  * components.
  *
- * @author pablo-ai
+ * @author anahata
  */
 @Slf4j
 public final class CodeBlockRenderer {

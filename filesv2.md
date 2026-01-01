@@ -40,21 +40,21 @@ A call to `listDirectory` on a project root would yield the following clean, str
   {
     "@type": "DirectoryEntry",
     "name": "src",
-    "path": "/home/pablo/NetBeansProjects/my-project/src",
+    "path": "/home/anahata/NetBeansProjects/my-project/src",
     "size": 4096,
     "lastModified": 1762778000000
   },
   {
     "@type": "FileEntry",
     "name": "pom.xml",
-    "path": "/home/pablo/NetBeansProjects/my-project/pom.xml",
+    "path": "/home/anahata/NetBeansProjects/my-project/pom.xml",
     "size": 9854,
     "lastModified": 1762473883050
   },
   {
     "@type": "SymbolicLinkEntry",
     "name": "latest_log",
-    "path": "/home/pablo/NetBeansProjects/my-project/latest_log",
+    "path": "/home/anahata/NetBeansProjects/my-project/latest_log",
     "size": 12,
     "lastModified": 1762778123000,
     "target": "/tmp/app.log"

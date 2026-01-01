@@ -20,7 +20,7 @@ import uno.anahata.ai.internal.PartUtils;
 
 /**
  * JPanel for attachments
- * @author pablo
+ * @author anahata
  */
 public class AttachmentsPanel extends JPanel{
     

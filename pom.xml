@@ -41,6 +41,17 @@
         <url>https://github.com/anahata-os/gemini-java-client</url>
     </scm>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>central</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>central</id>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -275,13 +286,56 @@
                 </executions>
                 <configuration>
                     <doclint>none</doclint>
+                    <stylesheetfile>${project.basedir}/src/main/javadoc/stylesheet.css</stylesheetfile>
+                    <docfilessubdirs>true</docfilessubdirs>
+                    <links>
+                        <link>https://docs.oracle.com/javase/8/docs/api/</link>
+                        <link>https://www.slf4j.org/apidocs/</link>
+                        <link>https://javadoc.io/doc/com.google.guava/guava/latest/</link>
+                        <link>https://fasterxml.github.io/jackson-databind/javadoc/2.13/</link>
+                        <link>https://googleapis.github.io/java-genai/javadoc/</link>
+                    </links>
                     <bottom><![CDATA[
-                        <div style="padding: 15px; background: #1a202c; color: #e2e8f0; border-top: 3px solid #2c7a7b; text-align: center;">
-                            <img src="https://anahata.uno/assets/logo-horizontal.png" alt="Anahata Logo" style="height: 35px; vertical-align: middle; margin-right: 20px;">
-                            <span style="font-size: 1.1em; font-weight: bold;">Força Barça!</span> 
-                            <a href="https://github.com/sponsors/anahata-os" style="color: #db61a2; margin-left: 20px; text-decoration: none; font-weight: bold;">Please Donate ❤️</a>
+                        <div class="anahata-footer">
+                            <img src="https://www.anahata.uno/assets/logo-transparent.png" alt="Anahata Logo" style="height: 50px;">
+                            <div class="barca-text">
+                                <div class="forca-barca">
+                                    <span class="forca" style="color: #004d98;">Força</span> <span class="barca" style="color: #a50044;">Barça!</span>
+                                </div>
+                                <a href="https://github.com/sponsors/anahata-os" class="donate-link">Please Donate ❤️</a>
+                            </div>
+                            <img src="https://www.anahata.uno/assets/logos/barsa.png" alt="Barça Logo" style="height: 50px;">
                         </div>
                     ]]></bottom>
+                </configuration>
+            </plugin>
+            
+            <!-- GPG Signing -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.7</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <!-- Nexus Staging Plugin -->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.7.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>central</serverId>
+                    <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
                 </configuration>
             </plugin>
         </plugins>

@@ -4,7 +4,7 @@
  * <p>
  * This package provides specialized serializers to handle types that Kryo cannot
  * serialize by default or that require specific handling for efficiency. A key
- * example is the {@link uno.anahata.gemini.internal.kryo.OptionalSerializer} for
+ * example is the {@link uno.anahata.ai.internal.kryo.OptionalSerializer} for
  * correctly serializing {@link java.util.Optional} instances during session persistence.
  */
 package uno.anahata.ai.internal.kryo;

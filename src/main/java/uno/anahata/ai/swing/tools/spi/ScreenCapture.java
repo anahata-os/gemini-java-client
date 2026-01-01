@@ -12,7 +12,7 @@ import uno.anahata.ai.swing.UICapture;
 
 /**
  *
- * @author pablo
+ * @author anahata
  */
 public class ScreenCapture {
 

@@ -6,7 +6,7 @@ import java.io.File;
 /**
  * Gllobal Anahata Working directory stuff.
  * 
- * @author pablo
+ * @author anahata
  */
 public class AnahataConfig {
     static {

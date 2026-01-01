@@ -5,7 +5,7 @@ package uno.anahata.ai.tools;
  * Represents the definitive final status of a tool call after user interaction and execution.
  * This provides a more granular and explicit status than the simple {@link FunctionConfirmation}.
  *
- * @author pablo-ai
+ * @author anahata
  */
 public enum ToolCallStatus {
     /** The user's preference for this tool is 'Always', and it was executed. */

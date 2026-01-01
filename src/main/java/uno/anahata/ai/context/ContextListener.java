@@ -6,7 +6,7 @@ import uno.anahata.ai.Chat;
 /**
  * A listener for changes in the chat context.
  *
- * @author pablo
+ * @author anahata
  */
 public interface ContextListener {
 

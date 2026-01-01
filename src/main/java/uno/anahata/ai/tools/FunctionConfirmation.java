@@ -3,7 +3,7 @@ package uno.anahata.ai.tools;
 
 /**
  * Represents the user's confirmation status for a function call.
- * @author pablo
+ * @author anahata
  */
 public enum FunctionConfirmation {
     /** The user approved this specific execution. */

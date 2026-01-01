@@ -8,7 +8,7 @@ import lombok.Getter;
  * A data class that represents the final outcome of a single proposed tool call.
  * It links a uniquely identified function call to its definitive status for the turn.
  *
- * @author pablo-ai
+ * @author anahata
  */
 @Getter
 @AllArgsConstructor

@@ -9,7 +9,7 @@ import lombok.Getter;
  * The result of a function call prompt containing the prompt for several functions.
  * It summarizes the outcome of the entire user interaction and execution phase for a given turn.
  *
- * @author pablo-ai
+ * @author anahata
  */
 @Getter
 @AllArgsConstructor

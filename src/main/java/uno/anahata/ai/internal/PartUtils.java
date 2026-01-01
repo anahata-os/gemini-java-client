@@ -12,7 +12,7 @@ import org.apache.tika.Tika;
 
 /**
  *
- * @author pablo
+ * @author anahata
  */
 @Slf4j
 public class PartUtils {
