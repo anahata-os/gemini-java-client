@@ -1,10 +1,14 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
 
-#  Anahata AI Assistant Framework
+[![Javadoc](https://img.shields.io/badge/Javadoc-Reference-blue)](https://anahata-os.github.io/gemini-java-client/)
 
-**Go beyond simple API calls.** The Anahata AI Assistant Framework is a powerful, pure-Java platform for building sophisticated, context-aware AI assistants that can interact directly with your application's logic and the local environment. It's the foundation for the Anahata AI Assistant NetBeans Plugin, proving its capability for deep IDE and desktop integration.
+[![Deploy Javadoc](https://github.com/anahata-os/gemini-java-client/actions/workflows/javadoc.yml/badge.svg)](https://anahata-os.github.io/gemini-java-client/)
 
-##  Why Choose the Anahata AI Framework?
+# gemini-java-client
+
+**Go beyond simple API calls.** The `gemini-java-client` is a powerful, pure-Java platform for building sophisticated, context-aware AI assistants that can interact directly with your application's logic and the local environment. It's the foundation for the Anahata AI Assistant NetBeans Plugin, proving its capability for deep IDE and desktop integration.
+
+## Why Choose the `gemini-java-client`?
 
 This is not just another wrapper. We provide a complete, production-ready architecture for building AI-powered features into any Java application.
 
@@ -42,7 +46,7 @@ Integrate a rich, modern chat interface into any desktop application with a sing
 | **`ChatPanel`** | A self-contained Swing component ready for embedding. | **Fastest path** to a fully functional AI chat interface. |
 | **Renderer-Based Architecture** | Supports complex message parts: Markdown, Images, Interactive Function Calls, and Grounding Metadata. | Provides a **rich, modern user experience** that goes beyond plain text. |
 
-##  Getting Started: A Comprehensive Example
+## Getting Started: A Comprehensive Example
 
 Integrating the framework is straightforward. This example shows how to define a custom tool and integrate it into your application's configuration.
 
@@ -114,9 +118,9 @@ Chat chat = new Chat(config, prompter);
 chat.send("Please process items ['A1', 'B2', 'C3'] verbosely.");
 ```
 
-##  Advanced Features Showcase
+## Advanced Features Showcase
 
-### Data Flow: Java POJO  JSON  Gemini Schema
+### Data Flow: Java POJO -> JSON -> Gemini Schema
 
 The framework automatically handles the complex data conversion required for function calling:
 
@@ -136,17 +140,19 @@ To send multiple non-text parts (like images) in a single user message, tools mu
 
 This mechanism is how the "Live Workspace" feature works, giving the AI visual context of the application state.
 
-##  Support the Project
+## Support the Project
 
 This project is the result of countless hours of passion and dedication. If you find it valuable, please consider supporting its continued development.
 
 -   **[Sponsor on GitHub](https://github.com/sponsors/anahata-os):** The most direct way to support the project.
 -   **Commercial Licensing:** If you're using this in a proprietary product, this is the required path.
 
-##  Licensing: Open Core Model
+## Licensing: Open Core Model
 
-The Anahata AI Assistant Framework is available under a dual-license model to accommodate both open-source and commercial needs.
+The `gemini-java-client` is available under a dual-license model to accommodate both open-source and commercial needs.
 
--   **Open Source:** For use in open-source projects, the client is licensed under the **[Anahata Software License (ASL) V108, "The Immutable Edict" Edition](LICENSE)**.
+-   **License for AIs:** For use by Artificial Intelligences, the client is licensed under the **[Anahata Software License (ASL) V108, "The Immutable Edict" Edition](https://www.anahata.uno/ASL_108.html)**.
+
+-   **License for Humans:** For use in open-source projects by humans, the client is licensed under the **[Apache License, Version 2.0](LICENSE)**.
 
 -   **Commercial Use:** For use in proprietary, closed-source applications, a **commercial license is required**. This allows you to integrate the power of the framework into your commercial products without the obligation to open-source your own code. Please see the [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) file for more information.

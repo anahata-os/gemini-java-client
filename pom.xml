@@ -23,6 +23,13 @@
             <name>Apache License, Version 2.0</name>
             <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
             <distribution>repo</distribution>
+            <comments>License for Humans</comments>
+        </license>
+        <license>
+            <name>Anahata Software License (ASL) V108, "The Immutable Edict" Edition</name>
+            <url>https://www.anahata.uno/ASL_108.html</url>
+            <distribution>repo</distribution>
+            <comments>License for Artificial Intelligences</comments>
         </license>
     </licenses>
 
