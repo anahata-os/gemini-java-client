@@ -7,18 +7,24 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Utility methods for working with the Google GenAI Content object.
+ * Utility methods for working with the Google GenAI {@link Content} object.
+ * 
  * @author Anahata
  */
 public final class ContentUtils {
     
     /**
-     * Creates a new Content object that is a clone of the original, but with
-     * a list of specific Parts removed.
+     * Creates a new {@link Content} object that is a clone of the original, but with
+     * a list of specific {@link Part}s removed.
+     * <p>
+     * This is useful for pruning operations where specific parts of a message
+     * need to be discarded while preserving the rest of the content and the role.
+     * </p>
      *
-     * @param original The original Content object.
+     * @param original      The original Content object.
      * @param partsToRemove The list of Parts to exclude from the new object.
-     * @return A new Content object without the specified parts.
+     * @return A new Content object without the specified parts, or the original
+     *         if no parts were removed.
      */
     public static Content cloneAndRemoveParts(Content original, List<Part> partsToRemove) {
         if (original == null || !original.parts().isPresent() || partsToRemove == null || partsToRemove.isEmpty()) {

@@ -11,6 +11,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
 
 /**
+ * Utility methods for working with Gemini {@link Part} objects.
+ * <p>
+ * This class provides helpers for converting files to blobs, calculating the
+ * size of parts in bytes, and estimating token counts.
+ * </p>
  *
  * @author anahata
  */
@@ -20,6 +25,16 @@ public class PartUtils {
     private static final Tika TIKA = new Tika();
     private static final Gson GSON = GsonUtils.getGson();
 
+    /**
+     * Converts a local file into a Gemini {@link Part} containing a {@link Blob}.
+     * <p>
+     * It uses Apache Tika to automatically detect the MIME type of the file.
+     * </p>
+     *
+     * @param file The file to convert.
+     * @return A Part object containing the file's data and MIME type.
+     * @throws IOException if the file cannot be read.
+     */
     public static Part toPart(File file) throws IOException {
         byte[] barr = java.nio.file.Files.readAllBytes(file.toPath());
         String mimeType = TIKA.detect(file);
@@ -32,6 +47,12 @@ public class PartUtils {
         return Part.builder().inlineData(blob).build();
     }
 
+    /**
+     * Returns a human-readable string representation of a {@link Blob}.
+     *
+     * @param blob The blob to describe.
+     * @return A string containing the MIME type and size in bytes.
+     */
     public static String toString(Blob blob) {
         return new StringBuilder(blob.mimeType().get())
                 .append(" ")
@@ -40,6 +61,12 @@ public class PartUtils {
                 .toString();
     }
     
+    /**
+     * Calculates the size of a {@link Part} in bytes when serialized to JSON.
+     *
+     * @param part The part to measure.
+     * @return The size in bytes.
+     */
     public static long calculateSizeInBytes(Part part) {
         if (part.text().isPresent()) {
             return part.text().get().getBytes(StandardCharsets.UTF_8).length;
@@ -63,7 +90,11 @@ public class PartUtils {
     }
     
     /**
-     * Estimates the token count of a Part using a simple heuristic (bytes / 4).
+     * Estimates the token count of a {@link Part} using a simple heuristic (bytes / 4).
+     * <p>
+     * This is a rough approximation and may vary depending on the model's tokenizer.
+     * </p>
+     *
      * @param part The part to analyze.
      * @return The approximate number of tokens.
      */

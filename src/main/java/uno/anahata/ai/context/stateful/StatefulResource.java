@@ -2,9 +2,15 @@
 package uno.anahata.ai.context.stateful;
 
 /**
- * An interface for objects that represent a stateful resource in the context,
- * allowing the ContextManager to identify and manage them.
- * This provides a compile-time safe contract for resource identification.
+ * An interface for objects that represent a stateful resource in the conversation context.
+ * <p>
+ * Implementing this interface allows the {@link ResourceTracker} to identify,
+ * monitor, and manage the lifecycle of the resource (e.g., a local file).
+ * </p>
+ * <p>
+ * This provides a compile-time safe contract for resource identification and
+ * staleness detection.
+ * </p>
  *
  * @author Anahata
  */
@@ -12,7 +18,10 @@ public interface StatefulResource {
 
     /**
      * Gets the unique identifier for this resource.
-     * For files, this would be the absolute path. For other resources, it could be a URL or a database ID.
+     * <p>
+     * For files, this is typically the absolute path. For other resources,
+     * it could be a URL, a database ID, or any other unique string.
+     * </p>
      *
      * @return The unique, non-null identifier for the resource.
      */
@@ -26,7 +35,7 @@ public interface StatefulResource {
     long getLastModified();
 
     /**
-     * Gets the size of the resource.
+     * Gets the size of the resource in bytes.
      *
      * @return The size in bytes.
      */

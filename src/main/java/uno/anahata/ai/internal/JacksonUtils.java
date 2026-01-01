@@ -13,8 +13,12 @@ import uno.anahata.ai.tools.schema.SchemaProvider2;
 
 /**
  * A generic utility class for Jackson-based JSON operations.
- * It uses the centrally configured ObjectMapper from SchemaProvider2 to ensure
- * consistency across the application.
+ * <p>
+ * This class uses the centrally configured {@link ObjectMapper} from
+ * {@link SchemaProvider2} to ensure consistency in how Java objects are
+ * mapped to JSON across the application, especially for tool parameters
+ * and responses.
+ * </p>
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JacksonUtils {
@@ -23,11 +27,13 @@ public final class JacksonUtils {
 
     /**
      * Converts an object to a {@code Map<String, Object>}, replicating the logic required by the
-     * FunctionResponse type.
-     * - If the object naturally serializes to a JSON Object (e.g., a POJO or a Map), it is
-     *   converted into a {@code Map<String, Object>}.
-     * - If the object serializes to any other JSON type (e.g., an array, a string, a number),
-     *   it is wrapped in a Map under the given field name.
+     * Gemini {@code FunctionResponse} type.
+     * <ul>
+     *   <li>If the object naturally serializes to a JSON Object (e.g., a POJO or a Map), it is
+     *       converted into a {@code Map<String, Object>}.</li>
+     *   <li>If the object serializes to any other JSON type (e.g., an array, a string, a number),
+     *       it is wrapped in a Map under the given field name.</li>
+     * </ul>
      *
      * @param primitiveFieldName The key to use when wrapping a non-POJO type.
      * @param o The object to convert.
@@ -57,7 +63,7 @@ public final class JacksonUtils {
      * @param <T>   The target type.
      * @param map   The map to convert.
      * @param clazz The class of the target type.
-     * @return An instance of the target type, or null if the input map is null or empty.
+     * @return An instance of the target type, or {@code null} if the input map is null or empty.
      */
     public static <T> T convertMapToObject(Map<String, Object> map, Class<T> clazz) {
         if (map == null || map.isEmpty()) {
@@ -68,13 +74,14 @@ public final class JacksonUtils {
     
     /**
      * Deserializes a generic object (typically a Map or List of Maps) back into a specific type,
-     * including generic types.
+     * including complex generic types.
      *
-     * @param <T>   The target type.
+     * @param <T>    The target type.
      * @param object The object to convert (typically a Map or List of Maps).
-     * @param type The target type, which can be a Class or a ParameterizedType.
-     * @return An instance of the target type, or null if the input object is null.
+     * @param type   The target type, which can be a {@link Class} or a {@link java.lang.reflect.ParameterizedType}.
+     * @return An instance of the target type, or {@code null} if the input object is null.
      */
+    @SuppressWarnings("unchecked")
     public static <T> T convertValue(Object object, Type type) {
         if (object == null) {
             return null;

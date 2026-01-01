@@ -12,53 +12,66 @@ import uno.anahata.ai.Chat;
 import uno.anahata.ai.context.provider.ContextPosition;
 
 /**
- * An abstract base class for modules that contribute specific instructions or
- * context to the AI model's system prompt.
+ * An abstract base class for modules that contribute dynamic context or
+ * instructions to the AI model's prompt.
  * <p>
- * This class manages the enabled/disabled state, and concrete implementations
- * only need to provide their identity and the logic for generating instruction
- * parts.
+ * Context providers are executed before each request to the model. They can
+ * provide system instructions, workspace information, or any other relevant
+ * data that should be included in the context.
+ * </p>
+ * <p>
+ * This class manages the enabled/disabled state and the target position
+ * within the prompt.
+ * </p>
  */
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
 public abstract class ContextProvider {
 
+    /**
+     * Constructs a ContextProvider with a specific target position.
+     *
+     * @param pos The position in the prompt where this provider's content should be placed.
+     */
     public ContextProvider(ContextPosition pos) {
         this.position = pos;
     }
     
     /**
-     * Determines where the context from this provider should be placed.
-     * Defaults to {@code ContextPosition.SYSTEM_INSTRUCTIONS}.
+     * Determines where the context from this provider should be placed in the prompt.
+     * Defaults to {@link ContextPosition#SYSTEM_INSTRUCTIONS}.
      */
     @Getter
     @Setter
     private ContextPosition position = ContextPosition.SYSTEM_INSTRUCTIONS;
 
+    /**
+     * Flag to enable or disable this provider.
+     */
     @Getter
     @Setter
     private boolean enabled = true;
 
     /**
-     * Gets the unique identifier for this provider. This ID is used for
-     * internal tracking and potentially for persistence.
+     * Gets the unique identifier for this provider.
+     * <p>
+     * This ID is used for internal tracking, configuration, and persistence.
+     * </p>
      *
-     * @return A non-null, unique string ID (e.g., "netbeans-project-overview").
+     * @return A non-null, unique string ID (e.g., "core-context-summary").
      */
     public abstract String getId();
 
     /**
-     * Gets the display name for this provider. This is a human-readable name
-     * used in the UI (e.g., "Project Overview").
+     * Gets the human-readable display name for this provider.
      *
-     * @return A non-null, human-readable name.
+     * @return A non-null, descriptive name.
      */
     public abstract String getDisplayName();
 
     /**
-     * Gets a brief, human-readable description of what this provider does. This
-     * is used for tooltips in the UI.
+     * Gets a brief, human-readable description of what this provider does.
      *
      * @return The description.
      */
@@ -67,17 +80,14 @@ public abstract class ContextProvider {
     }
 
     /**
-     * Provides a list of {@link Part} objects to be included in the system
-     * instructions.
+     * Generates a list of {@link Part} objects to be included in the model's prompt.
      * <p>
-     * This method will be called before each request to the model if the
-     * provider is enabled. Implementations should be efficient and avoid
-     * long-running operations.
+     * This method is called by the {@link ContentFactory} before each request.
+     * Implementations should be efficient and avoid long-running operations.
+     * </p>
      *
-     * @param chat The current Chat instance, providing access to the complete,
-     * real-time context of the application.
-     * @return A list of Parts. The list can be empty if the provider has no
-     * instructions to add at the moment.
+     * @param chat The current Chat instance, providing access to the session state.
+     * @return A list of Parts, or an empty list if the provider has no content to add.
      */
     public abstract List<Part> getParts(Chat chat);
 }

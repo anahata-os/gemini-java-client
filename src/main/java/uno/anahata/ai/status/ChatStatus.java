@@ -4,7 +4,11 @@ package uno.anahata.ai.status;
 import lombok.Getter;
 
 /**
- * Defines the possible operational states of the Chat, primarily for UI feedback.
+ * Defines the possible operational states of a {@link uno.anahata.ai.Chat} session.
+ * <p>
+ * These states are primarily used to provide real-time feedback to the user
+ * interface, indicating what the assistant is currently doing.
+ * </p>
  */
 @Getter
 public enum ChatStatus {

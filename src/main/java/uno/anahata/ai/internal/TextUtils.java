@@ -10,20 +10,24 @@ import org.apache.commons.lang3.StringUtils;
 import org.jsoup.helper.Validate;
 import uno.anahata.ai.tools.spi.pojos.TextChunk;
 
+/**
+ * Utility methods for processing and formatting text content.
+ * <p>
+ * This class includes logic for paginating large text blocks, filtering lines
+ * with regex, and truncating long lines for efficient context management.
+ * </p>
+ */
 public class TextUtils {
 
     /**
-     * Processes a block of text with pagination, filtering, and line
-     * truncation.
+     * Processes a block of text with pagination, filtering, and line truncation.
      *
-     * @param text The full text content to process.
-     * @param startIndex The starting line number (0-based) for pagination. Can
-     * be null.
-     * @param pageSize The number of lines to return. Can be null for no limit.
-     * @param grepPattern A regex pattern to filter lines. Can be null or empty.
-     * @param maxLineLength The maximum length of each line. Lines longer than
-     * this will be truncated. Can be null or 0 for no limit.
-     * @return A TextChunk object containing metadata and the processed text.
+     * @param text          The full text content to process.
+     * @param startIndex    The starting line number (0-based) for pagination. Can be null.
+     * @param pageSize      The number of lines to return. Can be null for no limit.
+     * @param grepPattern   A regex pattern to filter lines. Can be null or empty.
+     * @param maxLineLength The maximum length of each line. Lines longer than this will be truncated. Can be null or 0 for no limit.
+     * @return A {@link TextChunk} object containing metadata and the processed text.
      */
     public static TextChunk processText(String text, Integer startIndex, Integer pageSize, String grepPattern, Integer maxLineLength) {
         Validate.ensureNotNull(text, "text cannot be null");
@@ -99,7 +103,7 @@ public class TextUtils {
      * Checks if an object is null, a blank string, or an empty collection/map.
      *
      * @param value The object to check.
-     * @return true if the object is considered null or empty.
+     * @return {@code true} if the object is considered null or empty.
      */
     public static boolean isNullOrEmpty(Object value) {
         if (value == null) {
