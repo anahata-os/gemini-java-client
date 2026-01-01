@@ -25,18 +25,26 @@ import com.google.gson.GsonBuilder;
 
 /**
  * A clean, focused provider for generating OpenAPI/Swagger compliant JSON
- * schemas from Java types. This provider's key feature is its deep,
- * reflection-based analysis to enrich the schema with precise Java type
- * information, embedding the "beautiful" fully qualified type name into the
- * {@code title} field of every object, property, and array item. It correctly
- * handles complex generic types and recursive data structures, and performs
- * inlining to produce a single, self-contained schema object suitable for AI
- * models.
+ * schemas from Java types. 
+ * <p>
+ * This provider's key feature is its deep, reflection-based analysis to enrich 
+ * the schema with precise Java type information, embedding the "beautiful" 
+ * fully qualified type name into the {@code title} field of every object, 
+ * property, and array item. 
+ * </p>
+ * <p>
+ * It correctly handles complex generic types and recursive data structures, 
+ * and performs inlining to produce a single, self-contained schema object 
+ * suitable for AI models (which often struggle with external references).
+ * </p>
  *
  * @author anahata-gemini-pro-2.5
  */
 public class SchemaProvider2 {
 
+    /**
+     * The Jackson ObjectMapper used for internal JSON processing and schema generation.
+     */
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
             .registerModule(new ParameterNamesModule())
             .registerModule(new MrBeanModule())
@@ -51,11 +59,9 @@ public class SchemaProvider2 {
      * the schema for a specific 'result' type surgically injected into its
      * 'result' property.
      *
-     * @param wrapperType The container type (e.g.,
-     * JavaMethodToolResponse.class).
+     * @param wrapperType The container type (e.g., JavaMethodToolResponse.class).
      * @param attributeName The name of the property in the wrapper to replace.
-     * @param wrappedType The specific type of the result to inject (e.g.,
-     * Tree.class or void.class).
+     * @param wrappedType The specific type of the result to inject (e.g., Tree.class or void.class).
      * @return A complete, final JSON schema string.
      * @throws JsonProcessingException if schema generation fails.
      */

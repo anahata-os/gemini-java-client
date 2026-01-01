@@ -27,16 +27,40 @@ import uno.anahata.ai.internal.PartUtils;
 import uno.anahata.ai.internal.TextUtils;
 import uno.anahata.ai.swing.TimeUtils;
 
+/**
+ * Manages the persistence and summarization of chat sessions.
+ * <p>
+ * This class provides functionality to:
+ * <ul>
+ *   <li>Save and load conversation history using Kryo serialization.</li>
+ *   <li>List available saved sessions.</li>
+ *   <li>Perform automatic background backups of the current session.</li>
+ *   <li>Generate a human-readable Markdown summary of the conversation context.</li>
+ * </ul>
+ * </p>
+ */
 @Slf4j
 public class SessionManager {
 
     private static final Gson GSON = GsonUtils.getGson();
     private final ContextManager contextManager;
 
+    /**
+     * Constructs a new SessionManager for the given ContextManager.
+     *
+     * @param contextManager The ContextManager to manage sessions for.
+     */
     public SessionManager(ContextManager contextManager) {
         this.contextManager = contextManager;
     }
 
+    /**
+     * Saves the current conversation history to a file.
+     *
+     * @param name The name of the session (used as the filename).
+     * @return A success message.
+     * @throws IOException if an I/O error occurs during saving.
+     */
     public String saveSession(String name) throws IOException {
         Path sessionsDir = contextManager.getConfig().getWorkingFolder("sessions").toPath();
         Files.createDirectories(sessionsDir);
@@ -47,6 +71,12 @@ public class SessionManager {
         return "Session saved as " + name;
     }
 
+    /**
+     * Lists the names of all saved sessions in the sessions directory.
+     *
+     * @return A list of session names.
+     * @throws IOException if an I/O error occurs while listing files.
+     */
     public List<String> listSavedSessions() throws IOException {
         Path sessionsDir = contextManager.getConfig().getWorkingFolder("sessions").toPath();
         if (!Files.exists(sessionsDir)) {
@@ -60,6 +90,16 @@ public class SessionManager {
         }
     }
 
+    /**
+     * Loads a conversation history from a saved session file.
+     * <p>
+     * This method restores the context and resets the message and tool call ID counters
+     * to ensure consistency in the resumed session.
+     * </p>
+     *
+     * @param id The name of the session to load.
+     * @throws IOException if the session file is not found or an error occurs during loading.
+     */
     public void loadSession(String id) throws IOException {
         Path sessionsDir = contextManager.getConfig().getWorkingFolder("sessions").toPath();
         Path sessionFile = sessionsDir.resolve(id + ".kryo");
@@ -96,6 +136,9 @@ public class SessionManager {
         log.info("Session '{}' loaded successfully and counters have been reset.", id);
     }
 
+    /**
+     * Triggers an asynchronous automatic backup of the current session.
+     */
     public void triggerAutobackup() {
         final List<ChatMessage> contextCopy = contextManager.getContext();
         final File autobackupFile = contextManager.getConfig().getAutobackupFile();
@@ -119,6 +162,11 @@ public class SessionManager {
         });
     }
 
+    /**
+     * Generates a human-readable Markdown table summarizing the entire conversation context.
+     *
+     * @return A Markdown string containing the context summary.
+     */
     public String getSummaryAsString() {
         List<ChatMessage> historyCopy = contextManager.getContext();
         StringBuilder sb = new StringBuilder();
@@ -135,6 +183,12 @@ public class SessionManager {
         return sb.toString();
     }
 
+    /**
+     * Summarizes a single ChatMessage into Markdown table rows.
+     *
+     * @param msg The message to summarize.
+     * @return A Markdown string representing the message's rows in the summary table.
+     */
     public String summarizeMessage(ChatMessage msg) {
         return summarizeMessage(msg, null);
     }
@@ -233,6 +287,12 @@ public class SessionManager {
         return s.substring(0, maxLength - 3) + "...";
     }
 
+    /**
+     * Generates a concise description of a content part, including its type and a summary of its content.
+     *
+     * @param p The part to describe.
+     * @return A String array where the first element is the type and the second is the content summary.
+     */
     public String[] describePart(Part p) {
         final int MAX_LENGTH = 128;
         String type;

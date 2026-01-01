@@ -23,7 +23,16 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * A rich, stateful representation of a single message in the chat history.
- * This is the core data model for the new architecture.
+ * <p>
+ * This class encapsulates the content of a message (text, blobs, function calls/responses),
+ * along with metadata such as token usage, grounding information, and internal dependencies
+ * between parts (e.g., which function response belongs to which function call).
+ * </p>
+ * <p>
+ * It uses a dependency graph to track relationships between {@link Part} objects,
+ * which is essential for precise context pruning and stateful resource management.
+ * </p>
+ * 
  * @author Anahata
  */
 @Data
@@ -31,16 +40,46 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ChatMessage {
 
+    /**
+     * A unique, sequential identifier for the message within a chat session.
+     */
     private final long sequentialId;
+    
+    /**
+     * The time elapsed in milliseconds between the previous message and this one.
+     */
     @Setter
     private long elapsedTimeMillis;
+    
+    /**
+     * The ID of the model that generated this message (if applicable).
+     */
     private final String modelId;
+    
+    /**
+     * The actual content of the message, consisting of one or more {@link Part} objects.
+     */
     private final Content content;
+    
+    /**
+     * Metadata regarding token usage for this message, as reported by the Gemini API.
+     */
     private final GenerateContentResponseUsageMetadata usageMetadata;
+    
+    /**
+     * Grounding metadata provided by the model, linking response parts to source information.
+     */
     private final GroundingMetadata groundingMetadata;
-    // CHANGED: Removed 'final' to allow mutation after creation.
+    
+    /**
+     * A map representing the dependency graph between parts within this message.
+     * Keys are source parts, and values are lists of parts that depend on them.
+     */
     private Map<Part, List<Part>> dependencies;
     
+    /**
+     * The timestamp when this message was created.
+     */
     @Builder.Default
     private final Instant createdOn = Instant.now();
 

@@ -38,7 +38,17 @@ import uno.anahata.ai.internal.JacksonUtils;
 
 
 /**
- * Handles java method to genai tool/function conversation for a given Chat. 
+ * Manages the registration, identification, and execution of local tools (functions).
+ * <p>
+ * This class uses reflection to scan provided classes for methods annotated with
+ * {@link AIToolMethod}. It converts these methods into {@link FunctionDeclaration}s
+ * for the Gemini API and handles the invocation of these methods when the model
+ * requests a tool call.
+ * </p>
+ * <p>
+ * It also manages tool call IDs, user confirmation workflows via {@link FunctionPrompter},
+ * and asynchronous tool execution.
+ * </p>
  */
 @Slf4j
 public class ToolManager {
@@ -53,17 +63,32 @@ public class ToolManager {
     private final ToolConfig toolConfig;
     private final FailureTracker failureTracker;
     private final List<FunctionInfo> functionInfos = new ArrayList<>();
+    
+    /**
+     * A sequential counter used to assign unique IDs to tool calls within a turn.
+     */
     @Getter
     private final AtomicInteger idCounter = new AtomicInteger(1);
 
     private final Set<String> alwaysApproveFunctions = new HashSet<>();
     private final Set<String> neverApproveFunctions = new HashSet<>();
     
+    /**
+     * Resets the tool call ID counter to a specific value.
+     *
+     * @param value The new starting value.
+     */
     public void resetIdCounter(int value) {
         log.info("Resetting tool call ID counter to {}", value);
         idCounter.set(value);
     }
     
+    /**
+     * Constructs a new ToolManager for the given Chat instance and prompter.
+     *
+     * @param chat     The Chat instance.
+     * @param prompter The prompter for user confirmation.
+     */
     public ToolManager(Chat chat, FunctionPrompter prompter) {
         this.chat = chat;
         this.config = chat.getConfig();
@@ -177,6 +202,16 @@ public class ToolManager {
         return Tool.builder().functionDeclarations(fds).build();
     }
 
+    /**
+     * Processes a list of function calls proposed by the model.
+     * <p>
+     * This method assigns IDs to the calls, prompts the user for confirmation (if necessary),
+     * and executes the approved calls.
+     * </p>
+     *
+     * @param modelResponseMessage The message from the model containing the function calls.
+     * @return A {@link FunctionProcessingResult} containing the outcomes and execution results.
+     */
     public FunctionProcessingResult processFunctionCalls(ChatMessage modelResponseMessage) {
         Content modelResponseContent = modelResponseMessage.getContent();
         
@@ -360,18 +395,39 @@ public class ToolManager {
         return method.invoke(null, argsToInvoke);
     }
 
+    /**
+     * Gets the {@link Tool} object containing all registered function declarations.
+     *
+     * @return The Tool object.
+     */
     public Tool getFunctionTool() {
         return coreTools;
     }
     
+    /**
+     * Gets a list of information about all registered functions.
+     *
+     * @return An unmodifiable list of FunctionInfo objects.
+     */
     public List<FunctionInfo> getFunctionInfos() {
         return Collections.unmodifiableList(functionInfos);
     }
 
+    /**
+     * Gets the tool configuration for API calls.
+     *
+     * @return The ToolConfig object.
+     */
     public ToolConfig getToolConfig() {
         return toolConfig;
     }
     
+    /**
+     * Gets the context behavior (EPHEMERAL or STATEFUL_REPLACE) for a specific tool.
+     *
+     * @param toolName The name of the tool.
+     * @return The ContextBehavior.
+     */
     public ContextBehavior getContextBehavior(String toolName) {
         Method method = functionCallMethods.get(toolName);
         if (method != null) {
@@ -383,14 +439,30 @@ public class ToolManager {
         return ContextBehavior.EPHEMERAL;
     }
     
+    /**
+     * Gets the Java Method associated with a specific tool name.
+     *
+     * @param toolName The name of the tool.
+     * @return The Method object, or {@code null} if not found.
+     */
     public Method getToolMethod(String toolName) {
         return functionCallMethods.get(toolName);
     }
 
+    /**
+     * Gets the set of tool names that are configured to be always approved.
+     *
+     * @return The set of always-approve tool names.
+     */
     public Set<String> getAlwaysApproveFunctions() {
         return alwaysApproveFunctions;
     }
 
+    /**
+     * Gets the set of tool names that are configured to be never approved.
+     *
+     * @return The set of never-approve tool names.
+     */
     public Set<String> getNeverApproveFunctions() {
         return neverApproveFunctions;
     }

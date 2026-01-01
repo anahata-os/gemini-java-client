@@ -18,6 +18,17 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.ai.tools.schema.SchemaProvider2;
 
+/**
+ * A utility class for adapting Java types and objects to the Gemini API's data structures.
+ * <p>
+ * This class provides methods to:
+ * <ul>
+ *   <li>Generate {@link Schema} objects from Java {@link java.lang.reflect.Type}s.</li>
+ *   <li>Extract tool call IDs from {@link Part} objects.</li>
+ *   <li>Sanitize model responses by ensuring all function calls have stable IDs.</li>
+ * </ul>
+ * </p>
+ */
 @Slf4j
 public class GeminiAdapter {
 
@@ -39,10 +50,25 @@ public class GeminiAdapter {
         PRIMITIVE_MAP.put(boolean.class, Type.Known.BOOLEAN);
     }
 
+    /**
+     * Generates a Gemini {@link Schema} for a given Java type.
+     *
+     * @param type The Java type to convert.
+     * @return The corresponding Gemini Schema.
+     * @throws Exception if schema generation fails.
+     */
     public static Schema getGeminiSchema(java.lang.reflect.Type type) throws Exception {
         return getGeminiSchema(type, false);
     }
     
+    /**
+     * Generates a Gemini {@link Schema} for a given Java type, with an option to include a JSON schema ID.
+     *
+     * @param type               The Java type to convert.
+     * @param includeJsonSchemaId Whether to include a unique ID in the schema.
+     * @return The corresponding Gemini Schema.
+     * @throws Exception if schema generation fails.
+     */
     public static Schema getGeminiSchema(java.lang.reflect.Type type, boolean includeJsonSchemaId) throws Exception {
         if (type == null || type.equals(void.class) || type.equals(Void.class)) {
             return VOID_SCHEMA;
@@ -55,6 +81,13 @@ public class GeminiAdapter {
         return buildSchemaFromMap(schemaMap);
     }
     
+    /**
+     * Generates a Gemini {@link Schema} for a given Java class.
+     *
+     * @param clazz The Java class to convert.
+     * @return The corresponding Gemini Schema.
+     * @throws Exception if schema generation fails.
+     */
     public static Schema getGeminiSchema(Class<?> clazz) throws Exception {
         return getGeminiSchema((java.lang.reflect.Type) clazz, false);
     }
@@ -132,8 +165,10 @@ public class GeminiAdapter {
     
     /**
      * Inspects a Content object from the model and ensures every FunctionCall part has a stable ID.
+     * <p>
      * If a FunctionCall is missing an ID, this method generates one and reconstructs the
      * entire Content object to include it, preserving all other metadata.
+     * </p>
      *
      * @param originalContent The raw content received from the model.
      * @param idCounter The atomic counter to use for generating new IDs.

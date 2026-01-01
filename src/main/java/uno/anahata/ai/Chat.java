@@ -34,11 +34,28 @@ import uno.anahata.ai.status.ChatStatus;
 import uno.anahata.ai.status.StatusListener;
 import uno.anahata.ai.status.StatusManager;
 
+/**
+ * The central orchestrator for a Gemini AI chat session.
+ * <p>
+ * This class manages the conversation flow, including sending user input to the model,
+ * handling model responses, executing local tools (function calling), and maintaining
+ * the conversation context.
+ * </p>
+ * <p>
+ * It integrates various components such as {@link ContextManager} for history,
+ * {@link ToolManager} for function execution, and {@link StatusManager} for state tracking.
+ * </p>
+ */
 @Slf4j
 @Getter
 public class Chat {
 
     private static final Gson GSON = GsonUtils.getGson();
+    
+    /**
+     * A ThreadLocal reference to the Chat instance currently executing a tool.
+     * This allows tools to access the chat context without explicit passing.
+     */
     public static final ThreadLocal<Chat> callingInstance = new ThreadLocal<>();
 
     private final ToolManager toolManager;
@@ -58,25 +75,42 @@ public class Chat {
     private String nickname;
     
     /**
-     * Thread pool for the chat.
+     * The executor service used for asynchronous operations within this chat session.
      */
     @Getter
     private final ExecutorService executor;
 
     private long latency = -1;
+    
+    /**
+     * Flag to enable or disable local function calling (tools).
+     */
     @Setter
     private boolean functionsEnabled = true;
+    
     private volatile boolean isProcessing = false;
     private volatile boolean shutdown = false;
     private Date startTime = new Date();
     
     private final AtomicLong messageCounter = new AtomicLong(0);
 
+    /**
+     * Resets the sequential message counter to a specific value.
+     * Useful when restoring a session from persistent storage.
+     *
+     * @param value The new starting value for the message counter.
+     */
     public void resetMessageCounter(long value) {
         log.info("Resetting message counter to {}", value);
         messageCounter.set(value);
     }
     
+    /**
+     * Constructs a new Chat instance with the specified configuration and prompter.
+     *
+     * @param config   The configuration for this chat session.
+     * @param prompter The prompter used to handle user confirmation for tool calls.
+     */
     public Chat(
             ChatConfig config,
             FunctionPrompter prompter) {
@@ -90,6 +124,9 @@ public class Chat {
         statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
 
+    /**
+     * Shuts down the chat session and its associated executor service.
+     */
     public void shutdown() {
         log.info("Shutting down Chat for session {}", config.getSessionId());
         this.shutdown = true;
@@ -98,22 +135,45 @@ public class Chat {
         }
     }
 
+    /**
+     * Adds a listener to be notified of changes in the conversation context.
+     *
+     * @param listener The listener to add.
+     */
     public void addContextListener(ContextListener listener) {
         this.contextManager.addListener(listener);
     }
 
+    /**
+     * Adds a listener to be notified of changes in the chat's operational status.
+     *
+     * @param listener The listener to add.
+     */
     public void addStatusListener(StatusListener listener) {
         statusManager.addListener(listener);
     }
 
+    /**
+     * Removes a previously added status listener.
+     *
+     * @param listener The listener to remove.
+     */
     public void removeStatusListener(StatusListener listener) {
         statusManager.removeListener(listener);
     }
 
+    /**
+     * Gets the Chat instance associated with the current thread.
+     *
+     * @return The active Chat instance, or {@code null} if not in a tool execution context.
+     */
     public static Chat getCallingInstance() {
         return callingInstance.get();
     }
 
+    /**
+     * Initializes the chat session, sending any configured startup instructions to the model.
+     */
     public void init() {
         startTime = new Date();
         Content startupContent = config.getStartupContent();
@@ -124,11 +184,19 @@ public class Chat {
         statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
 
+    /**
+     * Clears the conversation history and resets the status manager.
+     */
     public void clear() {
         contextManager.clear();
         statusManager.reset();
     }
 
+    /**
+     * Sends a simple text message from the user to the model.
+     *
+     * @param message The text message to send.
+     */
     public void sendText(String message) {
         sendContent(Content.builder().role("user").parts(Part.fromText(message)).build());
     }
@@ -143,6 +211,11 @@ public class Chat {
             .build();
     }
 
+    /**
+     * Sends a structured {@link Content} object to the model and initiates the processing loop.
+     *
+     * @param content The content to send.
+     */
     public void sendContent(Content content) {
         if (isProcessing) {
             log.warn("A request is already in progress. Ignoring new request.");
@@ -414,14 +487,30 @@ public class Chat {
         return context;
     }
 
+    /**
+     * Gets the underlying Google GenAI client used by this chat session.
+     *
+     * @return The Google GenAI client.
+     */
     public Client getGoogleGenAIClient() {
         return config.getApi().getClient();
     }
 
+    /**
+     * Gets the current conversation history as a list of {@link ChatMessage} objects.
+     *
+     * @return The conversation history.
+     */
     public List<ChatMessage> getContext() {
         return contextManager.getContext();
     }
 
+    /**
+     * Notifies the chat session that an asynchronous job has completed.
+     * The result is added to the conversation context as a tool response.
+     *
+     * @param jobInfo Information about the completed job.
+     */
     public void notifyJobCompletion(JobInfo jobInfo) {
         if (isProcessing) {
             log.info("Chat is busy. Job completion notification for {} will be queued.", jobInfo.getJobId());
@@ -438,11 +527,21 @@ public class Chat {
         contextManager.add(jobResultMessage);
     }
     
+    /**
+     * Gets a short, human-readable identifier for the chat session.
+     *
+     * @return A short session ID.
+     */
     public String getShortId() {
         String sessionId = config.getSessionId();
         return sessionId.substring(sessionId.length() - 7);
     }
     
+    /**
+     * Calculates the current context window usage as a percentage of the token threshold.
+     *
+     * @return The usage percentage (0.0 to 1.0).
+     */
     public float getContextWindowUsage() {
         try {
             int tokenCount = contextManager.getTotalTokenCount();
@@ -456,6 +555,11 @@ public class Chat {
         return 0.0f;
     }
 
+    /**
+     * Gets a formatted string representing the current context window usage percentage.
+     *
+     * @return A formatted usage string (e.g., "45.2%").
+     */
     public String getContextWindowUsageFormatted() {
         float usage = getContextWindowUsage();
         if (usage > 0.0f) {

@@ -23,11 +23,32 @@ import uno.anahata.ai.tools.ContextBehavior;
 import uno.anahata.ai.tools.ToolManager;
 import uno.anahata.ai.gemini.GeminiAdapter;
 
+/**
+ * Tracks and manages stateful resources within the conversation context.
+ * <p>
+ * A stateful resource is typically a local file or system object that is loaded into the
+ * context via a tool call marked with {@link ContextBehavior#STATEFUL_REPLACE}.
+ * </p>
+ * <p>
+ * This class is responsible for:
+ * <ul>
+ *   <li>Identifying stateful resources in tool responses.</li>
+ *   <li>Monitoring the status of these resources on disk (VALID, STALE, DELETED, etc.).</li>
+ *   <li>Automatically pruning old versions of a resource when a new version is loaded.</li>
+ *   <li>Providing an overview of all stateful resources currently in the context.</li>
+ * </ul>
+ * </p>
+ */
 @Slf4j
 public class ResourceTracker {
 
     private final ContextManager contextManager;
 
+    /**
+     * Constructs a new ResourceTracker for the given ContextManager.
+     *
+     * @param contextManager The ContextManager to track resources for.
+     */
     public ResourceTracker(ContextManager contextManager) {
         this.contextManager = contextManager;
     }
@@ -156,6 +177,13 @@ public class ResourceTracker {
         return Optional.empty();
     }
 
+    /**
+     * Scans a new message for stateful resources and prunes any older versions of the same
+     * resources from the conversation history.
+     *
+     * @param newMessage  The message to scan.
+     * @param toolManager The ToolManager to use for resource identification.
+     */
     public void handleStatefulReplace(ChatMessage newMessage, ToolManager toolManager) {
         if (toolManager == null) {
             return;
@@ -194,6 +222,11 @@ public class ResourceTracker {
         }
     }
 
+    /**
+     * Generates a list of statuses for all unique stateful resources currently in the context.
+     *
+     * @return A list of {@link StatefulResourceStatus} objects.
+     */
     public List<StatefulResourceStatus> getStatefulResourcesOverview() {
         List<StatefulResourceStatus> statuses = new ArrayList<>();
         ToolManager fm = contextManager.getToolManager();
@@ -306,6 +339,12 @@ public class ResourceTracker {
         return new StatefulResourceStatus(resourceId, contextLastModified, contextSize, diskLastModified, diskSize, status, resource, partId, toolCallId);
     }
 
+    /**
+     * Prunes all messages and parts associated with a list of stateful resource IDs.
+     *
+     * @param resourceIds The list of resource IDs (e.g., file paths) to prune.
+     * @param reason      The reason for pruning.
+     */
     public void pruneStatefulResources(List<String> resourceIds, String reason) {
         ToolManager toolManager = contextManager.getToolManager();
         if (resourceIds == null || resourceIds.isEmpty() || toolManager == null) {

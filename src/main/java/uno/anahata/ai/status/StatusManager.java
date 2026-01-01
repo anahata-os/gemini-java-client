@@ -12,7 +12,11 @@ import lombok.Setter;
 import uno.anahata.ai.Chat;
 
 /**
- * Manages the status of a Chat session.
+ * Manages and broadcasts the operational status of a {@link Chat} session.
+ * <p>
+ * This class tracks the current {@link ChatStatus}, monitors API errors for retry logic,
+ * records token usage metadata, and notifies registered {@link StatusListener}s of state changes.
+ * </p>
  */
 @Getter
 public class StatusManager {
@@ -26,13 +30,22 @@ public class StatusManager {
     private long statusChangeTime;
     private long lastOperationDuration = -1;
 
-    // Usage metadata field
+    /**
+     * The token usage metadata from the most recent successful API response.
+     */
     private GenerateContentResponseUsageMetadata lastUsage;
     
-    // Currently executing tool
+    /**
+     * The name of the tool currently being executed, if any.
+     */
     @Setter
     private volatile String executingToolName;
 
+    /**
+     * Constructs a new StatusManager for the given Chat instance.
+     *
+     * @param chat The Chat instance to manage status for.
+     */
     public StatusManager(Chat chat) {
         this.chat = chat;
         resetTimers();
@@ -43,19 +56,37 @@ public class StatusManager {
         this.lastUserInputTime = System.currentTimeMillis();
     }
 
+    /**
+     * Adds a listener to be notified of status changes.
+     *
+     * @param listener The listener to add.
+     */
     public void addListener(StatusListener listener) {
         listeners.add(listener);
     }
 
+    /**
+     * Removes a previously added status listener.
+     *
+     * @param listener The listener to remove.
+     */
     public void removeListener(StatusListener listener) {
         listeners.remove(listener);
     }
 
+    /**
+     * Records the timestamp of the most recent user input.
+     */
     public void recordUserInputTime() {
         this.lastUserInputTime = System.currentTimeMillis();
         this.lastOperationDuration = -1;
     }
 
+    /**
+     * Updates the current operational status and notifies listeners.
+     *
+     * @param newStatus The new status to set.
+     */
     public void setStatus(ChatStatus newStatus) {
         if (this.currentStatus != newStatus) {
             if (newStatus == ChatStatus.IDLE_WAITING_FOR_USER && this.currentStatus != ChatStatus.IDLE_WAITING_FOR_USER) {
@@ -73,10 +104,18 @@ public class StatusManager {
         }
     }
 
+    /**
+     * Sets the usage metadata from the last API response.
+     *
+     * @param lastUsage The usage metadata.
+     */
     public void setLastUsage(GenerateContentResponseUsageMetadata lastUsage) {
         this.lastUsage = lastUsage;
     }
 
+    /**
+     * Clears the history of API errors.
+     */
     public void clearApiErrors() {
         if (!apiErrors.isEmpty()) {
             apiErrors.clear();
@@ -95,16 +134,35 @@ public class StatusManager {
         setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
     }
 
+    /**
+     * Records an API error and updates the status to {@code WAITING_WITH_BACKOFF}.
+     *
+     * @param modelId        The ID of the model being called.
+     * @param apiKey         The last 5 characters of the API key used.
+     * @param retryAttempt   The current retry attempt number.
+     * @param backoffAmount  The amount of time to wait before the next retry.
+     * @param throwable      The exception that occurred.
+     */
     public void recordApiError(String modelId, String apiKey, int retryAttempt, long backoffAmount, Throwable throwable) {
         ApiExceptionRecord record = new ApiExceptionRecord(modelId, apiKey, new Date(), retryAttempt, backoffAmount, throwable);
         apiErrors.add(record);
         setStatus(ChatStatus.WAITING_WITH_BACKOFF);
     }
 
+    /**
+     * Gets an unmodifiable list of all recorded API errors.
+     *
+     * @return The list of API error records.
+     */
     public List<ApiExceptionRecord> getApiErrors() {
         return Collections.unmodifiableList(apiErrors);
     }
 
+    /**
+     * Gets the most recent API error record.
+     *
+     * @return The last error record, or {@code null} if no errors have occurred.
+     */
     public ApiExceptionRecord getLastApiError() {
         return apiErrors.isEmpty() ? null : apiErrors.get(apiErrors.size() - 1);
     }

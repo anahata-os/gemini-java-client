@@ -5,7 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * A type-safe enum representing the role of the author of a ChatMessage.
+ * A type-safe enum representing the role of the author of a {@link ChatMessage}.
+ * <p>
+ * This enum maps to the roles recognized by the Gemini API ("user", "model")
+ * and includes a "tool" role for function responses.
+ * </p>
  */
 @Getter
 @AllArgsConstructor
@@ -23,7 +27,10 @@ public enum MessageRole {
 
     /**
      * Parses a string role value into the corresponding enum constant.
-     * Defaults to USER for any unknown values.
+     * <p>
+     * This method is case-insensitive. If the provided value does not match any
+     * known role, it defaults to {@link #USER}.
+     * </p>
      *
      * @param value The string value (e.g., "user", "model").
      * @return The matching MessageRole enum.

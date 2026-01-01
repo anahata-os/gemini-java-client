@@ -286,44 +286,58 @@
                 </executions>
                 <configuration>
                     <doclint>none</doclint>
-                    <stylesheetfile>${project.basedir}/src/main/javadoc/stylesheet.css</stylesheetfile>
+                    <addStylesheets>
+                        <addStylesheet>anahata-barca-theme.css</addStylesheet>
+                    </addStylesheets>
                     <docfilessubdirs>true</docfilessubdirs>
+                    <detectJavaApiLink>false</detectJavaApiLink>
                     <links>
-                        <link>https://docs.oracle.com/javase/8/docs/api/</link>
-                        <link>https://www.slf4j.org/apidocs/</link>
-                        <link>https://javadoc.io/doc/com.google.guava/guava/latest/</link>
-                        <link>https://fasterxml.github.io/jackson-databind/javadoc/2.13/</link>
-                        <link>https://googleapis.github.io/java-genai/javadoc/</link>
+                        <link>https://www.slf4j.org/apidocs/</link>  <!-- This one is fine, no redirect -->
+                        <link>https://javadoc.io/doc/com.google.guava/guava/33.5.0-jre/</link>  <!-- Direct Guava (JRE flavor) -->
+                        <link>https://javadoc.io/doc/com.fasterxml.jackson.core/jackson-databind/latest/</link>  <!-- Jackson databind on javadoc.io (no redirect) -->
+                        <link>https://javadoc.io/doc/com.google.genai/google-genai/1.32.0/</link>  <!-- Already good -->
                     </links>
+                    <top>
+                        <![CDATA[
+    <div class="anahata-footer">
+        
+        <!-- Item 1: Anahata Logo -->
+        <img src="https://www.anahata.uno/assets/logo-transparent.png" alt="Anahata Logo" class="anahata-logo">
+
+        <!-- Item 2: Donate Button -->
+        <a href="https://github.com/sponsors/anahata-os" target="_blank" class="donate-link">
+            Please Donate ❤️
+        </a>
+
+        <!-- Item 3: Força Barça Section -->
+        <div class="barca-wrapper">
+            <span class="forca-text">Força <span class="barca-red">Barça!</span></span>
+            <img src="https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg" alt="Barça Crest">
+        </div>
+
+    </div>
+]]>
+                    </top>
                     <bottom><![CDATA[
-                        <div class="anahata-footer">
-                            <img src="https://www.anahata.uno/assets/logo-transparent.png" alt="Anahata Logo" style="height: 50px;">
-                            <div class="barca-text">
-                                <div class="forca-barca">
-                                    <span class="forca" style="color: #004d98;">Força</span> <span class="barca" style="color: #a50044;">Barça!</span>
-                                </div>
-                                <a href="https://github.com/sponsors/anahata-os" class="donate-link">Please Donate ❤️</a>
-                            </div>
-                            <img src="https://www.anahata.uno/assets/logos/barsa.png" alt="Barça Logo" style="height: 50px;">
-                        </div>
-                    ]]></bottom>
+    <div class="anahata-footer">
+        
+        <!-- Item 1: Anahata Logo -->
+        <img src="https://www.anahata.uno/assets/logo-transparent.png" alt="Anahata Logo" class="anahata-logo">
+
+        <!-- Item 2: Donate Button -->
+        <a href="https://github.com/sponsors/anahata-os" target="_blank" class="donate-link">
+            Please Donate ❤️
+        </a>
+
+        <!-- Item 3: Força Barça Section -->
+        <div class="barca-wrapper">
+            <span class="forca-text">Força <span class="barca-red">Barça!</span></span>
+            <img src="https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg" alt="Barça Crest">
+        </div>
+
+    </div>
+]]></bottom>
                 </configuration>
-            </plugin>
-            
-            <!-- GPG Signing -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.2.7</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             
             <!-- Nexus Staging Plugin -->
@@ -343,6 +357,28 @@
 
     <profiles>
         <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- GPG Signing - Only active in release profile -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.7</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>standalone</id>
             <dependencies>
                 <dependency>
@@ -352,71 +388,7 @@
                 </dependency>
             </dependencies>
         </profile>
-        <profile>
-            <id>build-with-sources</id>
-            <build>
-                <plugins>
-                    
-                    <!-- Copy dependency sources -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-dependency-plugin</artifactId>
-                        <version>3.6.1</version>
-                        <executions>
-                            <execution>
-                                <id>copy-dependency-sources</id>
-                                <phase>generate-resources</phase>
-                                <goals>
-                                    <goal>copy-dependencies</goal>
-                                </goals>
-                                <configuration>
-                                    <classifier>sources</classifier>
-                                    <includeScope>runtime</includeScope>
-                                    <outputDirectory>${project.build.directory}/dependency-source-jars</outputDirectory>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-
-                    <!-- Copy sources into target/classes/META-INF/sources -->
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-resources-plugin</artifactId>
-                        <version>3.3.1</version>
-                        <executions>
-                            <execution>
-                                <id>copy-project-sources</id>
-                                <phase>process-resources</phase>
-                                <goals>
-                                    <goal>copy-resources</goal>
-                                </goals>
-                                <configuration>
-                                    <outputDirectory>${project.build.outputDirectory}/META-INF/sources</outputDirectory>
-                                    <resources>
-                                        <!-- Your project sources -->
-                                        <resource>
-                                            <directory>${project.build.sourceDirectory}</directory>
-                                            <includes>
-                                                <include>**/*.java</include>
-                                            </includes>
-                                        </resource>
-                                        <!-- Dependency sources jars -->
-                                        <resource>
-                                            <directory>${project.build.directory}/dependency-source-jars</directory>
-                                            <includes>
-                                                <include>*.jar</include>
-                                            </includes>
-                                        </resource>
-                                    </resources>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-
-                </plugins>
-            </build>
-        </profile>
-        
+                
     </profiles>
     
 </project>

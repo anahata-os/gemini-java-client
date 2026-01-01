@@ -13,6 +13,12 @@ import uno.anahata.ai.context.provider.ContextPosition;
 import uno.anahata.ai.internal.PartUtils;
 
 /**
+ * A factory for generating content parts from registered {@link ContextProvider}s.
+ * <p>
+ * This class orchestrates the execution of context providers based on their
+ * assigned {@link ContextPosition}. it supports both sequential and parallel
+ * execution of providers.
+ * </p>
  *
  * @author anahata
  */
@@ -22,6 +28,12 @@ public class ContentFactory {
     
     private final Chat chat;
     
+    /**
+     * Produces a list of content parts from all enabled context providers for the given position.
+     *
+     * @param position The position in the context where the parts should be inserted.
+     * @return A list of generated parts.
+     */
     public List<Part> produceParts(ContextPosition position) {
         return produceParts(position, false);
     }

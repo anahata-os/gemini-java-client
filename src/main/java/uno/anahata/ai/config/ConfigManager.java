@@ -18,29 +18,34 @@ import uno.anahata.ai.context.provider.ContextPosition;
 import uno.anahata.ai.internal.PartUtils;
 
 /**
- * Manages configuration-related tasks for a Chat session, including the
- * aggregation of system instructions and the construction of the final
- * GenerateContentConfig for API calls.
+ * Manages configuration-related tasks for a {@link Chat} session.
+ * <p>
+ * This class is responsible for aggregating system instructions from various
+ * {@link ContextProvider}s and constructing the final {@link GenerateContentConfig}
+ * used for Gemini API calls.
+ * </p>
  */
 @Slf4j
 @Getter
 public class ConfigManager {
 
     private final Chat chat;
-    //private final List<ContextProvider> contextProviders;
 
+    /**
+     * Constructs a new ConfigManager for the given Chat instance.
+     *
+     * @param chat The Chat instance to manage configuration for.
+     */
     public ConfigManager(Chat chat) {
         this.chat = chat;
-        // Get the single, authoritative list of providers from the config.
-        //this.contextProviders = chat.getConfig().getContextProviders();
     }
 
     /**
-     * Gets a list of all enabled context providers that match the given
-     * position.
+     * Gets a list of context providers that match the specified position and enabled state.
      *
-     * @param position The desired context position.
-     * @return A list of matching enabled providers.
+     * @param position The desired context position (e.g., SYSTEM_INSTRUCTIONS).
+     * @param enabled  Whether to filter for enabled or disabled providers.
+     * @return A list of matching context providers.
      */
     public List<ContextProvider> getContextProviders(ContextPosition position, boolean enabled) {
         return chat.getConfig().getContextProviders().stream()
@@ -49,8 +54,12 @@ public class ConfigManager {
     }
 
     /**
-     * Constructs the GenerateContentConfig for an API call, assembling system
-     * instructions and configuring tools based on the current chat state.
+     * Constructs the {@link GenerateContentConfig} for an API call.
+     * <p>
+     * This method assembles the system instructions, configures thinking mode,
+     * and sets up tools (local functions or Google Search) based on the current
+     * chat state.
+     * </p>
      *
      * @return The fully configured GenerateContentConfig object.
      */
@@ -75,7 +84,7 @@ public class ConfigManager {
     /**
      * Aggregates system instruction parts from all enabled providers.
      *
-     * @return A Content object containing all system instructions.
+     * @return A Content object containing the combined system instructions.
      */
     private Content buildSystemInstructions() {
         List<Part> parts = new ArrayList<>();
@@ -90,8 +99,6 @@ public class ConfigManager {
                 + "Ask the user to enable any disabled "
                 + "instruction providers that could give you additional context and help you accomplish tasks."));
         parts.add(Part.fromText("**Instructions Providers**: (enabled ones are included on every turn and run 'after' tool execution)**"));
-
-        //List<ContextProvider> systemInstructionProviders = getContextProviders(ContextPosition.SYSTEM_INSTRUCTIONS, true);
 
         parts.addAll(chat.getContentFactory().produceParts(ContextPosition.SYSTEM_INSTRUCTIONS));
 

@@ -22,22 +22,42 @@ import uno.anahata.ai.tools.ContextBehavior;
 import uno.anahata.ai.tools.ToolManager;
 import uno.anahata.ai.internal.ContentUtils;
 
+/**
+ * Handles the pruning of messages and specific content parts from the conversation context.
+ * <p>
+ * This class implements complex logic to ensure that when a part is removed, all its
+ * dependent parts (e.g., the corresponding function call for a function response) are
+ * also identified and removed, maintaining the integrity of the conversation.
+ * </p>
+ * <p>
+ * It supports manual pruning by ID, automatic pruning of old ephemeral tool calls,
+ * and stateful resource replacement.
+ * </p>
+ */
 @Slf4j
 public class ContextPruner {
 
     private final ContextManager contextManager;
 
+    /**
+     * Constructs a new ContextPruner for the given ContextManager.
+     *
+     * @param contextManager The ContextManager to prune for.
+     */
     public ContextPruner(ContextManager contextManager) {
         this.contextManager = contextManager;
     }
 
     /**
      * Prunes entire ChatMessage objects from the context based on their unique sequential IDs.
-     * This method now only collects the initial parts to be removed and delegates
-     * the full dependency traversal and removal to {@link #prunePartsByReference(java.util.List, java.lang.String)}.
+     * <p>
+     * This method identifies all parts within the targeted messages and delegates the
+     * actual removal to {@link #prunePartsByReference(List, String)} to ensure
+     * all dependencies are also pruned.
+     * </p>
      *
      * @param sequentialIds A list of message sequential IDs to remove.
-     * @param reason        The reason for the pruning, for logging purposes.
+     * @param reason        The reason for the pruning.
      */
     public void pruneMessages(List<Long> sequentialIds, String reason) {
         log.info("PruneMessages called for Sequential IDs: {} with reason: {}", sequentialIds, reason);
@@ -65,12 +85,14 @@ public class ContextPruner {
 
     /**
      * Prunes specific parts from a single ChatMessage, identified by the message's sequential ID and the parts' indices.
-     * This method now only collects the initial parts to be removed and delegates
-     * the full dependency traversal and removal to {@link #prunePartsByReference(java.util.List, java.lang.String)}.
+     * <p>
+     * This method identifies the specific Part objects and delegates the removal to
+     * {@link #prunePartsByReference(List, String)} to handle dependency resolution.
+     * </p>
      *
      * @param messageSequentialId The sequential ID of the message containing the parts to prune.
      * @param partIndices         A list of zero-based indices of the parts to remove.
-     * @param reason              The reason for the pruning, for logging purposes.
+     * @param reason              The reason for the pruning.
      */
     public void pruneParts(long messageSequentialId, List<Number> partIndices, String reason) {
         log.info("PruneParts called for message ID: {} with indices: {} and reason: {}", messageSequentialId, partIndices, reason);
@@ -115,9 +137,12 @@ public class ContextPruner {
     }
 
     /**
-     * The low-level workhorse method that removes a given set of Part objects from any message in the context.
-     * This method now includes the full, recursive, cross-message dependency traversal logic and cleans the
-     * dependency map of the resulting ChatMessage objects.
+     * The low-level workhorse method that removes a given set of Part objects from the context.
+     * <p>
+     * This method performs a recursive, cross-message dependency traversal to find all
+     * parts that must be removed along with the initial candidates. It then updates
+     * the affected messages and cleans their dependency maps.
+     * </p>
      *
      * @param initialCandidates A list of the actual Part objects to remove.
      * @param reason            The reason for the pruning.
@@ -239,10 +264,23 @@ public class ContextPruner {
         }
     }
     
+    /**
+     * Prunes a single ephemeral tool call and its associated response.
+     *
+     * @param toolCallId The unique ID of the tool call.
+     * @param reason     The reason for pruning.
+     */
     public void pruneEphemeralToolCall(String toolCallId, String reason) {
         pruneEphemeralToolCalls(Collections.singletonList(toolCallId), reason);
     }
 
+    /**
+     * Prunes a list of ephemeral tool calls and their associated responses.
+     *
+     * @param toolCallIds The list of tool call IDs.
+     * @param reason      The reason for pruning.
+     * @throws IllegalArgumentException if any of the IDs are associated with a stateful resource.
+     */
     public void pruneEphemeralToolCalls(List<String> toolCallIds, String reason) {
         log.info("Pruning ephemeral tool calls by IDs: {}. Reason: {}", toolCallIds, reason);
         for (String toolCallId : toolCallIds) {
@@ -253,6 +291,13 @@ public class ContextPruner {
         pruneToolCalls(toolCallIds, reason);
     }
 
+    /**
+     * Prunes non-tool parts (text, blobs, etc.) from the context.
+     *
+     * @param parts  The list of Part objects to prune.
+     * @param reason The reason for pruning.
+     * @throws IllegalArgumentException if any of the parts are tool calls or responses.
+     */
     public void pruneOther(List<Part> parts, String reason) {
         log.info("Pruning other parts. Reason: {}", reason);
         for (Part part : parts) {
@@ -263,10 +308,22 @@ public class ContextPruner {
         prunePartsByReference(parts, reason);
     }
 
+    /**
+     * Prunes a single tool call (ephemeral or stateful) by its ID.
+     *
+     * @param toolCallId The tool call ID.
+     * @param reason     The reason for pruning.
+     */
     public void pruneToolCall(String toolCallId, String reason) {
         pruneToolCalls(Collections.singletonList(toolCallId), reason);
     }
 
+    /**
+     * Prunes a list of tool calls by their IDs.
+     *
+     * @param toolCallIds The list of tool call IDs.
+     * @param reason      The reason for pruning.
+     */
     public void pruneToolCalls(List<String> toolCallIds, String reason) {
         log.info("Pruning tool calls by IDs: {}. Reason: {}", toolCallIds, reason);
         Set<String> idsToPrune = new HashSet<>(toolCallIds);
@@ -336,8 +393,16 @@ public class ContextPruner {
     }
 
     /**
-     * Implements the new, more robust logic for automatically pruning old tool calls based on our expanded definition of "ephemeral".
-     * This method now only collects the initial candidates and delegates the full dependency traversal and removal.
+     * Implements the automatic pruning of old tool calls based on the "ephemeral" rules.
+     * <p>
+     * A part is considered ephemeral if:
+     * <ul>
+     *   <li>The tool is explicitly marked as {@link ContextBehavior#EPHEMERAL}.</li>
+     *   <li>It is a function call with no corresponding response (orphan).</li>
+     *   <li>It is a function response from a stateful tool that failed to return a resource.</li>
+     * </ul>
+     * This method scans messages older than 5 user turns and prunes any ephemeral parts found.
+     * </p>
      *
      * @param toolManager The ToolManager, needed to check tool metadata.
      */

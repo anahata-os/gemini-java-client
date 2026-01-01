@@ -16,19 +16,60 @@ import uno.anahata.ai.context.session.SessionManager;
 import uno.anahata.ai.context.stateful.ResourceTracker;
 import uno.anahata.ai.tools.ToolManager;
 
+/**
+ * Manages the conversation context (history) for a {@link Chat} session.
+ * <p>
+ * This class is responsible for:
+ * <ul>
+ *   <li>Maintaining the list of {@link ChatMessage} objects.</li>
+ *   <li>Tracking the total token count of the conversation.</li>
+ *   <li>Managing context listeners for history changes.</li>
+ *   <li>Delegating specialized tasks to {@link SessionManager} (persistence),
+ *       {@link ResourceTracker} (stateful files), and {@link ContextPruner} (pruning).</li>
+ * </ul>
+ * </p>
+ */
 @Slf4j
 @Getter
 public class ContextManager {
 
+    /**
+     * The underlying list of messages in the conversation.
+     */
     private List<ChatMessage> context = new ArrayList<>();
+    
+    /**
+     * The Chat instance this manager belongs to.
+     */
     private final Chat chat;
+    
+    /**
+     * The configuration for the associated chat session.
+     */
     private final ChatConfig config;
+    
     private final List<ContextListener> listeners = new CopyOnWriteArrayList<>();
+    
+    /**
+     * The tool manager used for function calling operations.
+     */
     private final ToolManager toolManager;
+    
+    /**
+     * The total number of tokens currently in the context, as reported by the last API response.
+     */
     private int totalTokenCount = 0;
+    
+    /**
+     * The maximum number of tokens allowed in the context before pruning or warnings are triggered.
+     */
     @Getter
     @Setter
     private int tokenThreshold = 250_000;
+    
+    /**
+     * The timestamp of the last message added to the context.
+     */
     private Instant lastMessageTimestamp = Instant.now();
 
     // Delegated classes
@@ -36,6 +77,11 @@ public class ContextManager {
     private final ResourceTracker resourceTracker;
     private final ContextPruner contextPruner;
 
+    /**
+     * Constructs a new ContextManager for the given Chat instance.
+     *
+     * @param chat The Chat instance to manage context for.
+     */
     public ContextManager(Chat chat) {
         this.chat = chat;
         this.config = chat.getConfig();
@@ -48,6 +94,10 @@ public class ContextManager {
 
     /**
      * Gets the ContextManager for the currently executing tool.
+     * <p>
+     * This method uses a {@code ThreadLocal} to retrieve the active instance,
+     * allowing tools to interact with the context without needing an explicit reference.
+     * </p>
      *
      * @return The active ContextManager.
      * @throws IllegalStateException if not called from a tool execution thread.
@@ -60,14 +110,39 @@ public class ContextManager {
         return chat.getContextManager();
     }
 
+    /**
+     * Adds a listener to be notified of changes to the conversation history.
+     *
+     * @param listener The listener to add.
+     */
     public void addListener(ContextListener listener) {
         listeners.add(listener);
     }
 
+    /**
+     * Removes a previously added context listener.
+     *
+     * @param listener The listener to remove.
+     */
     public void removeListener(ContextListener listener) {
         listeners.remove(listener);
     }
 
+    /**
+     * Adds a new message to the conversation context.
+     * <p>
+     * This method performs several side effects:
+     * <ul>
+     *   <li>Calculates and sets the elapsed time since the last message.</li>
+     *   <li>Handles stateful resource replacement via {@link ResourceTracker}.</li>
+     *   <li>Updates the total token count if usage metadata is present.</li>
+     *   <li>Triggers ephemeral tool call pruning if the message is from the user.</li>
+     *   <li>Notifies listeners of the history change.</li>
+     * </ul>
+     * </p>
+     *
+     * @param message The message to add.
+     */
     public synchronized void add(ChatMessage message) {
         // Set elapsed time before adding
         Instant now = Instant.now();
@@ -89,10 +164,18 @@ public class ContextManager {
         notifyHistoryChange();
     }
 
+    /**
+     * Gets the total token count of the conversation.
+     *
+     * @return The total token count.
+     */
     public synchronized int getTotalTokenCount() {
         return totalTokenCount;
     }
 
+    /**
+     * Clears all messages from the context and resets the token count.
+     */
     public synchronized void clear() {
         context.clear();
         totalTokenCount = 0;
@@ -101,10 +184,24 @@ public class ContextManager {
         log.info("Chat history cleared.");
     }
 
+    /**
+     * Returns a copy of the current conversation history.
+     *
+     * @return A list of {@link ChatMessage} objects.
+     */
     public synchronized List<ChatMessage> getContext() {
         return new ArrayList<>(context);
     }
 
+    /**
+     * Replaces the entire conversation history with a new list of messages.
+     * <p>
+     * This is typically used when restoring a session. It recalculates elapsed times
+     * for all messages and updates the token count from the most recent usage metadata.
+     * </p>
+     *
+     * @param newContext The new list of messages.
+     */
     public synchronized void setContext(List<ChatMessage> newContext) {
         this.context = new ArrayList<>(newContext);
         
@@ -147,22 +244,50 @@ public class ContextManager {
         notifyHistoryChange();
     }
 
+    /**
+     * Prunes a set of messages from the context by their sequential IDs.
+     *
+     * @param sequentialIds The list of sequential IDs to prune.
+     * @param reason        The reason for pruning.
+     */
     public synchronized void pruneMessages(List<Long> sequentialIds, String reason) {
         contextPruner.pruneMessages(sequentialIds, reason);
     }
 
+    /**
+     * Prunes specific parts from a message.
+     *
+     * @param messageSequentialId The sequential ID of the message.
+     * @param partIndices         The indices of the parts to prune.
+     * @param reason              The reason for pruning.
+     */
     public synchronized void pruneParts(long messageSequentialId, List<Number> partIndices, String reason) {
         contextPruner.pruneParts(messageSequentialId, partIndices, reason);
     }
 
+    /**
+     * Prunes specific parts from the context by their object references.
+     *
+     * @param partsToPrune The list of Part objects to prune.
+     * @param reason       The reason for pruning.
+     */
     public synchronized void prunePartsByReference(List<Part> partsToPrune, String reason) {
         contextPruner.prunePartsByReference(partsToPrune, reason);
     }
     
+    /**
+     * Prunes a specific tool call and its associated response from the context.
+     *
+     * @param toolCallId The unique ID of the tool call.
+     * @param reason     The reason for pruning.
+     */
     public synchronized void pruneToolCall(String toolCallId, String reason) {
         contextPruner.pruneToolCall(toolCallId, reason);
     }
 
+    /**
+     * Notifies listeners of a change in the conversation history and triggers an automatic backup.
+     */
     public void notifyHistoryChange() {
         listeners.forEach(l -> l.contextChanged(chat));
         sessionManager.triggerAutobackup();

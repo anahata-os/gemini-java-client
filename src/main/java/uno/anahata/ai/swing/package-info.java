@@ -30,14 +30,13 @@
  *
  *     <li><b>Configuration and Settings:</b> The {@link uno.anahata.ai.swing.config} package provides UI
  *     panels for configuring the application, such as {@link uno.anahata.ai.swing.GeminiKeysPanel} for
- *     managing API keys and {@link uno.anahata.ai.swing.SystemInstructionsPanel} for editing the AI's
- *     core instructions.</li>
+ *     managing API keys.</li>
  *
  *     <li><b>Context Visualization:</b> {@link uno.anahata.ai.swing.ContextHeatmapPanel} and
  *     {@link uno.anahata.ai.swing.ContextUsageBar} provide visual representations of the context
  *     window's state, helping the user understand the conversation's memory usage.</li>
  *
- *     <li><b>Tool Integration:</b> {@link uno.anahata.ai.swing.FunctionsPanel} allows the user to manage
+ *     <li><b>Tool Integration:</b> {@link uno.anahata.ai.swing.ToolsPanel} allows the user to manage
  *     the permissions for each available tool, while {@link uno.anahata.ai.swing.SwingFunctionPrompter}
  *     provides a UI for confirming tool executions.</li>
  *
@@ -47,7 +46,7 @@
  *
  *     <li><b>Utilities:</b> The {@link uno.anahata.ai.swing.util} package contains various helper
  *     classes for Swing-related tasks, such as {@link uno.anahata.ai.swing.util.SwingUtils} for
- * "common UI operations.</li>
+ *     common UI operations.</li>
  * </ul>
  */
 package uno.anahata.ai.swing;

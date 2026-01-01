@@ -4,7 +4,7 @@
  * <p>
  * This package contains providers that supply contextual information derived from the
  * user interface to the model's system prompt. For example, the
- * {@link uno.anahata.ai.ui.instructions.ScreenInstructionsProvider} can capture the
+ * {@link uno.anahata.ai.swing.context.provider.ApplicationFramesContextProvider} can capture the
  * current state of the application windows and provide it as an image context to the AI.
  */
 package uno.anahata.ai.swing.config.systeminstructions.spi;

@@ -4,7 +4,11 @@ package uno.anahata.ai.context;
 import uno.anahata.ai.Chat;
 
 /**
- * A listener for changes in the chat context.
+ * A listener interface for receiving notifications about changes in the conversation context.
+ * <p>
+ * Implementations can be registered with a {@link Chat} instance to react to new messages,
+ * pruning operations, or context resets.
+ * </p>
  *
  * @author anahata
  */
@@ -12,7 +16,10 @@ public interface ContextListener {
 
     /**
      * Fired whenever the context has changed in any way (messages added, removed, or modified).
-     * The listener is responsible for completely redrawing its view from the new context state.
+     * <p>
+     * The listener is responsible for completely redrawing its view or updating its state
+     * based on the new context state.
+     * </p>
      * @param source The Chat instance where the change occurred.
      */
     void contextChanged(Chat source);
