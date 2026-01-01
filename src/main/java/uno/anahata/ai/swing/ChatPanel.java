@@ -24,6 +24,7 @@ import uno.anahata.ai.context.ContextListener;
 import uno.anahata.ai.tools.FunctionPrompter;
 import uno.anahata.ai.status.ChatStatus;
 import uno.anahata.ai.status.StatusListener;
+import uno.anahata.ai.context.provider.ContextProvider;
 
 @Slf4j
 @Getter
@@ -86,7 +87,21 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
 
         liveWorkspaceButton = new JToggleButton(IconUtils.getIcon("compress.png"), true);
         liveWorkspaceButton.setToolTipText("Toggle Live Workspace View");
-        //liveWorkspaceButton.addActionListener(e -> chat.setAugmentedWorkspaceEnabled(liveWorkspaceButton.isSelected()));
+        
+        // Initialize button state from the provider
+        boolean liveEnabled = chat.getConfig().getContextProviders().stream()
+                .filter(p -> "ui-screen-capture".equals(p.getId()))
+                .map(ContextProvider::isEnabled)
+                .findFirst()
+                .orElse(false);
+        liveWorkspaceButton.setSelected(liveEnabled);
+        
+        liveWorkspaceButton.addActionListener(e -> {
+            chat.getConfig().getContextProviders().stream()
+                .filter(p -> "ui-screen-capture".equals(p.getId()))
+                .findFirst()
+                .ifPresent(p -> p.setEnabled(liveWorkspaceButton.isSelected()));
+        });
 
         saveSessionButton = new JButton(IconUtils.getIcon("save.png"));
         saveSessionButton.setToolTipText("Save Session");

@@ -1,7 +1,6 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
-
+[![Version](https://img.shields.io/badge/version-1.0.0--SNAPSHOT-orange)](https://github.com/anahata-os/gemini-java-client)
 [![Javadoc](https://img.shields.io/badge/Javadoc-Reference-blue)](https://anahata-os.github.io/gemini-java-client/)
-
 [![Deploy Javadoc](https://github.com/anahata-os/gemini-java-client/actions/workflows/javadoc.yml/badge.svg)](https://anahata-os.github.io/gemini-java-client/)
 
 # gemini-java-client
@@ -80,7 +79,7 @@ public class MyAppTools {
 Extend `SwingChatConfig` to register your custom tool class.
 
 ```java
-import uno.anahata.ai.swing.config.SwingChatConfig;
+import uno.anahata.ai.swing.SwingChatConfig;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -101,21 +100,30 @@ public class MyAppChatConfig extends SwingChatConfig {
 
 ### Step 3: Initialize and Run
 
+The easiest way to integrate is using the `ChatPanel` component.
+
 ```java
-import uno.anahata.ai.Chat;
-import uno.anahata.ai.swing.tools.SwingFunctionPrompter;
-import uno.anahata.ai.swing.ui.render.DefaultEditorKitProvider;
-import uno.anahata.ai.tools.FunctionPrompter;
+import uno.anahata.ai.swing.ChatPanel;
+import uno.anahata.ai.swing.render.editorkit.DefaultEditorKitProvider;
 
-// Use your custom config
-MyAppChatConfig config = new MyAppChatConfig(); 
+// 1. Initialize the UI component
+ChatPanel chatPanel = new ChatPanel(new DefaultEditorKitProvider());
 
-// Initialize the chat
-FunctionPrompter prompter = new SwingFunctionPrompter(null, new DefaultEditorKitProvider());
-Chat chat = new Chat(config, prompter);
+// 2. Initialize with your custom config
+SwingChatConfig config = new MyAppChatConfig(); 
+chatPanel.init(config);
+
+// 3. Build the UI
+chatPanel.initComponents();
+
+// 4. Add to your frame
+frame.add(chatPanel);
+
+// 5. Start the session (restores backup or sends startup instructions)
+chatPanel.checkAutobackupOrStartupContent();
 
 // The AI can now call MyAppTools.processItems
-chat.send("Please process items ['A1', 'B2', 'C3'] verbosely.");
+chatPanel.getChat().sendText("Please process items ['A1', 'B2', 'C3'] verbosely.");
 ```
 
 ## Advanced Features Showcase
