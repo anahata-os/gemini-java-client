@@ -1,14 +1,16 @@
 pipeline {
-    agent { label 'ci' }
+    agent any
 
     tools {
-        maven 'Maven_3.9.6' 
-        jdk 'jdk17'
+        // EXACT name you gave JDK 25 in "Global Tool Configuration"
+        jdk 'JDK 25' 
+        // EXACT name you gave Maven in "Global Tool Configuration"
+        maven 'Maven 3.9.8' 
     }
 
-    options {
-        buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 30, unit: 'MINUTES')
+    environment {
+        // GPG Passphrase logic is still needed for signing
+        MAVEN_GPG_PASSPHRASE = credentials('gpg-passphrase')
     }
 
     stages {
@@ -18,32 +20,29 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build & Verify') {
             steps {
-                sh 'mvn clean compile'
+                // Compile and run tests with JDK 25
+                sh 'mvn clean verify'
             }
         }
 
-        stage('Deploy Snapshot') {
+        stage('Deploy to Central') {
             when {
-                branch 'main'
-            }
-            steps {
-                // This assumes you have configured a 'Managed File' in Jenkins 
-                // with the ID 'sonatype-settings' containing your Sonatype credentials.
-                configFileProvider([configFile(fileId: 'sonatype-settings', variable: 'MAVEN_SETTINGS')]) {
-                    sh 'mvn deploy -s $MAVEN_SETTINGS -DskipTests'
+                // Only run this stage if it is NOT a snapshot
+                expression {
+                    def pom = readMavenPom file: 'pom.xml'
+                    return !pom.version.endsWith("-SNAPSHOT")
                 }
             }
-        }
-    }
-
-    post {
-        failure {
-            echo 'Build failed. Check the logs and Sonatype credentials.'
-        }
-        success {
-            echo 'Snapshot successfully deployed to Sonatype S01.'
+            steps {
+                script {
+                    echo "Deploying Release to Central Portal..."
+                    // The new plugin reads auth from settings.xml (server: central)
+                    // We pass GPG passphrase for the maven-gpg-plugin
+                    sh 'mvn deploy -P release -DskipTests'
+                }
+            }
         }
     }
 }
