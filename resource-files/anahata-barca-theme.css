@@ -128,7 +128,7 @@ footer p.legal-copy, footer small {
     font-size: 2em; 
     font-weight: 900; 
     color: var(--barca-blue) !important; 
-    text-shadow: 2px 2px 8px var(--barca-yellow) !important;
+    text-shadow: 1px 1px 1px var(--barca-yellow) !important; /* Gentler shadow */
 }
 .anahata-footer .barca-red { color: var(--barca-garnet) !important; }
 .anahata-footer .barca-wrapper img { height: 70px; width: auto; }
