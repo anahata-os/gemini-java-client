@@ -1,5 +1,5 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
-[![Version](https://img.shields.io/badge/version-1.0.0--SNAPSHOT-orange)](https://github.com/anahata-os/gemini-java-client)
+[![Version](https://img.shields.io/badge/version-1.0.0-orange)](https://github.com/anahata-os/gemini-java-client)
 [![Javadoc](https://img.shields.io/badge/Javadoc-Reference-blue)](https://anahata-os.github.io/gemini-java-client/)
 [![Deploy Javadoc](https://github.com/anahata-os/gemini-java-client/actions/workflows/javadoc.yml/badge.svg)](https://anahata-os.github.io/gemini-java-client/)
 
