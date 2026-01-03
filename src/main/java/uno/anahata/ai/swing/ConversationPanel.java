@@ -4,6 +4,8 @@ package uno.anahata.ai.swing;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -13,6 +15,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.ai.Chat;
@@ -56,6 +59,17 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
 
         chatContentPanel = new ScrollablePanel();
         chatContentPanel.setLayout(new BoxLayout(chatContentPanel, BoxLayout.Y_AXIS));
+        
+        // Robust scrolling: If the panel resizes (e.g. images loading) and we were at the bottom, stay at the bottom.
+        chatContentPanel.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                if (wasAtBottom) {
+                    scrollToBottom();
+                }
+            }
+        });
+
         chatScrollPane = new JScrollPane(chatContentPanel);
         chatScrollPane.setBorder(BorderFactory.createEmptyBorder());
 
@@ -107,7 +121,10 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
 
     private boolean isScrolledToBottom() {
         JScrollBar verticalScrollBar = chatScrollPane.getVerticalScrollBar();
-        int tolerance = 10; // A few pixels of tolerance
+        if (verticalScrollBar.getModel().getExtent() == 0) {
+            return true; // Assume bottom if not yet realized
+        }
+        int tolerance = 30; // Increased tolerance for high-DPI or complex layouts
         return (verticalScrollBar.getValue() + verticalScrollBar.getVisibleAmount()) >= (verticalScrollBar.getMaximum() - tolerance);
     }
 
@@ -125,13 +142,8 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
             for (Component comp : chatContentPanel.getComponents()) {
                 if (comp instanceof ChatMessageJPanel) {
                     ChatMessageJPanel panel = (ChatMessageJPanel) comp;
-                    // Use .equals() for robustness, though reference equality should work too.
                     if (panel.getChatMessage().equals(scrollStateToRestore.getAnchor())) {
                         int newScrollValue = panel.getY() - scrollStateToRestore.getOffset();
-                        int messageIndex = chat.getContext().indexOf(panel.getChatMessage());
-                        
-                        log.info("Restoring scroll state to message #{} ({}), pixel value: {}",
-                                 messageIndex, panel.getChatMessage().toString(), newScrollValue);
                         chatScrollPane.getVerticalScrollBar().setValue(newScrollValue);
                         return;
                     }
@@ -144,9 +156,24 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
         if (chatContentPanel.getComponentCount() == 0) {
             return;
         }
+        
+        // We use a double-invoke strategy to ensure the layout manager has 
+        // finished calculating the new preferred sizes after the redraw.
         SwingUtilities.invokeLater(() -> {
-            JScrollBar verticalScrollBar = chatScrollPane.getVerticalScrollBar();
-            verticalScrollBar.setValue(verticalScrollBar.getMaximum());
+            chatContentPanel.revalidate();
+            chatScrollPane.revalidate();
+            
+            SwingUtilities.invokeLater(() -> {
+                JScrollBar verticalScrollBar = chatScrollPane.getVerticalScrollBar();
+                verticalScrollBar.setValue(verticalScrollBar.getMaximum());
+                
+                // A third safety scroll for components that load asynchronously (like images)
+                Timer timer = new Timer(150, e -> {
+                    verticalScrollBar.setValue(verticalScrollBar.getMaximum());
+                });
+                timer.setRepeats(false);
+                timer.start();
+            });
         });
     }
 
