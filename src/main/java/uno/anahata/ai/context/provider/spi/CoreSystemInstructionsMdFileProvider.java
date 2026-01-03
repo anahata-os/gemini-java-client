@@ -25,7 +25,7 @@ public class CoreSystemInstructionsMdFileProvider extends ContextProvider {
     private static final String SYSTEM_INSTRUCTIONS;
 
     static {
-        SYSTEM_INSTRUCTIONS = loadManual("/uno.anahata.ai/system-instructions.md");
+        SYSTEM_INSTRUCTIONS = loadManual("/system-instructions.md");
     }
     
     @Override
