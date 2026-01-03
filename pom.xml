@@ -6,7 +6,7 @@
 
     <groupId>uno.anahata</groupId>
     <artifactId>gemini-java-client</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
     
     <name>gemini-java-client</name>
