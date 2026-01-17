@@ -44,4 +44,5 @@ jobs:
         run: |
           # -P release activates your profile (if you have one)
           # -DskipTests speeds up the deploy (assuming tests run in a separate PR workflow)
-          mvn deploy -DskipTests -P release
+          # -ntp (no transfer progress) cleans up the logs
+          mvn deploy -DskipTests -P release -ntp

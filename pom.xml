@@ -50,13 +50,9 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>local-snapshot</id>
-            <url>file://${project.build.directory}/mvn-repo</url>
+            <id>central</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
-        <repository>
-            <id>local-release</id>
-            <url>file://${project.build.directory}/mvn-repo</url>
-        </repository>
     </distributionManagement>
 
     <properties>
