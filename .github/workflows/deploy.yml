@@ -23,26 +23,26 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '25'
-          distribution: 'temurin' # Eclipse Temurin is a standard, reliable distribution
+          distribution: 'temurin'
           cache: 'maven'
           # AUTO-CONFIGURATION:
           # This creates a settings.xml with the <server> id "central"
-          # and imports your GPG key into the runner's keyring.
           server-id: central
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Build & Deploy
         env:
-          # Map the secrets to environment variables for setup-java to use
-          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
-          # Also pass the passphrase for the Maven GPG Plugin to read
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          # -P release activates your profile (if you have one)
-          # -DskipTests speeds up the deploy (assuming tests run in a separate PR workflow)
-          # -ntp (no transfer progress) cleans up the logs
-          mvn deploy -DskipTests -P release -ntp
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            # For releases: Sign artifacts and use the central portal
+            mvn deploy -DskipTests -P release -ntp
+          else
+            # For snapshots: Deploy to the new Central Portal snapshot repo
+            mvn deploy -DskipTests -ntp
+          fi
