@@ -1,5 +1,5 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
-[![Version](https://img.shields.io/badge/version-1.0.4-orange)](https://search.maven.org/artifact/uno.anahata/gemini-java-client)
+[![Maven Central](https://img.shields.io/maven-central/v/uno.anahata/gemini-java-client)](https://central.sonatype.com/artifact/uno.anahata/gemini-java-client)
 [![Javadoc](https://img.shields.io/badge/Javadoc-Reference-blue)](https://anahata-os.github.io/gemini-java-client/)
 [![Deploy Javadoc](https://github.com/anahata-os/gemini-java-client/actions/workflows/javadoc.yml/badge.svg)](https://anahata-os.github.io/gemini-java-client/)
 
@@ -165,7 +165,7 @@ This project is the result of countless hours of passion and dedication. If you 
 -   **[Sponsor on GitHub](https://github.com/sponsors/anahata-os):** The most direct way to support the project.
 -   **Visit our website:** [anahata.uno](https://anahata.uno)
 -   **Subscribe to Anahata TV:** [YouTube @anahata108](https://www.youtube.com/@anahata108)
--   **View on Maven Central:** [gemini-java-client](https://search.maven.org/artifact/uno.anahata/gemini-java-client)
+-   **View on Maven Central:** [gemini-java-client](https://central.sonatype.com/artifact/uno.anahata/gemini-java-client)
 
 ## Licensing
 
