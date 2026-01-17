@@ -5,6 +5,8 @@
 
 # gemini-java-client
 
+**[Website](https://anahata.uno) | [Anahata TV (YouTube)](https://www.youtube.com/@anahata108)**
+
 ![Anahata Chat Panel](screenshots/chat-panel-interaction.png)
 
 **Go beyond simple API calls.** The `gemini-java-client` is a powerful, pure-Java platform for building sophisticated, context-aware AI assistants that can interact directly with your application's logic and the local environment. It's the foundation for the Anahata AI Assistant NetBeans Plugin, proving its capability for deep IDE and desktop integration.
@@ -16,7 +18,7 @@ Experience the power of a deeply integrated AI assistant.
 | Feature | Screenshot |
 | :--- | :--- |
 | **Context Heatmap** | ![Context Heatmap](screenshots/context-heatmap.png) |
-| **Local Tools (Functions)** | ![Local Tools](screenshots/tools.png) |
+| **Local Tools (Functions)** | ![Local Tools](screenshots/tools.png)<br>*Includes optimistic locking protection for file writes.* |
 | **JIT Compilation & Execution** | ![JIT Compilation](screenshots/jit-compilation-and-execution.png) |
 | **Live Visual Context** | ![Live Screen Capture](screenshots/live-screen-capture.png) |
 | **Integrated Google Search** | ![Google Search](screenshots/google_search.png) |
