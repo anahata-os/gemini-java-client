@@ -2,7 +2,6 @@
 package uno.anahata.ai.swing;
 
 import com.formdev.flatlaf.FlatLightLaf;
-import uno.anahata.ai.swing.render.editorkit.DefaultEditorKitProvider;
 import java.awt.Dimension;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
@@ -25,21 +24,16 @@ public class Main {
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setPreferredSize(new Dimension(800, 600));
 
-            // Use the new config and panel
-            SwingChatConfig config = new SwingChatConfig();
-            ChatPanel chatPanel = new ChatPanel(new DefaultEditorKitProvider());
-            chatPanel.init(config);
-            chatPanel.initComponents();
+            // The simplest way to integrate Anahata: just create the panel!
+            ChatPanel chatPanel = new ChatPanel();
             frame.add(chatPanel);
             
             frame.pack();
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
             
-            
+            // Start the session (restores backup or sends startup instructions)
             chatPanel.checkAutobackupOrStartupContent();
-            //chatPanel.init(config);
-            
         });
         
         Thread.setDefaultUncaughtExceptionHandler((thread, thrwbl) -> {

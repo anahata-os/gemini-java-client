@@ -30,8 +30,8 @@ import uno.anahata.ai.context.provider.ContextProvider;
 @Getter
 public class ChatPanel extends JPanel implements ContextListener, StatusListener {
 
-    private Chat chat;
-    private SwingChatConfig config;
+    private final Chat chat;
+    private final SwingChatConfig config;
 
     // UI Components
     private JToolBar toolbar;
@@ -54,24 +54,40 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
     private ToolsPanel functionsPanel;
     private StatusPanel statusPanel;
 
+    /**
+     * Creates a new ChatPanel with default configuration and syntax highlighting.
+     */
     public ChatPanel() {
-        this(new DefaultEditorKitProvider());
+        this(new SwingChatConfig());
     }
 
-    public ChatPanel(EditorKitProvider editorKitProvider) {
+    /**
+     * Creates a new ChatPanel with the specified configuration and default syntax highlighting.
+     * @param config The configuration for the AI assistant.
+     */
+    public ChatPanel(SwingChatConfig config) {
+        this(config, new DefaultEditorKitProvider());
+    }
+
+    /**
+     * Creates a new ChatPanel with the specified configuration and custom syntax highlighting.
+     * @param config The configuration for the AI assistant.
+     * @param editorKitProvider The provider for syntax highlighting.
+     */
+    public ChatPanel(SwingChatConfig config, EditorKitProvider editorKitProvider) {
         super();
-        this.editorKitProvider = editorKitProvider;
-    }
-
-    public void init(SwingChatConfig config) {
         this.config = config;
+        this.editorKitProvider = editorKitProvider;
+        
         FunctionPrompter prompter = new SwingFunctionPrompter(this);
         this.chat = new Chat(config, prompter);
         this.chat.addContextListener(this);
         this.chat.addStatusListener(this);
+        
+        initComponents();
     }
 
-    public void initComponents() {
+    private void initComponents() {
         setLayout(new BorderLayout(5, 5));
 
         toolbar = new JToolBar(JToolBar.VERTICAL);
