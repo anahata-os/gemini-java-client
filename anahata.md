@@ -26,7 +26,13 @@ The project is architected as a modular, extensible AI assistant platform, logic
 2.  **Logging Standard:** All logging **must** be done through the SLF4J API (`@Slf4j`). **Never** use `System.out.println()`.
 3.  **Dependency Management Workflow:** Adhere to the strict workflow: `searchMavenIndex` -> `getResolvedDependencies` -> `addDependency` -> `downloadProjectDependencies`.
 
-## 4. Development & Testing Notes
+## 4. CI/CD & Website Deployment
+
+- **GitHub Actions:** The `.github/workflows/javadoc.yml` workflow automatically generates and deploys Javadocs on every push to the `main` branch.
+- **Hosting:** Hosted on GitHub Pages at [https://anahata-os.github.io/gemini-java-client/](https://anahata-os.github.io/gemini-java-client/).
+- **Structure:** Javadocs are deployed to the **root** of the `gh-pages` branch (no `/apidocs` suffix).
+
+## 5. Development & Testing Notes
 
 - When testing code in this project via `NetBeansProjectJVM.compileAndExecuteInProject`, **always set `includeCompileAndExecuteDependencies` to `false`** to avoid `LinkageError` exceptions.
 - The AI Assistant's execution environment (the Anahata NetBeans plugin) **inherits the full, resolved classpath of this project**. Any dependency in the `pom.xml` is automatically available to dynamically compiled code.
