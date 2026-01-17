@@ -26,8 +26,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
           # AUTO-CONFIGURATION:
-          # This creates a settings.xml with the <server> id "central"
-          server-id: central
+          # This creates a settings.xml with the <server> id "ossrh"
+          server-id: ossrh
           server-username: CENTRAL_USERNAME
           server-password: CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
