@@ -9,7 +9,7 @@
 
 **Go beyond simple API calls.** The `gemini-java-client` is a powerful, pure-Java platform for building sophisticated, context-aware AI assistants that can interact directly with your application's logic and the local environment. It's the foundation for the Anahata AI Assistant NetBeans Plugin, proving its capability for deep IDE and desktop integration.
 
-## Visual Tour
+## Visual Tour (Standalone Features)
 
 Experience the power of a deeply integrated AI assistant.
 
@@ -17,7 +17,6 @@ Experience the power of a deeply integrated AI assistant.
 | :--- | :--- |
 | **Context Heatmap** | ![Context Heatmap](screenshots/context-heatmap.png) |
 | **Local Tools (Functions)** | ![Local Tools](screenshots/tools.png) |
-| **Javadocs Integration** | ![Javadocs Integration](screenshots/tools-javadocs.png) |
 | **JIT Compilation & Execution** | ![JIT Compilation](screenshots/jit-compilation-and-execution.png) |
 | **Live Visual Context** | ![Live Screen Capture](screenshots/live-screen-capture.png) |
 | **Integrated Google Search** | ![Google Search](screenshots/google_search.png) |
@@ -95,71 +94,75 @@ public class SimpleAiApp {
 }
 ```
 
-## Advanced Integration: Customizing the Assistant
+## Advanced Integration: Deep IDE Integration
 
-### 1. Custom Tools and POJOs with `@Schema`
+For complex environments like the NetBeans IDE, you can extend the core classes to provide IDE-specific tools and context.
 
-Use `@AIToolMethod` to expose Java logic to the AI, and `@Schema` to provide rich metadata.
+### 1. Custom Configuration (`NetBeansChatConfig`)
 
-```java
-import io.swagger.v3.oas.annotations.media.Schema;
-import uno.anahata.ai.tools.AIToolMethod;
-import uno.anahata.ai.tools.AIToolParam;
-
-@Schema(description = "Represents a task in the system.")
-public class Task {
-    @Schema(description = "The unique ID of the task.", required = true)
-    public String id;
-    @Schema(description = "The current status of the task.")
-    public String status;
-}
-
-public class MySystemTools {
-    @AIToolMethod(value = "Updates the status of a specific task.", requiresApproval = true)
-    public static String updateTaskStatus(
-        @AIToolParam("The task object to update.") Task task,
-        @AIToolParam("The new status string.") String newStatus
-    ) {
-        return "Task " + task.id + " updated to " + newStatus;
-    }
-}
-```
-
-### 2. Custom Configuration and Syntax Highlighting
-
-Register your tools and provide a custom `EditorKitProvider` for syntax highlighting.
+Extend `SwingChatConfig` to register specialized tools like Maven management, Git integration, and Java source analysis.
 
 ```java
-import uno.anahata.ai.swing.SwingChatConfig;
-import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
-import javax.swing.text.EditorKit;
-import java.util.List;
-
-public class MyAdvancedConfig extends SwingChatConfig {
+public class NetBeansChatConfig extends SwingChatConfig {
     @Override
     public List<Class<?>> getToolClasses() {
-        List<Class<?>> tools = super.getToolClasses();
-        tools.add(MySystemTools.class);
-        return tools;
+        List<Class<?>> ret = super.getToolClasses();
+        ret.add(MavenTools.class);
+        ret.add(JavaDocs.class);
+        ret.add(JavaSources.class);
+        ret.add(Git.class);
+        // ... add more IDE-specific tools
+        return ret;
     }
 }
+```
 
-public class MySyntaxHighlightingProvider implements EditorKitProvider {
+### 2. Custom Syntax Highlighting (`NetBeansEditorKitProvider`)
+
+Implement `EditorKitProvider` to leverage the IDE's native editor kits for rich syntax highlighting in the chat.
+
+```java
+public class NetBeansEditorKitProvider implements EditorKitProvider {
     @Override
     public EditorKit getEditorKitForLanguage(String language) {
-        return createSpecializedKit(language);
+        String mimeType = lookupMimeType(language);
+        return MimeLookup.getLookup(mimeType).lookup(EditorKit.class);
     }
 }
-
-// Initialize with custom provider and config
-ChatPanel chatPanel = new ChatPanel(new MyAdvancedConfig(), new MySyntaxHighlightingProvider());
 ```
+
+### 3. Embedding in a `TopComponent`
+
+Add the `ChatPanel` to a NetBeans window with just a few lines of code.
+
+```java
+public final class AnahataTopComponent extends TopComponent {
+    @Override
+    public void componentOpened() {
+        setLayout(new BorderLayout());
+        NetBeansChatConfig config = new NetBeansChatConfig(sessionUuid);
+        
+        // Initialize with custom config and editor kit provider
+        ChatPanel chatPanel = new ChatPanel(config, new NetBeansEditorKitProvider());
+        add(chatPanel, BorderLayout.CENTER);
+        
+        chatPanel.checkAutobackupOrStartupContent();
+    }
+}
+```
+
+![Javadocs Integration](screenshots/tools-javadocs.png)
+*Example: The AI using the specialized JavaDocs tool within the NetBeans IDE.*
+
+---
 
 ## Support the Project
 
 This project is the result of countless hours of passion and dedication. If you find it valuable, please consider supporting its continued development.
 
 -   **[Sponsor on GitHub](https://github.com/sponsors/anahata-os):** The most direct way to support the project.
+-   **Visit our website:** [anahata.uno](https://anahata.uno)
+-   **Subscribe to Anahata TV:** [YouTube @anahata108](https://www.youtube.com/@anahata108)
 
 ## Licensing
 
