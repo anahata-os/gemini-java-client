@@ -22,8 +22,8 @@ jobs:
           cache: 'maven'
 
       - name: Generate Javadoc
-        # generates files in target/reports/apidocs or target/site/apidocs
-        run: mvn javadoc:javadoc -DskipTests
+        # Use the release profile to include custom themes and footers
+        run: mvn javadoc:javadoc -P release -DskipTests -ntp
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
