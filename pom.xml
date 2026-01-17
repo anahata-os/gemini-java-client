@@ -313,10 +313,8 @@
                     <docfilessubdirs>true</docfilessubdirs>
                     <detectJavaApiLink>false</detectJavaApiLink>
                     <links>
-                        <link>https://www.slf4j.org/apidocs/</link>  <!-- This one is fine, no redirect -->
-                        <link>https://javadoc.io/doc/com.google.guava/guava/33.5.0-jre/</link>  <!-- Direct Guava (JRE flavor) -->
-                        <link>https://javadoc.io/doc/com.fasterxml.jackson.core/jackson-databind/latest/</link>  <!-- Jackson databind on javadoc.io (no redirect) -->
-                        <link>https://javadoc.io/doc/com.google.genai/google-genai/1.32.0/</link>  <!-- Already good -->
+                        <link>https://www.slf4j.org/apidocs/</link>
+                        <link>https://guava.dev/releases/33.5.0-jre/api/docs/</link>
                     </links>
                     <top>
                         <![CDATA[
