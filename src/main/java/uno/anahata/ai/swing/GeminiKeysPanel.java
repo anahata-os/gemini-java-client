@@ -14,14 +14,17 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.ai.config.ChatConfig;
+import uno.anahata.ai.gemini.GeminiAPI;
 
 @Slf4j
 public class GeminiKeysPanel extends JPanel {
     private final JTextArea keysTextArea;
     private final File keysFile;
+    private final ChatConfig config;
 
     public GeminiKeysPanel(ChatConfig config) {
         super(new BorderLayout(10, 10));
+        this.config = config;
         this.keysFile = new File(config.getWorkingFolder(), config.getApiKeyFileName());
         
         keysTextArea = new JTextArea();
@@ -47,7 +50,7 @@ public class GeminiKeysPanel extends JPanel {
                 String content = Files.readString(keysFile.toPath());
                 keysTextArea.setText(content);
             } else {
-                keysTextArea.setText("# Enter your Gemini API keys here, one per line.\n# Lines starting with // are ignored.");
+                keysTextArea.setText("# Enter your Gemini API keys here, one per line.\n# Lines starting with '#' or '//' are ignored.");
             }
         } catch (IOException e) {
             log.error("Failed to load Gemini API keys", e);
@@ -58,6 +61,7 @@ public class GeminiKeysPanel extends JPanel {
     private void saveKeys() {
         try {
             Files.writeString(keysFile.toPath(), keysTextArea.getText());
+            config.getApi().reload(); // Reload GeminiAPI after saving keys
             JOptionPane.showMessageDialog(this, "API keys saved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException e) {
             log.error("Failed to save Gemini API keys", e);

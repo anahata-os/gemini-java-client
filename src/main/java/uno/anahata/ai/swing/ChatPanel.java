@@ -186,7 +186,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         tabbedPane.addTab("Context Heatmap", heatmapPanel);
         tabbedPane.addTab("Context Providers", contextProvidersPanel);
         tabbedPane.addTab("Tools", functionsPanel);
-        tabbedPane.addTab("API Keys", geminiKeysPanel);
+        tabbedPane.addTab("Gemini API Keys", geminiKeysPanel);
 
         tabbedPane.addChangeListener(e -> {
             Component selected = tabbedPane.getSelectedComponent();
@@ -213,6 +213,10 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         new DropTarget(inputPanel, fileDropListener); // Also allow dropping on the input panel
 
         setVisible(true);
+        
+        if (!chat.getConfig().getApi().isHasKeys()) {
+            tabbedPane.setSelectedComponent(geminiKeysPanel);
+        }
     }
 
     @Override

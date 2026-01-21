@@ -46,6 +46,7 @@ public class GeminiAPI {
             
     private String[] keyPool;
     private int round = 0;
+    private final ChatConfig config; // Added this line
 
     /**
      * Constructs a new GeminiAPI instance and loads API keys from the configuration.
@@ -53,7 +54,8 @@ public class GeminiAPI {
      * @param config The chat configuration.
      */
     public GeminiAPI(ChatConfig config) {
-        loadApiKeys(config);
+        this.config = config; // Initialized config
+        loadApiKeys();
         if (keyPool.length > 0) {
             round = new Random().nextInt(keyPool.length);
         } else {
@@ -61,7 +63,7 @@ public class GeminiAPI {
         }
     }
 
-    private void loadApiKeys(ChatConfig config) {
+    private void loadApiKeys() {
         Path keysFilePath = config.getWorkingFolder().toPath().resolve(config.getApiKeyFileName());
         List<String> keys = new ArrayList<>();
         try {
@@ -78,6 +80,25 @@ public class GeminiAPI {
         }
         Collections.shuffle(keys);
         this.keyPool = keys.toArray(new String[0]);
+    }
+    
+    /**
+     * Checks if any api keys got loaded.
+     * 
+     * @return true if any api keys got loaded
+     */
+    public boolean isHasKeys() {
+        return keyPool.length > 0;
+    }
+
+    /**
+     * Reloads the GeminiAPI keys from the api keys file.
+     */
+    public void reload() {
+        log.info("Reloading GeminiAPI...");
+        // Re-load API keys from the config file
+        loadApiKeys(); 
+        log.info("GeminiAPI reloaded.");
     }
 
     /**
