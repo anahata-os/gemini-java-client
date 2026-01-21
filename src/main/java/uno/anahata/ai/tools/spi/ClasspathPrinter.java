@@ -53,7 +53,7 @@ public class ClasspathPrinter {
         for (String entry : entries) {
             File file = new File(entry);
             if (file.exists() && file.isFile() && entry.endsWith(".jar")) {
-                String[] pathParts = file.getParent().split(File.separator);
+                String[] pathParts = file.getParent().split(java.util.regex.Pattern.quote(File.separator));
                 TreeNode currentNode = root;
                 for (String part : pathParts) {
                     if (part.isEmpty()) continue;
@@ -61,7 +61,7 @@ public class ClasspathPrinter {
                 }
                 currentNode.jars.add(file.getName());
             } else if (file.exists() && file.isDirectory()) {
-                 String[] pathParts = file.getAbsolutePath().split(File.separator);
+                 String[] pathParts = file.getAbsolutePath().split(java.util.regex.Pattern.quote(File.separator));
                 TreeNode currentNode = root;
                 for (String part : pathParts) {
                     if (part.isEmpty()) continue;
