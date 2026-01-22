@@ -73,27 +73,10 @@ public class ResourceTracker {
             if (toolMethod != null && StatefulResource.class.isAssignableFrom(toolMethod.getReturnType())) {
                 Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
                 
-                // If the "output" key exists, it's a wrapped primitive/array, not a complex StatefulResource object.
-                if (responseMap.size() == 1 && responseMap.containsKey("output")) {
-                    return Optional.empty();
+                Object output = responseMap.get("output");
+                if (output instanceof StatefulResource) {
+                    return Optional.ofNullable(((StatefulResource) output).getResourceId());
                 }
-                
-                // There was an exception
-                if (responseMap.size() == 1 && responseMap.containsKey("error")) {
-                    return Optional.empty();
-                }
-
-                // DIAGNOSTIC LOGGING
-                log.info("Attempting to deserialize for resource tracking. Response map: {}", responseMap.keySet());
-
-                // The entire map is the serialized object.
-                StatefulResource pojo = JacksonUtils.convertMapToObject(responseMap, (Class<StatefulResource>) toolMethod.getReturnType());
-                if (pojo == null) {
-                    return Optional.empty();
-                }
-                
-                String resourceId = pojo.getResourceId();
-                return Optional.ofNullable(resourceId);
             }
         } catch (Exception e) {
             log.warn("Could not determine resource ID for stateful tool: " + toolName, e);
@@ -280,17 +263,12 @@ public class ResourceTracker {
         try {
             Map<String, Object> responseMap = (Map<String, Object>) fr.response().get();
             
-            // If the "output" key exists, it's a wrapped primitive/array, not a complex StatefulResource object.
-            if (responseMap.containsKey("output")) {
+            Object output = responseMap.get("output");
+            if (!(output instanceof StatefulResource)) {
                 return Optional.empty();
             }
 
-            // The entire map is the serialized object.
-            StatefulResource resource = JacksonUtils.convertMapToObject(responseMap, (Class<StatefulResource>) toolMethod.getReturnType());
-            if (resource == null) {
-                return Optional.empty();
-            }
-
+            StatefulResource resource = (StatefulResource) output;
             String resourceId = resource.getResourceId();
             if (resourceId == null) {
                 return Optional.empty();
@@ -299,7 +277,7 @@ public class ResourceTracker {
             return Optional.of(checkDiskStatus(resource, toolCallId, partId));
 
         } catch (Exception e) {
-            log.warn("Failed to deserialize stateful resource from tool response: " + toolName, e);
+            log.warn("Failed to extract stateful resource from tool response: " + toolName, e);
             return Optional.empty();
         }
     }

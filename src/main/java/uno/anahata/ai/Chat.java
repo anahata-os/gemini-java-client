@@ -268,11 +268,11 @@ public class Chat {
             }
 
             Content originalContent = cand.content().get();
-            // Sanitize the content to ensure all FunctionCalls have an ID before adding to context.
-            Content sanitizedContent = GeminiAdapter.sanitize(originalContent, toolManager.getIdCounter());
+            // Prepare the content for the application (e.g., adding missing IDs and enriching args).
+            Content preparedContent = toolManager.prepareForApplication(originalContent);
 
             ChatMessage modelMessage = buildChatMessage(
-                sanitizedContent, 
+                preparedContent, 
                 resp.usageMetadata().orElse(null), 
                 cand.groundingMetadata().orElse(null)
             );
@@ -478,6 +478,7 @@ public class Chat {
         List<Content> context = chatHistory.stream()
                 .map(ChatMessage::getContent)
                 .filter(Objects::nonNull)
+                .map(GeminiAdapter::prepareForApi) // CRITICAL: Final Gate to purify POJOs
                 .collect(Collectors.toCollection(ArrayList::new));
 
         if (context.isEmpty() || !context.get(0).role().orElse("").equals("user")) {
@@ -518,9 +519,10 @@ public class Chat {
         }
 
         log.info("Job {} completed. Adding result to context passively.", jobInfo.getJobId());
-        Map<String, Object> responseMap = GSON.fromJson(GSON.toJson(jobInfo), Map.class);
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("output", jobInfo);
         FunctionResponse fr = FunctionResponse.builder().name("async_job_result").response(responseMap).build();
-        Part part = Part.fromFunctionResponse(fr.name().get(), (Map<String, Object>) fr.response().get());
+        Part part = Part.builder().functionResponse(fr).build();
         Content notificationContent = Content.builder().role("tool").parts(part).build();
 
         ChatMessage jobResultMessage = buildChatMessage(notificationContent, null, null);

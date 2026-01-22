@@ -3,6 +3,7 @@ package uno.anahata.ai.gemini;
 
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
+import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
@@ -16,7 +17,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import uno.anahata.ai.tools.schema.SchemaProvider2;
+import uno.anahata.ai.internal.JacksonUtils;
+import uno.anahata.ai.tools.schema.SchemaProvider;
 
 /**
  * A utility class for adapting Java types and objects to the Gemini API's data structures.
@@ -25,7 +27,7 @@ import uno.anahata.ai.tools.schema.SchemaProvider2;
  * <ul>
  *   <li>Generate {@link Schema} objects from Java {@link java.lang.reflect.Type}s.</li>
  *   <li>Extract tool call IDs from {@link Part} objects.</li>
- *   <li>Sanitize model responses by ensuring all function calls have stable IDs.</li>
+ *   <li>Prepare content for the API (purifying POJOs).</li>
  * </ul>
  * </p>
  */
@@ -74,7 +76,7 @@ public class GeminiAdapter {
             return VOID_SCHEMA;
         }
 
-        String inlinedSchema = SchemaProvider2.generateInlinedSchemaString(type);
+        String inlinedSchema = SchemaProvider.generateInlinedSchemaString(type);
         if (inlinedSchema == null) return VOID_SCHEMA;
         
         Map<String, Object> schemaMap = GSON.fromJson(inlinedSchema, new TypeToken<Map<String, Object>>() {}.getType());
@@ -162,54 +164,45 @@ public class GeminiAdapter {
         }
         return Optional.empty();
     }
-    
+
     /**
-     * Inspects a Content object from the model and ensures every FunctionCall part has a stable ID.
-     * <p>
-     * If a FunctionCall is missing an ID, this method generates one and reconstructs the
-     * entire Content object to include it, preserving all other metadata.
-     * </p>
+     * Prepares a Content object for the Gemini API by ensuring all FunctionCall arguments
+     * and FunctionResponse results are converted to pure JSON primitives (Maps, Lists, Primitives).
+     * This prevents "greedy" serialization crashes in external mappers.
      *
-     * @param originalContent The raw content received from the model.
-     * @param idCounter The atomic counter to use for generating new IDs.
-     * @return The original content if no changes were needed, or a new, patched Content object.
+     * @param content The content to prepare.
+     * @return A new Content object with purified parts, or the original if no changes were needed.
      */
-    public static Content sanitize(Content originalContent, AtomicInteger idCounter) {
-        if (originalContent == null || !originalContent.parts().isPresent()) {
-            return originalContent;
+    @SuppressWarnings("unchecked")
+    public static Content prepareForApi(Content content) {
+        if (content == null || !content.parts().isPresent()) {
+            return content;
         }
 
-        List<Part> originalParts = originalContent.parts().get();
+        List<Part> originalParts = content.parts().get();
         List<Part> newParts = new ArrayList<>(originalParts.size());
         boolean wasModified = false;
 
-        for (Part originalPart : originalParts) {
-            if (originalPart.functionCall().isPresent() && originalPart.functionCall().get().id().isEmpty()) {
-                wasModified = true;
-                FunctionCall originalFc = originalPart.functionCall().get();
-                String newId = String.valueOf(idCounter.getAndIncrement());
-
-                // Refactored to use toBuilder() for robustness
-                FunctionCall newFc = originalFc.toBuilder()
-                        .id(newId)
-                        .build();
-
-                Part newPart = originalPart.toBuilder()
-                        .functionCall(newFc)
-                        .build();
-                newParts.add(newPart);
-                log.info("Sanitized FunctionCall '{}' with new generated ID '{}'", newFc.name().get(), newId);
-            } else {
-                newParts.add(originalPart);
+        for (Part part : originalParts) {
+            Part newPart = part;
+            if (part.functionCall().isPresent()) {
+                FunctionCall fc = part.functionCall().get();
+                if (fc.args().isPresent()) {
+                    Map<String, Object> safeArgs = (Map<String, Object>) JacksonUtils.toJsonPrimitives(fc.args().get());
+                    newPart = part.toBuilder().functionCall(fc.toBuilder().args(safeArgs).build()).build();
+                    wasModified = true;
+                }
+            } else if (part.functionResponse().isPresent()) {
+                FunctionResponse fr = part.functionResponse().get();
+                if (fr.response().isPresent()) {
+                    Map<String, Object> safeResponse = (Map<String, Object>) JacksonUtils.toJsonPrimitives(fr.response().get());
+                    newPart = part.toBuilder().functionResponse(fr.toBuilder().response(safeResponse).build()).build();
+                    wasModified = true;
+                }
             }
+            newParts.add(newPart);
         }
 
-        if (!wasModified) {
-            return originalContent;
-        }
-
-        return originalContent.toBuilder()
-                .parts(newParts)
-                .build();
+        return wasModified ? content.toBuilder().parts(newParts).build() : content;
     }
 }

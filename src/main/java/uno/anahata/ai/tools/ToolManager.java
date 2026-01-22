@@ -1,7 +1,6 @@
 /* Licensed under the Apache License, Version 2.0 */
 package uno.anahata.ai.tools;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.FunctionCallingConfig;
@@ -28,10 +27,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.ai.gemini.GeminiAdapter;
 import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.Executors;
-import static uno.anahata.ai.tools.FunctionConfirmation.ALWAYS;
-import static uno.anahata.ai.tools.FunctionConfirmation.NEVER;
-import static uno.anahata.ai.tools.FunctionConfirmation.NO;
-import static uno.anahata.ai.tools.FunctionConfirmation.YES;
 import uno.anahata.ai.tools.JobInfo.JobStatus;
 import uno.anahata.ai.tools.FunctionPrompter.PromptResult;
 import uno.anahata.ai.internal.JacksonUtils;
@@ -203,6 +198,67 @@ public class ToolManager {
     }
 
     /**
+     * Prepares a Content object received from the model for use within the application.
+     * This involves ensuring every FunctionCall part has a stable ID and converting
+     * its arguments into rich POJOs.
+     *
+     * @param originalContent The raw content received from the model.
+     * @return The original content if no changes were needed, or a new, enriched Content object.
+     */
+    public Content prepareForApplication(Content originalContent) {
+        if (originalContent == null || !originalContent.parts().isPresent()) {
+            return originalContent;
+        }
+
+        List<Part> originalParts = originalContent.parts().get();
+        List<Part> newParts = new ArrayList<>(originalParts.size());
+        boolean wasModified = false;
+
+        for (Part originalPart : originalParts) {
+            if (originalPart.functionCall().isPresent()) {
+                FunctionCall originalFc = originalPart.functionCall().get();
+                FunctionCall.Builder builder = originalFc.toBuilder();
+                boolean fcModified = false;
+
+                if (originalFc.id().isEmpty()) {
+                    String newId = String.valueOf(idCounter.getAndIncrement());
+                    builder.id(newId);
+                    fcModified = true;
+                    log.info("Assigned ID '{}' to FunctionCall '{}'", newId, originalFc.name().get());
+                }
+
+                if (originalFc.args().isPresent()) {
+                    Method method = getToolMethod(originalFc.name().get());
+                    if (method != null) {
+                        Map<String, Object> rawArgs = originalFc.args().get();
+                        Map<String, Object> pojoArgs = new HashMap<>();
+                        for (Parameter p : method.getParameters()) {
+                            String paramName = p.getName();
+                            if (rawArgs.containsKey(paramName)) {
+                                pojoArgs.put(paramName, JacksonUtils.toPojo(rawArgs.get(paramName), p.getParameterizedType()));
+                            }
+                        }
+                        builder.args(pojoArgs);
+                        fcModified = true;
+                        log.info("Enriched arguments for FunctionCall '{}' into POJOs.", originalFc.name().get());
+                    }
+                }
+
+                if (fcModified) {
+                    newParts.add(originalPart.toBuilder().functionCall(builder.build()).build());
+                    wasModified = true;
+                } else {
+                    newParts.add(originalPart);
+                }
+            } else {
+                newParts.add(originalPart);
+            }
+        }
+
+        return wasModified ? originalContent.toBuilder().parts(newParts).build() : originalContent;
+    }
+
+    /**
      * Processes a list of function calls proposed by the model.
      * <p>
      * This method assigns IDs to the calls, prompts the user for confirmation (if necessary),
@@ -215,13 +271,12 @@ public class ToolManager {
     public FunctionProcessingResult processFunctionCalls(ChatMessage modelResponseMessage) {
         Content modelResponseContent = modelResponseMessage.getContent();
         
-        // Step 1: Identify all function calls and assign them a short, sequential ID for this turn.
+        // Step 1: Identify all function calls. IDs and POJO args are already prepared by prepareForApplication.
         List<IdentifiedFunctionCall> identifiedCalls = new ArrayList<>();
         modelResponseContent.parts().ifPresent(parts -> {
             for (Part part : parts) {
                 part.functionCall().ifPresent(fc -> {
-                    // Prioritize the ID from the model, but fall back to our own sequential ID if it's missing.
-                    String id = fc.id().orElse(String.valueOf(idCounter.getAndIncrement()));
+                    String id = fc.id().orElseThrow(() -> new IllegalStateException("FunctionCall missing ID after preparation."));
                     identifiedCalls.add(new IdentifiedFunctionCall(fc, id, part));
                 });
             }
@@ -337,7 +392,8 @@ public class ToolManager {
                     rawResult = invokeFunctionMethod(method, args);
                 }
                 
-                Map<String, Object> responseMap = convertResultToMap(rawResult);
+                Map<String, Object> responseMap = new HashMap<>();
+                responseMap.put("output", rawResult);
                 
                 FunctionResponse fr = FunctionResponse.builder()
                     .id(approvedCall.getId()) // Use our stable, short ID
@@ -366,30 +422,14 @@ public class ToolManager {
         return new FunctionProcessingResult(executedCalls, outcomes, promptResult.userComment);
     }
 
-    private Map<String, Object> convertResultToMap(Object rawResult) {
-        log.info("Converting raw tool result of type {} to response map.", rawResult != null ? rawResult.getClass().getName() : "null");
-        Map<String, Object> responseMap = JacksonUtils.convertObjectToMap("output", rawResult);
-        log.info("Conversion result: {}", responseMap);
-        return responseMap;
-    }
-    
     private Object invokeFunctionMethod(Method method, Map<String, Object> argsFromModel) throws Exception {
         Parameter[] parameters = method.getParameters();
         Object[] argsToInvoke = new Object[parameters.length];
 
         for (int i = 0; i < parameters.length; i++) {
             Parameter p = parameters[i];
-            String paramName = p.getName();
-            Object argValueFromModel = argsFromModel.get(paramName);
-            Type paramType = p.getParameterizedType(); // Use parameterized type for generics
-
-            if (argValueFromModel == null || "null".equals(argValueFromModel)) {
-                argsToInvoke[i] = null;
-            } else {
-                // Use Jackson to convert the generic Map/List structure into the target POJO/List<POJO>
-                log.info("Converting arg value from model" + argValueFromModel.getClass() + " " + argValueFromModel);
-                argsToInvoke[i] = JacksonUtils.convertValue(argValueFromModel, paramType);
-            }
+            // Arguments are already converted to POJOs by prepareForApplication.
+            argsToInvoke[i] = argsFromModel.get(p.getName());
         }
 
         return method.invoke(null, argsToInvoke);

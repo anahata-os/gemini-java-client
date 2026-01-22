@@ -9,13 +9,13 @@ import java.util.Collections;
 import java.util.Map;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import uno.anahata.ai.tools.schema.SchemaProvider2;
+import uno.anahata.ai.tools.schema.SchemaProvider;
 
 /**
  * A generic utility class for Jackson-based JSON operations.
  * <p>
  * This class uses the centrally configured {@link ObjectMapper} from
- * {@link SchemaProvider2} to ensure consistency in how Java objects are
+ * {@link SchemaProvider} to ensure consistency in how Java objects are
  * mapped to JSON across the application, especially for tool parameters
  * and responses.
  * </p>
@@ -23,54 +23,38 @@ import uno.anahata.ai.tools.schema.SchemaProvider2;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JacksonUtils {
 
-    private static final ObjectMapper MAPPER = SchemaProvider2.OBJECT_MAPPER;
+    private static final ObjectMapper MAPPER = SchemaProvider.OBJECT_MAPPER;
 
     /**
-     * Converts an object to a {@code Map<String, Object>}, replicating the logic required by the
-     * Gemini {@code FunctionResponse} type.
-     * <ul>
-     *   <li>If the object naturally serializes to a JSON Object (e.g., a POJO or a Map), it is
-     *       converted into a {@code Map<String, Object>}.</li>
-     *   <li>If the object serializes to any other JSON type (e.g., an array, a string, a number),
-     *       it is wrapped in a Map under the given field name.</li>
-     * </ul>
+     * Converts any object into its JSON-safe equivalent (Map, List, or Primitive)
+     * using the centrally configured ObjectMapper. This ensures that all POJOs
+     * are flattened and custom serializers (like ElementHandleModule) are applied.
      *
-     * @param primitiveFieldName The key to use when wrapping a non-POJO type.
      * @param o The object to convert.
-     * @return A Map representation of the object, ready for use in a FunctionResponse.
+     * @return The JSON-safe representation of the object.
      */
-    public static Map<String, Object> convertObjectToMap(String primitiveFieldName, Object o) {
+    public static Object toJsonPrimitives(Object o) {
         if (o == null) {
-            return Collections.emptyMap();
-        }
-
-        // Use Jackson's tree model to inspect the JSON structure without full serialization.
-        JsonNode node = MAPPER.valueToTree(o);
-
-        if (node.isObject()) {
-            // It's a POJO or a Map, convert it to the required Map type.
-            return MAPPER.convertValue(o, new TypeReference<Map<String, Object>>() {});
-        } else {
-            // It's a primitive, String, array, or collection. Wrap the original object.
-            // The final serialization of the FunctionResponse will correctly handle this structure.
-            return Collections.singletonMap(primitiveFieldName, o);
-        }
-    }
-    
-    /**
-     * Deserializes a {@code Map<String, Object>} back into a specific POJO type.
-     *
-     * @param <T>   The target type.
-     * @param map   The map to convert.
-     * @param clazz The class of the target type.
-     * @return An instance of the target type, or {@code null} if the input map is null or empty.
-     */
-    public static <T> T convertMapToObject(Map<String, Object> map, Class<T> clazz) {
-        if (map == null || map.isEmpty()) {
             return null;
         }
-        return MAPPER.convertValue(map, clazz);
+        JsonNode node = MAPPER.valueToTree(o);
+        return MAPPER.convertValue(node, Object.class);
     }
+
+    /**
+     * Converts a JSON-safe object (Map, List, or Primitive) back into a rich Java object
+     * of the specified type.
+     *
+     * @param <T>    The target type.
+     * @param object The JSON-safe object to convert.
+     * @param type   The target type.
+     * @return An instance of the target type.
+     */
+    public static <T> T toPojo(Object object, Type type) {
+        return convertValue(object, type);
+    }
+
+    
     
     /**
      * Deserializes a generic object (typically a Map or List of Maps) back into a specific type,

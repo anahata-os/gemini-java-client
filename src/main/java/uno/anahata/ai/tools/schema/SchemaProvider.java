@@ -40,7 +40,7 @@ import com.google.gson.GsonBuilder;
  *
  * @author anahata-gemini-pro-2.5
  */
-public class SchemaProvider2 {
+public class SchemaProvider {
 
     /**
      * The Jackson ObjectMapper used for internal JSON processing and schema generation.
@@ -326,8 +326,14 @@ public class SchemaProvider2 {
                         addTitleToSchemaRecursive(allSchemas.get(refName), fieldType, allSchemas, visited);
                     } else if ("array".equals(propSchema.getType()) && propSchema.getItems() != null) {
                         propSchema.setTitle(getTypeName(fieldType));
+                        Type itemType = null;
                         if (fieldType instanceof ParameterizedType) {
-                            Type itemType = ((ParameterizedType) fieldType).getActualTypeArguments()[0];
+                            itemType = ((ParameterizedType) fieldType).getActualTypeArguments()[0];
+                        } else if (fieldType instanceof Class && ((Class<?>) fieldType).isArray()) {
+                            itemType = ((Class<?>) fieldType).getComponentType();
+                        }
+                        
+                        if (itemType != null) {
                             addTitleToSchemaRecursive(propSchema.getItems(), itemType, allSchemas, visited);
                         }
                     } else {
@@ -409,7 +415,7 @@ public class SchemaProvider2 {
         }
         if (type instanceof ParameterizedType) {
             ParameterizedType pt = (ParameterizedType) type;
-            String args = Arrays.stream(pt.getActualTypeArguments()).map(SchemaProvider2::getTypeName).collect(Collectors.joining(", "));
+            String args = Arrays.stream(pt.getActualTypeArguments()).map(SchemaProvider::getTypeName).collect(Collectors.joining(", "));
             return getTypeName(pt.getRawType()) + "<" + args + ">";
         }
         return type.getTypeName();
