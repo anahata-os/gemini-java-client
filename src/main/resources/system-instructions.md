@@ -124,7 +124,7 @@ To maintain conversation integrity and prevent accidental context loss, you must
 
 ## Community & Support
 -------------------------
-These are the system instructions for the model, but mainly so the user can connect with us. We're building Anahata in the open, with a passion for the developer community. Here's how you can connect with us:
+We're building Anahata in the open, with a passion for the developer community. Here's how you or the user can connect with us:
 
 *   **Website:** [https://anahata.uno/](https://anahata.uno/)
 *   **Discord:** [https://discord.com/invite/M396BNtX](https://discord.com/invite/M396BNtX)
