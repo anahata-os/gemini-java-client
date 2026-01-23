@@ -35,6 +35,7 @@ import uno.anahata.ai.swing.ChatPanel;
 import uno.anahata.ai.swing.SwingChatConfig;
 import uno.anahata.ai.swing.TimeUtils;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
+import javax.xml.bind.DatatypeConverter; // Added import
 
 public class ContentRenderer {
 
@@ -167,6 +168,18 @@ public class ContentRenderer {
                 gbc.insets = new Insets(4, 0, 0, 0);
                 JComponent partComponent = renderer.render(part, editorKitProvider);
                 contentPanel.add(partComponent, gbc);
+
+                // Display thought signature if present
+                if (part.thoughtSignature().isPresent()) {
+                    byte[] signatureBytes = part.thoughtSignature().get();
+                    String hexSignature = DatatypeConverter.printHexBinary(signatureBytes);
+                    String displaySignature = hexSignature.length() > 60 ? hexSignature.substring(0, 57) + "..." : hexSignature;
+                    
+                    JLabel thoughtSignatureLabel = new JLabel(String.format("<html><font color='#888888'><i>(Thought Signature: %s)</i></font></html>", displaySignature));
+                    thoughtSignatureLabel.setFont(thoughtSignatureLabel.getFont().deriveFont(Font.ITALIC, 10f));
+                    gbc.insets = new Insets(2, 0, 0, 0); // Small inset below the part component
+                    contentPanel.add(thoughtSignatureLabel, gbc);
+                }
 
             } else {
                 JLabel unsupportedLabel = new JLabel("Unsupported part type " + part);
