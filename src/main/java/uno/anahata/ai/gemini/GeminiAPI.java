@@ -69,7 +69,7 @@ public class GeminiAPI {
         try {
             keys = Files.lines(keysFilePath)
                     .map(String::trim)
-                    .filter(line -> !line.isEmpty() && !line.startsWith("//"))
+                    .filter(line -> !line.isEmpty() && !line.startsWith("//") && !line.startsWith("#"))
                     .map(line -> {
                         int commentIndex = line.indexOf("//");
                         return (commentIndex != -1) ? line.substring(0, commentIndex).trim() : line;
