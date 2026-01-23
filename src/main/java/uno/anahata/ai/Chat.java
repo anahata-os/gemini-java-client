@@ -538,6 +538,16 @@ public class Chat {
         String sessionId = config.getSessionId();
         return sessionId.substring(sessionId.length() - 7);
     }
+
+    /**
+     * Gets a human-readable display name for the chat session.
+     * It returns the nickname if set, otherwise the shortened session ID.
+     *
+     * @return The display name.
+     */
+    public String getDisplayName() {
+        return StringUtils.isNotBlank(nickname) ? nickname : getShortId();
+    }
     
     /**
      * Calculates the current context window usage as a percentage of the token threshold.

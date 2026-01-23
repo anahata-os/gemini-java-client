@@ -53,6 +53,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
     private GeminiKeysPanel geminiKeysPanel;
     private ToolsPanel functionsPanel;
     private StatusPanel statusPanel;
+    private SupportPanel supportPanel;
 
     /**
      * Creates a new ChatPanel with default configuration and syntax highlighting.
@@ -180,6 +181,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         contextProvidersPanel = new ContextProvidersPanel(this);
         geminiKeysPanel = new GeminiKeysPanel(config);
         functionsPanel = new ToolsPanel(chat, config);
+        supportPanel = new SupportPanel();
 
         tabbedPane = new JTabbedPane();
         tabbedPane.addTab("Chat", chatPanel);
@@ -187,6 +189,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         tabbedPane.addTab("Context Providers", contextProvidersPanel);
         tabbedPane.addTab("Tools", functionsPanel);
         tabbedPane.addTab("Gemini API Keys", geminiKeysPanel);
+        tabbedPane.addTab("Support", supportPanel);
 
         tabbedPane.addChangeListener(e -> {
             Component selected = tabbedPane.getSelectedComponent();

@@ -184,6 +184,50 @@ public class SessionManager {
     }
 
     /**
+     * Generates a detailed, full-text dump of the entire conversation context.
+     *
+     * @return A Markdown string containing the detailed dump.
+     */
+    public String getDetailedDump() {
+        List<ChatMessage> historyCopy = contextManager.getContext();
+        StringBuilder sb = new StringBuilder();
+        sb.append("# Detailed Session Dump\n\n");
+        sb.append("Total Messages: ").append(historyCopy.size()).append("\n\n");
+
+        for (ChatMessage msg : historyCopy) {
+            Content content = msg.getContent();
+            String role = content != null ? content.role().orElse("system") : "system";
+            sb.append("## Message ID: ").append(msg.getSequentialId())
+              .append(" (Role: ").append(role).append(")\n");
+            
+            if (content != null && content.parts().isPresent()) {
+                List<Part> parts = content.parts().get();
+                for (int i = 0; i < parts.size(); i++) {
+                    Part part = parts.get(i);
+                    String[] desc = describePart(part);
+                    sb.append("### Part ").append(i).append(" (").append(desc[0]).append(")\n");
+                    
+                    if (part.text().isPresent()) {
+                        sb.append(part.text().get()).append("\n\n");
+                    } else if (part.functionCall().isPresent()) {
+                        FunctionCall fc = part.functionCall().get();
+                        sb.append("**Function:** ").append(fc.name().get()).append("\n");
+                        sb.append("**Args:** ").append(fc.args().orElse(null)).append("\n\n");
+                    } else if (part.functionResponse().isPresent()) {
+                        FunctionResponse fr = part.functionResponse().get();
+                        sb.append("**Function:** ").append(fr.name().orElse("unknown")).append("\n");
+                        sb.append("**Response:** ").append(fr.response().orElse(null)).append("\n\n");
+                    } else {
+                        sb.append(desc[1]).append("\n\n");
+                    }
+                }
+            }
+            sb.append("---\n");
+        }
+        return sb.toString();
+    }
+
+    /**
      * Summarizes a single ChatMessage into Markdown table rows.
      *
      * @param msg The message to summarize.

@@ -77,9 +77,9 @@ public class LocalFiles {
      * @return A FileInfo object containing content and metadata.
      * @throws IOException if the file is not found or is a directory.
      */
-    @AIToolMethod(value = "Reads a single file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", requiresApproval = false, behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Reads a single text file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", requiresApproval = false, behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo readFile(
-            @AIToolParam("The absolute path of the file to read.") String path
+            @AIToolParam("The absolute path of the text file to read.") String path
     ) throws IOException {
         Path filePath = Paths.get(path);
         if (!Files.exists(filePath)) {
@@ -95,7 +95,7 @@ public class LocalFiles {
                 .filter(s -> s.getResourceId().equals(path))
                 .findFirst();
         if (status.isPresent() && status.get().getStatus() == ResourceStatus.VALID) {
-             throw new RuntimeException("Redundant Read: The file at " + path + " is already VALID in your context. Do not reload it.");
+             throw new RuntimeException("Redundant Read: The text file at " + path + " is already VALID in your context (Part ID: " + status.get().getPartId() + "). Do not reload it.");
         }
 
         String content = Files.readString(filePath);
@@ -106,7 +106,7 @@ public class LocalFiles {
     }
 
     /**
-     * Writes content to an existing file, using optimistic locking.
+     * Writes content to an existing text file, using optimistic locking.
      *
      * @param path         The absolute path to the file.
      * @param content      The new content to write.
@@ -114,9 +114,9 @@ public class LocalFiles {
      * @return An updated FileInfo object.
      * @throws IOException if a modification conflict occurs or the file is missing.
      */
-    @AIToolMethod(value = "Writes content to an existing file, but only if the file exists and has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object. Don not use this to create new files unse LocalFiles.createFile instead", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Writes content to an existing text file, but only if the file exists and has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object. Don not use this to create new files unse LocalFiles.createFile instead", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo writeFile(
-            @AIToolParam("The absolute path of the file to write to.") String path,
+            @AIToolParam("The absolute path of the text file to write to.") String path,
             @AIToolParam("The new content to write to the file.") String content,
             @AIToolParam("The expected 'last modified' timestamp of the file on disk. The write will fail if the actual timestamp is different.") long lastModified
     ) throws IOException {
@@ -125,12 +125,12 @@ public class LocalFiles {
         if (Files.exists(filePath)) {
             long currentLastModified = Files.getLastModifiedTime(filePath).toMillis();
             if (currentLastModified != lastModified) {
-                throw new IOException("File modification conflict. The file at " + path
+                throw new IOException("File modification conflict. The text file at " + path
                         + " was modified on disk after it was read. Expected timestamp: " + lastModified
                         + ", but found: " + currentLastModified);
             }
         } else if (lastModified > 0) {
-            throw new IOException("File modification conflict. The file at " + path
+            throw new IOException("File modification conflict. The text file at " + path
                     + " was expected to exist with timestamp " + lastModified + " but it has been deleted.");
         }
 
@@ -140,21 +140,21 @@ public class LocalFiles {
     }
 
     /**
-     * Creates a new file with the given content.
+     * Creates a new text file with the given content.
      *
      * @param path    The absolute path to the file.
      * @param content The initial content.
      * @return A FileInfo object for the new file.
      * @throws IOException if the path already exists.
      */
-    @AIToolMethod(value = "Creates a new file with the given content, creating parent directories if necessary. Throws an IOException if a file or directory already exists at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Creates a new text file with the given content, creating parent directories if necessary. Throws an IOException if a file or directory already exists at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo createFile(
-            @AIToolParam("The absolute path of the file to create.") String path,
+            @AIToolParam("The absolute path of the text file to create.") String path,
             @AIToolParam("The initial content to write to the file. Can be empty.") String content
     ) throws IOException {
         Path filePath = Paths.get(path);
         if (Files.exists(filePath)) {
-            throw new IOException("Cannot create file. Path already exists: " + path);
+            throw new IOException("Cannot create text file. Path already exists: " + path);
         }
         if (filePath.getParent() != null) {
             Files.createDirectories(filePath.getParent());
@@ -164,16 +164,16 @@ public class LocalFiles {
     }
 
     /**
-     * Appends content to the end of a file.
+     * Appends content to the end of a text file.
      *
      * @param path    The absolute path to the file.
      * @param content The content to append.
      * @return An updated FileInfo object.
      * @throws IOException if an I/O error occurs.
      */
-    @AIToolMethod(value = "Appends content to the end of a file. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Appends content to the end of a text file. Returns the updated FileInfo object.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo appendToFile(
-            @AIToolParam("The absolute path of the file to append to.") String path,
+            @AIToolParam("The absolute path of the text file to append to.") String path,
             @AIToolParam("The content to append.") String content
     ) throws IOException {
         Files.writeString(Paths.get(path), content, java.nio.file.StandardOpenOption.APPEND, java.nio.file.StandardOpenOption.CREATE);

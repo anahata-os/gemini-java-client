@@ -2,6 +2,7 @@
 package uno.anahata.ai.swing;
 
 import java.awt.Image;
+import java.net.URL;
 import javax.swing.ImageIcon;
 
 /**
@@ -17,11 +18,14 @@ public class IconUtils {
      */
     public static ImageIcon getIcon(String name) {
         try {
-            ImageIcon originalIcon = new ImageIcon(IconUtils.class.getResource("/icons/" + name));
+            URL resource = IconUtils.class.getResource("/icons/" + name);
+            if (resource == null) {
+                return null;
+            }
+            ImageIcon originalIcon = new ImageIcon(resource);
             Image scaledImage = originalIcon.getImage().getScaledInstance(24, 24, Image.SCALE_SMOOTH);
             return new ImageIcon(scaledImage);
         } catch (Exception e) {
-            System.err.println("Could not load icon: " + name);
             return null;
         }
     }
