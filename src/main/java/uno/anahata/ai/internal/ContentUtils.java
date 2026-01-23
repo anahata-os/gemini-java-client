@@ -4,7 +4,6 @@ package uno.anahata.ai.internal;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,11 +22,10 @@ public final class ContentUtils {
      * need to be discarded while preserving the rest of the content and the role.
      * </p>
      * <p>
-     * <b>Signature Preservation:</b> This method is "Signature-Aware". It identifies 
-     * the latest {@code thoughtSignature} in the original content. If the parts 
-     * containing this signature are being pruned, the signature is migrated to the 
-     * last remaining part (or a new minimal part) to ensure the model's state 
-     * is preserved across turns.
+     * <b>Note on Signatures:</b> This method does NOT migrate or preserve 
+     * {@code thoughtSignature}s. If a part containing a signature is pruned, 
+     * the signature is lost. This is intentional to avoid providing the model 
+     * with an invalid or mutated reasoning state.
      * </p>
      *
      * @param original      The original Content object.
@@ -42,16 +40,7 @@ public final class ContentUtils {
 
         List<Part> originalParts = original.parts().get();
         
-        // 1. Find the "latest" (last occurring) signature in the original content.
-        // This represents the most recent state of the model.
-        byte[] latestSignature = null;
-        for (Part p : originalParts) {
-            if (p.thoughtSignature().isPresent()) {
-                latestSignature = p.thoughtSignature().get();
-            }
-        }
-
-        // 2. Identify which parts we are keeping.
+        // Identify which parts we are keeping.
         List<Part> partsToKeep = new ArrayList<>();
         for (Part p : originalParts) {
             if (!partsToRemove.contains(p)) {
@@ -59,28 +48,9 @@ public final class ContentUtils {
             }
         }
 
-        // 3. Check if the latest signature is still present in the kept parts.
-        boolean signaturePreserved = false;
-        if (latestSignature != null) {
-            for (Part p : partsToKeep) {
-                if (p.thoughtSignature().isPresent() && Arrays.equals(p.thoughtSignature().get(), latestSignature)) {
-                    signaturePreserved = true;
-                    break;
-                }
-            }
-        }
-
-        // 4. If the latest signature was lost due to pruning, migrate it to the end of the kept parts.
-        if (latestSignature != null && !signaturePreserved) {
-            if (!partsToKeep.isEmpty()) {
-                int lastIdx = partsToKeep.size() - 1;
-                Part lastPart = partsToKeep.get(lastIdx);
-                // Attach the signature to the last remaining part.
-                partsToKeep.set(lastIdx, lastPart.toBuilder().thoughtSignature(latestSignature).build());
-            } else {
-                // If all parts were pruned, create a minimal "ghost" part to carry the state.
-                partsToKeep.add(Part.builder().thoughtSignature(latestSignature).build());
-            }
+        // If no parts were removed, return the original to save memory/cycles.
+        if (partsToKeep.size() == originalParts.size()) {
+            return original;
         }
 
         return original.toBuilder()
