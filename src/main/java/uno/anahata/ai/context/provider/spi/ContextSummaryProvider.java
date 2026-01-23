@@ -170,22 +170,34 @@ public class ContextSummaryProvider extends ContextProvider {
         sb.append("**Legend:**\n");
         sb.append("  - **Roles**: u=user, m=model, t=tool\n");
         sb.append("  - **Names**: ").append(nameAbbreviations.entrySet().stream().map(e -> e.getValue() + "=" + e.getKey()).collect(Collectors.joining(", "))).append("\n");
-        sb.append("  - **Types**: **O**=Other (Text/Blob/Code), **E**=Ephemeral (Non-stateful tool), **S**=Stateful (File content)\n\n");
+        sb.append("  - **Types**: **O**=Other (Text/Blob/etc.), **E**=Ephemeral (Non-stateful tool), **S**=Stateful (File content)\n");
+        sb.append("  - **Sig**: **Y**=Contains a thoughtSignature \n\n");
 
         // --- Table ---
         List<String> headers = new ArrayList<>();
         headers.add("Age");
         headers.add("Name");
         headers.add("Type");
+        headers.add("Sig");
         headers.add("Pruning ID");
         headers.add("Content");
         headers.add("Size (KB)");
 
         sb.append("| ").append(String.join(" | ", headers)).append(" |\n");
-        sb.append("|:---|:---|:---|:---|:---|---:|\n");
+        sb.append("|:---|:---|:---|:---|:---|:---|---:|\n");
 
         Instant now = Instant.now();
         ResourceTracker rt = chat.getContextManager().getResourceTracker();
+
+        // Pre-calculate which tool call IDs are associated with a signature
+        Set<String> signedToolCallIds = new HashSet<>();
+        for (ChatMessage msg : messages) {
+            for (Part part : msg.getContent().parts().orElse(Collections.emptyList())) {
+                if (part.thoughtSignature().isPresent()) {
+                    GeminiAdapter.getToolCallId(part).ifPresent(signedToolCallIds::add);
+                }
+            }
+        }
 
         for (ChatMessage msg : messages) {
             List<Part> parts = msg.getContent().parts().orElse(Collections.emptyList());
@@ -201,6 +213,11 @@ public class ContextSummaryProvider extends ContextProvider {
                 boolean isStateful = statusOpt.isPresent();
                 String toolCallId = GeminiAdapter.getToolCallId(part).orElse("");
                 boolean isToolCall = !toolCallId.isEmpty();
+                
+                // A part is 'signed' if it has a signature OR if it's a tool call/response 
+                // where the other side of the pair has a signature.
+                boolean hasSignature = part.thoughtSignature().isPresent() || 
+                                       (isToolCall && signedToolCallIds.contains(toolCallId));
 
                 List<String> row = new ArrayList<>();
                 row.add(i == 0 ? age : ""); // Only show age for the first part of a message
@@ -209,6 +226,9 @@ public class ContextSummaryProvider extends ContextProvider {
                 // Type Column
                 String typeCode = isStateful ? "**S**" : (isToolCall ? "**E**" : "**O**");
                 row.add(typeCode);
+
+                // Sig Column
+                row.add(hasSignature ? "**Y**" : "");
                 
                 // Pruning ID Column
                 String pruningId = "";
