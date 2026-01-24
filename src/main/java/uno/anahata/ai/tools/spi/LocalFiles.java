@@ -53,7 +53,7 @@ public class LocalFiles {
      * @return The file content as a byte array.
      * @throws IOException if the file is not found or is a directory.
      */
-    @AIToolMethod(value = "Reads a single a binary file and returns a byte[].", requiresApproval = false, behavior = ContextBehavior.EPHEMERAL)
+    @AIToolMethod(value = "Reads a single a binary file and returns a byte[].", behavior = ContextBehavior.EPHEMERAL)
     public static byte[] readBinaryFile(@AIToolParam("The absolute path of the file to read.") String path) throws IOException {
         Path filePath = Paths.get(path);
         if (!Files.exists(filePath)) {
@@ -77,7 +77,7 @@ public class LocalFiles {
      * @return A FileInfo object containing content and metadata.
      * @throws IOException if the file is not found or is a directory.
      */
-    @AIToolMethod(value = "Reads a single text file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", requiresApproval = false, behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Reads a single text file and returns a FileInfo object containing its path, content, size, and last modified timestamp.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo readFile(
             @AIToolParam("The absolute path of the text file to read.") String path
     ) throws IOException {
@@ -187,7 +187,7 @@ public class LocalFiles {
      * @return A success message.
      * @throws IOException if the file is not found.
      */
-    @AIToolMethod(value = "Deletes a file at the specified path.", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Deletes a file at the specified path.", behavior = ContextBehavior.EPHEMERAL)
     public static String deleteFile(
             @AIToolParam("The absolute path of the file to delete.") String path
     ) throws IOException {
@@ -274,7 +274,7 @@ public class LocalFiles {
      * @param path The absolute path to check.
      * @return {@code true} if it exists.
      */
-    @AIToolMethod(value = "Checks if a file or directory exists at the specified path.", requiresApproval = false)
+    @AIToolMethod(value = "Checks if a file or directory exists at the specified path.")
     public static boolean fileExists(
             @AIToolParam("The absolute path to check.") String path
     ) {
@@ -288,7 +288,7 @@ public class LocalFiles {
      * @return A list of strings describing the directory entries.
      * @throws IOException if the path is not a directory.
      */
-    @AIToolMethod(value = "Lists the contents of a directory with basic metadata (name, type, size).", requiresApproval = false)
+    @AIToolMethod(value = "Lists the contents of a directory with basic metadata (name, type, size).")
     public static List<String> listDirectory(
             @AIToolParam("The absolute path of the directory to list.") String path
     ) throws IOException {

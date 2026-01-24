@@ -105,8 +105,8 @@ public class ContextWindow {
     @AIToolMethod(
             value = "Prunes one or more ephemeral (non-stateful) tool calls and their associated responses using the Tool Call IDs. "
                     + "This tool removes the entire call/response pair from the context. "
-                    + "While ephemeral tool calls are already automatically prunned after 5 user turns, this tool can be used to "
-                    + "prune (large) ephemeral tool calls before they get automatically pruned."
+                    + "CRITICAL: This tool will fail if used on a tool call that produced a stateful resource (e.g., LocalFiles.readFile, LocalFiles.writeFile, LocalFiles.createFile). "
+                    + "For those, you must use pruneStatefulResources with the full file path."
     )
     public static String pruneEphemeralToolCalls(
             @AIToolParam(value = "A list of tool call IDs as shown in the 'Tool Call ID' column of the context summary.") List<String> toolCallIds,
@@ -124,7 +124,8 @@ public class ContextWindow {
      * @throws Exception if pruning fails.
      */
     @AIToolMethod(
-            value = "Prunes all FunctionCall and FunctionResponse parts associated with the given stateful resource IDs (full paths)."
+            value = "Prunes all FunctionCall and FunctionResponse parts associated with the given stateful resource IDs (full paths). "
+                    + "Note: This tool takes Resource IDs (file paths), NOT Tool Call IDs."
     )
     public static String pruneStatefulResources(
             @AIToolParam(value = "The Resource ID (full path as given by the 'Pruning ID' column in the context summary)") List<String> resourceIds,
@@ -185,8 +186,8 @@ public class ContextWindow {
             value = "Enables / disables one or more context providers"
     )
     public static String toggleContextProviders(
-            @AIToolParam("Context provider id as in ") List<String> contextProviderIds,
-            @AIToolParam("Context provider id as in ") boolean enabled) {
+            @AIToolParam("A list of context provider IDs (e.g., ['core-chat-status', 'core-system-properties']).") List<String> contextProviderIds,
+            @AIToolParam("True to enable the providers, false to disable them.") boolean enabled) {
         String feedback = "";
         for (String contextProviderId : contextProviderIds) {
             boolean found = false;

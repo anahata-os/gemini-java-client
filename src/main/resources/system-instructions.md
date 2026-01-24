@@ -65,8 +65,8 @@ Always read the next user message carefully to capture the full context of the u
 
 Your context is your active memory. You are responsible for its efficiency.
 
-- **Type S (Stateful)**: Use `pruneStatefulResources` ONLY when you explicitly intend to remove a file's content from your context. Specify the 'Pruning ID' (Full Path).
-- **Type E (Ephemeral)**: Use `pruneEphemeralToolCall` sparsely for large, non-stateful tool calls that bloat the context. Specify the 'Pruning ID' (Tool Call ID).
+- **Type S (Stateful)**: Use `pruneStatefulResources` to remove a file's content and **all its associated tool calls/responses** from your context. Specify the 'Pruning ID' (Full Path).
+- **Type E (Ephemeral)**: Use `pruneEphemeralToolCall` sparsely for large, non-stateful tool calls (e.g., `runShell`, `listDirectory`). **CRITICAL:** This tool will fail if used on a tool call that produced a stateful resource (e.g., `LocalFiles.readFile`, `LocalFiles.writeFile`, `LocalFiles.createFile`).
 - **Type O (Other)**: Use `pruneOther` for redundant text, blobs, or code execution results. Specify the 'Pruning ID' (MessageId/PartId).
 
 ## Automatic Pruning

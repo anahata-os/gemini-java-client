@@ -71,7 +71,11 @@ public class GeminiAPI {
                     .map(String::trim)
                     .filter(line -> !line.isEmpty() && !line.startsWith("//") && !line.startsWith("#"))
                     .map(line -> {
+                        // Treat both // and # as inline comment delimiters
                         int commentIndex = line.indexOf("//");
+                        if (commentIndex == -1) {
+                            commentIndex = line.indexOf("#");
+                        }
                         return (commentIndex != -1) ? line.substring(0, commentIndex).trim() : line;
                     })
                     .collect(Collectors.toList());
