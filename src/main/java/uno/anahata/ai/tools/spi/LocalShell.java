@@ -10,21 +10,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import lombok.extern.slf4j.Slf4j;
 import uno.anahata.ai.tools.AIToolMethod;
 import uno.anahata.ai.tools.AIToolParam;
 
 /**
  * A tool provider that allows the AI model to execute commands in the local
- * bash shell.
+ * shell (bash on Unix, cmd.exe on Windows).
  * <p>
  * This tool is powerful and should be used with caution. It captures standard
  * output, standard error, and execution metadata.
  * </p>
  */
+@Slf4j
 public class LocalShell {
 
     /**
-     * Executes a shell command using {@code bash -c}.
+     * Executes a shell command using the appropriate system shell.
      *
      * @param command The shell command to execute.
      * @return A map containing execution results:
@@ -40,8 +42,8 @@ public class LocalShell {
      * </ul>
      * @throws Exception if the command fails to start or execution is interrupted.
      */
-    @AIToolMethod("Runs a shell command with bash -c: <command> and returns a map with the following values:\n"
-            + " \n\tthreadId (it of the thread that executed the shell command, "
+    @AIToolMethod("Runs a shell command using the system's default shell (cmd.exe on Windows, bash on Unix) and returns a map with the following values:\n"
+            + " \n\tthreadId (id of the thread that executed the shell command, "
             + " \n\tpid, process id"
             + " \n\tstartTime, process start time as an ISO-8601 string"
             + " \n\tendTime, process end time as an ISO-8601 string"
@@ -51,10 +53,17 @@ public class LocalShell {
             + " \n\tstderr, process standard error"
     )
     public static Map<String, Object> runShell(@AIToolParam("The command to run") String command) throws Exception {
-        System.out.println("executeShellCommand: " + command);
+        log.info("executeShellCommand: {}", command);
         Map<String, Object> result = new HashMap<>();
 
-        ProcessBuilder pb = new ProcessBuilder("bash", "-c", command);
+        String os = System.getProperty("os.name").toLowerCase();
+        ProcessBuilder pb;
+        if (os.contains("win")) {
+            pb = new ProcessBuilder("cmd.exe", "/c", command);
+        } else {
+            pb = new ProcessBuilder("bash", "-c", command);
+        }
+        
         pb.redirectErrorStream(false);
 
         Instant startTime = Instant.now();

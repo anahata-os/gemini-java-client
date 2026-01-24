@@ -29,5 +29,11 @@ public enum ToolCallStatus {
     CANCELLED,
     
     /** The model attempted to call a tool while function calling was disabled by the user. */
-    DISABLED;
+    DISABLED,
+
+    /** The tool was approved for execution, but the execution failed with an exception. */
+    ERROR,
+
+    /** The tool execution was explicitly killed/interrupted by the user. */
+    KILLED;
 }

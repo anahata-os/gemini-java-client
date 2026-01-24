@@ -398,8 +398,15 @@ public class ToolManager {
                     executedCalls.add(new ExecutedToolCall(idc.getSourcePart(), fr, rawResult));
 
                 } catch (Exception e) {
-                    log.error("Error executing tool call: {}", toolName, e);
-                    failureTracker.recordFailure(idc.getCall(), e);
+                    if (Thread.interrupted() || ExceptionUtils.indexOfThrowable(e, InterruptedException.class) != -1) {
+                        log.info("Tool call '{}' was interrupted/killed.", toolName);
+                        status = ToolCallStatus.KILLED;
+                    } else {
+                        log.error("Error executing tool call: {}", toolName, e);
+                        failureTracker.recordFailure(idc.getCall(), e);
+                        status = ToolCallStatus.ERROR;
+                    }
+                    
                     Map<String, Object> errorMap = new HashMap<>();
                     errorMap.put("error", ExceptionUtils.getStackTrace(e));
                     FunctionResponse errorResponse = FunctionResponse.builder()

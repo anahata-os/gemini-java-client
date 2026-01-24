@@ -411,7 +411,10 @@ public class Chat {
             contextManager.add(message);
         }
 
-        return !executedCalls.isEmpty();
+        boolean anyKilled = processingResult.getOutcomes().stream()
+                .anyMatch(outcome -> outcome.getStatus() == ToolCallStatus.KILLED);
+
+        return !executedCalls.isEmpty() && !anyKilled;
     }
 
     private GenerateContentResponse sendToModelWithRetry(List<Content> context) {

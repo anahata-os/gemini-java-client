@@ -60,6 +60,12 @@ public class ToolCallOutcome {
             case CANCELLED: 
                 statusLabel = "NOT_EXECUTED (Dialog-cancelled)"; 
                 break;
+            case ERROR:
+                statusLabel = "ERROR";
+                break;
+            case KILLED:
+                statusLabel = "KILLED";
+                break;
             default: 
                 statusLabel = "NOT_EXECUTED";
         }

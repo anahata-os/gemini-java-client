@@ -38,6 +38,22 @@ import uno.anahata.ai.tools.AIToolParam;
  * test, and run code dynamically. It uses an in-memory file manager and a
  * custom classloader to ensure that newly compiled classes take precedence.
  * </p>
+ * 
+ * <h3>The Hot-Reload Mechanism:</h3>
+ * <p>
+ * When code is compiled via {@link #compileJava(String, String, String, String[])}, the resulting 
+ * bytecode is stored in memory. A custom {@link URLClassLoader} is then created with a 
+ * <b>Child-First</b> strategy:
+ * </p>
+ * <ol>
+ *   <li>It first checks if the class is the one just compiled in memory.</li>
+ *   <li>If not, it attempts to load the class from the {@code extraClassPath} (e.g., a project's {@code target/classes}).</li>
+ *   <li>Only if the class is not found in either location does it delegate to the parent classloader (e.g. the IDE's classpath or the host application's classpath).</li>
+ * </ol>
+ * <p>
+ * This ensures that any changes you make to the code are reflected immediately, even if a version 
+ * of that class already exists in the IDE's main classpath.
+ * </p>
  *
  * @author anahata
  */
