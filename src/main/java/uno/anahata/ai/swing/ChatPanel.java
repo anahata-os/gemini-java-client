@@ -39,7 +39,8 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
     private JToggleButton liveWorkspaceButton;
     private JButton saveSessionButton;
     private JButton loadSessionButton;
-    private JToggleButton functionsButton;
+    private JToggleButton localToolsButton;
+    private JToggleButton serverToolsButton;
     private JComboBox<String> modelIdComboBox;
 
     private final EditorKitProvider editorKitProvider;
@@ -98,9 +99,27 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         clearButton.setToolTipText("Restart Chat");
         clearButton.addActionListener(e -> restartChat());
 
-        functionsButton = new JToggleButton(IconUtils.getIcon("functions.png"), true);
-        functionsButton.setToolTipText("Enable / Disable Functions");
-        functionsButton.addActionListener(e -> chat.setFunctionsEnabled(functionsButton.isSelected()));
+        localToolsButton = new JToggleButton(IconUtils.getIcon("java.png"), chat.isFunctionsEnabled());
+        localToolsButton.setToolTipText("Enable / Disable Local Tools (Java)");
+        localToolsButton.addActionListener(e -> {
+            boolean selected = localToolsButton.isSelected();
+            chat.setFunctionsEnabled(selected);
+            if (selected) {
+                serverToolsButton.setSelected(false);
+                chat.setServerToolsEnabled(false);
+            }
+        });
+
+        serverToolsButton = new JToggleButton(IconUtils.getIcon("google.png", 18), chat.isServerToolsEnabled());
+        serverToolsButton.setToolTipText("Enable / Disable Server Tools (Google Search)");
+        serverToolsButton.addActionListener(e -> {
+            boolean selected = serverToolsButton.isSelected();
+            chat.setServerToolsEnabled(selected);
+            if (selected) {
+                localToolsButton.setSelected(false);
+                chat.setFunctionsEnabled(false);
+            }
+        });
 
         liveWorkspaceButton = new JToggleButton(IconUtils.getIcon("compress.png"), true);
         liveWorkspaceButton.setToolTipText("Toggle Live Workspace View");
@@ -129,7 +148,8 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         loadSessionButton.addActionListener(e -> loadSession());
 
         toolbar.add(clearButton);
-        toolbar.add(functionsButton);
+        toolbar.add(localToolsButton);
+        toolbar.add(serverToolsButton);
         toolbar.add(liveWorkspaceButton);
         toolbar.add(new JToolBar.Separator());
         toolbar.add(saveSessionButton);

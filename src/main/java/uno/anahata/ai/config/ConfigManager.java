@@ -73,7 +73,7 @@ public class ConfigManager {
             builder
                     .tools(chat.getToolManager().getFunctionTool())
                     .toolConfig(chat.getToolManager().getToolConfig());
-        } else {
+        } else if (chat.isServerToolsEnabled()) {
             Tool googleTools = Tool.builder().googleSearch(GoogleSearch.builder().build()).build();
             builder.tools(googleTools);
         }

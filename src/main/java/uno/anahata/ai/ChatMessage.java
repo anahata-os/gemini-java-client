@@ -84,6 +84,13 @@ public class ChatMessage {
     private final Instant createdOn = Instant.now();
 
     /**
+     * Indicates if this message is a system-generated tool feedback message.
+     * Tool feedback messages have the 'user' role but should not be counted
+     * as actual user turns for pruning purposes.
+     */
+    private final boolean toolFeedback;
+
+    /**
      * Performs a full graph traversal to find all parts connected to the startPart,
      * including the startPart itself. This is used to find the complete set of
      * interdependent parts for operations like pruning.

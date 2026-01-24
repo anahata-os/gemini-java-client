@@ -425,7 +425,7 @@ public class ToolManager {
         
         // 1. Popup Comment (Highest priority for the model to see)
         if (dialogShown && StringUtils.isNotBlank(userComment)) {
-            feedbackText.append("Tool confirmation popup comment: '").append(userComment).append("'\n\n");
+            feedbackText.append("Tool confirmation popup comment: **'").append(userComment).append("'**\n\n");
         }
 
         // 2. Tool Feedback (The core outcomes)

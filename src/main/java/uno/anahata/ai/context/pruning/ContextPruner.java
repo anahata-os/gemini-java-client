@@ -415,20 +415,20 @@ public class ContextPruner {
         }
         List<ChatMessage> context = contextManager.getContext();
 
-        // Find the index of the message that marks our cutoff point (2 user turns ago).
-        List<Integer> userMessageIndices = new ArrayList<>();
+        // Find the index of the message that marks our cutoff point (5 user turns ago).
+        List<Integer> userTurnIndices = new ArrayList<>();
         for (int i = context.size() - 1; i >= 0; i--) {
-            if (isUserMessage(context.get(i))) {
-                userMessageIndices.add(i);
+            if (isUserTurn(context.get(i))) {
+                userTurnIndices.add(i);
             }
         }
 
         // If there aren't enough user turns yet, there's nothing to prune.
-        if (userMessageIndices.size() <= turnsToKeep) {
-            log.info("Not enough user turns ({} <= {}). Aborting ephemeral pruning.", userMessageIndices.size(), turnsToKeep);
+        if (userTurnIndices.size() <= turnsToKeep) {
+            log.info("Not enough user turns ({} <= {}). Aborting ephemeral pruning.", userTurnIndices.size(), turnsToKeep);
             return;
         }
-        int pruneCutoffIndex = userMessageIndices.get(turnsToKeep);
+        int pruneCutoffIndex = userTurnIndices.get(turnsToKeep);
         log.info("Pruning cutoff index determined: {}. Messages older than this index will be scanned.", pruneCutoffIndex);
 
         // === Phase 1: Comprehensive Context Scan ===
@@ -525,9 +525,11 @@ public class ContextPruner {
     }
 
     /**
-     * Helper to determine if a message is a user message.
+     * Helper to determine if a message is an actual user turn (not system-generated feedback).
      */
-    private boolean isUserMessage(ChatMessage message) {
-        return message.getContent() != null && "user".equals(message.getContent().role().orElse(null));
+    private boolean isUserTurn(ChatMessage message) {
+        return message.getContent() != null 
+                && "user".equals(message.getContent().role().orElse(null))
+                && !message.isToolFeedback();
     }
 }

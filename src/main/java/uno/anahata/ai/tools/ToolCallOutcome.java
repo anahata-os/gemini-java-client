@@ -67,7 +67,7 @@ public class ToolCallOutcome {
         StringBuilder sb = new StringBuilder();
         sb.append("[").append(toolName).append(" id=").append(id).append(" ").append(statusLabel);
         if (StringUtils.isNotBlank(executionFeedback)) {
-            sb.append(" User Feedback: '").append(executionFeedback).append("'");
+            sb.append(" User Feedback: **'").append(executionFeedback).append("'**");
         }
         sb.append("]");
         return sb.toString();

@@ -14,6 +14,7 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -41,6 +42,7 @@ public class StatusPanel extends JPanel {
     private JPanel detailsPanel;
     private JLabel tokenDetailsLabel;
     private JToggleButton soundToggle;
+    private JButton killButton;
 
     public StatusPanel(ChatPanel parentPanel) {
         super(new BorderLayout(10, 2));
@@ -77,9 +79,15 @@ public class StatusPanel extends JPanel {
         soundToggle.setSelected(!parentPanel.getConfig().isAudioFeedbackEnabled());
         soundToggle.addActionListener(e -> parentPanel.getConfig().setAudioFeedbackEnabled(!soundToggle.isSelected()));
 
+        killButton = new JButton(IconUtils.getIcon("kill.png", 16));
+        killButton.setToolTipText("Interrupt current API request or tool execution");
+        killButton.setVisible(false);
+        killButton.addActionListener(e -> parentPanel.getChat().kill());
+
         statusDisplayPanel.add(soundToggle);
         statusDisplayPanel.add(statusIndicator);
         statusDisplayPanel.add(statusLabel);
+        statusDisplayPanel.add(killButton);
         
         contextUsageBar = new ContextUsageBar(parentPanel);
         
@@ -135,6 +143,9 @@ public class StatusPanel extends JPanel {
                 statusLabel.setText(currentStatus.getDisplayName());
             }
         }
+
+        // Update Kill Button visibility
+        killButton.setVisible(currentStatus.isInterruptible());
 
         // 2. Refresh Context Usage Bar
         contextUsageBar.refresh();

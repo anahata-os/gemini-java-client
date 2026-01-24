@@ -88,12 +88,20 @@ public class Chat {
      */
     @Setter
     private boolean functionsEnabled = true;
+
+    /**
+     * Flag to enable or disable server-side tools (e.g., Google Search).
+     */
+    @Setter
+    private boolean serverToolsEnabled = false;
     
     private volatile boolean isProcessing = false;
     private volatile boolean shutdown = false;
     private Date startTime = new Date();
     
     private final AtomicLong messageCounter = new AtomicLong(0);
+
+    private volatile Thread processingThread;
 
     /**
      * Resets the sequential message counter to a specific value.
@@ -131,8 +139,20 @@ public class Chat {
     public void shutdown() {
         log.info("Shutting down Chat for session {}", config.getSessionId());
         this.shutdown = true;
+        kill();
         if (executor != null && !executor.isShutdown()) {
             executor.shutdown();
+        }
+    }
+
+    /**
+     * Interrupts the current processing thread, effectively cancelling any ongoing API call or tool execution.
+     */
+    public void kill() {
+        Thread t = processingThread;
+        if (t != null) {
+            log.info("Killing active processing thread: {}", t.getName());
+            t.interrupt();
         }
     }
 
@@ -203,12 +223,17 @@ public class Chat {
     }
     
     private ChatMessage buildChatMessage(Content content, GenerateContentResponseUsageMetadata usage, GroundingMetadata grounding) {
+        return buildChatMessage(content, usage, grounding, false);
+    }
+
+    private ChatMessage buildChatMessage(Content content, GenerateContentResponseUsageMetadata usage, GroundingMetadata grounding, boolean toolFeedback) {
         return ChatMessage.builder()
             .sequentialId(messageCounter.incrementAndGet())
             .modelId(config.getApi().getModelId())
             .content(content)
             .usageMetadata(usage)
             .groundingMetadata(grounding)
+            .toolFeedback(toolFeedback)
             .build();
     }
 
@@ -223,6 +248,7 @@ public class Chat {
             return;
         }
         isProcessing = true;
+        processingThread = Thread.currentThread();
         statusManager.recordUserInputTime();
         statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
         try {
@@ -231,12 +257,17 @@ public class Chat {
 
             processModelResponseLoop();
         } catch (Exception e) {
-            log.error("An unhandled exception occurred during the processing loop.", e);
+            if (Thread.interrupted() || e.getCause() instanceof InterruptedException) {
+                log.info("Processing loop interrupted/killed.");
+            } else {
+                log.error("An unhandled exception occurred during the processing loop.", e);
+            }
             // If an exception bubbles all the way up, it's a critical failure.
             // The MAX_RETRIES_REACHED status would have already been set inside the loop.
             // We don't want the finally block to override it.
         } finally {
             isProcessing = false;
+            processingThread = null;
             // Only reset to IDLE if we are not in a terminal error state.
             if (statusManager.getCurrentStatus() != ChatStatus.MAX_RETRIES_REACHED) {
                 statusManager.setStatus(ChatStatus.IDLE_WAITING_FOR_USER);
@@ -246,13 +277,17 @@ public class Chat {
 
     private void processModelResponseLoop() {
         while (true) {
-            if (shutdown) {
-                log.info("Shutdown flag detected. Breaking processing loop for session {}.", config.getSessionId());
+            if (shutdown || Thread.interrupted()) {
+                log.info("Shutdown or interrupt flag detected. Breaking processing loop for session {}.", config.getSessionId());
                 break;
             }
 
             List<Content> apiContext = buildApiContext(contextManager.getContext());
             GenerateContentResponse resp = sendToModelWithRetry(apiContext);
+
+            if (resp == null) {
+                break; // Interrupted
+            }
 
             if (resp.candidates() == null || !resp.candidates().isPresent() || resp.candidates().get().isEmpty()) {
                 log.warn("Received response with no candidates. Possibly due to safety filters. Breaking loop.");
@@ -302,7 +337,7 @@ public class Chat {
             String feedbackText = "User Feedback: " + feedback;
             
             Content feedbackContent = Content.builder().role("user").parts(Part.fromText(feedbackText)).build();
-            ChatMessage feedbackMessage = buildChatMessage(feedbackContent, null, null);
+            ChatMessage feedbackMessage = buildChatMessage(feedbackContent, null, null, true);
             contextManager.add(feedbackMessage);
             return false;
         }
@@ -367,7 +402,7 @@ public class Chat {
             userFeedbackParts.addAll(extraUserParts);
 
             Content feedbackContent = Content.builder().role("user").parts(userFeedbackParts).build();
-            ChatMessage feedbackMessage = buildChatMessage(feedbackContent, null, null);
+            ChatMessage feedbackMessage = buildChatMessage(feedbackContent, null, null, true);
             feedbackMessage.setDependencies(userFeedbackDependencies); // Set dependencies after creation
             messagesToAdd.add(feedbackMessage);
         }
@@ -386,6 +421,9 @@ public class Chat {
         long backoffAmount = 0;
 
         for (int attempt = 0; attempt < maxRetries; attempt++) {
+            if (Thread.interrupted()) {
+                return null;
+            }
             Client client = getGoogleGenAIClient();
             try {
                 statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
@@ -427,6 +465,9 @@ public class Chat {
                 
                 return ret;
             } catch (Exception e) {
+                if (Thread.interrupted() || e.getCause() instanceof InterruptedException) {
+                    return null;
+                }
                 log.warn("Api Error on attempt {}: {}", attempt, e.toString());
                 String apiKey = client.apiKey();
                 String apiKeyLast5 = StringUtils.right(apiKey, 5);
@@ -446,7 +487,7 @@ public class Chat {
                         Thread.sleep(backoffAmount);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        throw new RuntimeException("Chat was interrupted during retry delay.", ie);
+                        return null;
                     }
                 } else {
                     log.error("Unknown error from Google's servers", e);

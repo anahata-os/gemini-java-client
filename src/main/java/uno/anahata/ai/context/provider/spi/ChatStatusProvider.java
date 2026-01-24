@@ -46,7 +46,7 @@ public class ChatStatusProvider extends ContextProvider {
         chatStatusBlock.append("- StatusManager: ").append(chat.getStatusManager()).append("\n");
         chatStatusBlock.append("- Session Start time: ").append(chat.getStartTime()).append("\n");
         //chatStatusBlock.append("- Live Workspace (auto attaches screen captures on every call) Enabled: ").append(chat.isLiveWorkspaceEnabled()).append("\n");        
-        chatStatusBlock.append("- Server Side Tools (like google search) Enabled: ").append(!chat.isFunctionsEnabled()).append("\n");
+        chatStatusBlock.append("- Server Side Tools (like google search) Enabled: ").append(chat.isServerToolsEnabled()).append("\n");
         chatStatusBlock.append("- Local @AiToolMethod Tools (e.g. LocalFiles) Enabled: ").append(chat.isFunctionsEnabled()).append("\n");
         if (chat.getLatency() > 0) {
             chatStatusBlock.append("- Latency (last successfull user/model round trip): ").append(chat.getLatency()).append(" ms.\n");

@@ -35,6 +35,14 @@ public enum ChatStatus {
         this.description = description;
     }
 
+    /**
+     * Checks if the current status represents a state that can be interrupted by the user.
+     * @return true if interruptible, false otherwise.
+     */
+    public boolean isInterruptible() {
+        return this == API_CALL_IN_PROGRESS || this == WAITING_WITH_BACKOFF || this == TOOL_EXECUTION_IN_PROGRESS;
+    }
+
     @Override
     public String toString() {
         return displayName;
