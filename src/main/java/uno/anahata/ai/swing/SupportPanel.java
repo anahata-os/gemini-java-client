@@ -17,7 +17,11 @@ public class SupportPanel extends JPanel {
     }
 
     private void initComponents() {
-        setLayout(new GridBagLayout());
+        setLayout(new BorderLayout());
+        setOpaque(false);
+
+        JPanel contentPanel = new JPanel(new GridBagLayout());
+        contentPanel.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -27,68 +31,93 @@ public class SupportPanel extends JPanel {
         // Title
         JLabel titleLabel = new JLabel("Support & Community");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 20f));
-        add(titleLabel, gbc);
+        contentPanel.add(titleLabel, gbc);
 
         gbc.gridy++;
         gbc.insets = new Insets(0, 20, 20, 20);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
-        add(new JSeparator(), gbc);
+        contentPanel.add(new JSeparator(), gbc);
 
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.weightx = 0.0;
-        gbc.insets = new Insets(5, 20, 5, 20);
+        // Links Grid - Two columns
+        JPanel linksGrid = new JPanel(new GridBagLayout());
+        linksGrid.setOpaque(false);
+        GridBagConstraints gridGbc = new GridBagConstraints();
+        gridGbc.insets = new Insets(0, 0, 15, 15);
+        gridGbc.anchor = GridBagConstraints.NORTHWEST;
+        gridGbc.fill = GridBagConstraints.NONE;
+        gridGbc.weightx = 0.0;
 
-        // Discord
+        gridGbc.gridx = 0; gridGbc.gridy = 0;
+        linksGrid.add(createLinkCard("Join our Discord", "https://discord.com/invite/M396BNtX", 
+                "Connect with the community and get real-time help.", "discord.png"), gridGbc);
+
+        gridGbc.gridx = 1;
+        linksGrid.add(createLinkCard("Report an Issue", "https://github.com/anahata-os/gemini-java-client/issues", 
+                "Found a bug? Let us know on GitHub.", "github.png"), gridGbc);
+
+        gridGbc.gridx = 0; gridGbc.gridy = 1;
+        linksGrid.add(createLinkCard("Email Support", "mailto:support@anahata.uno", 
+                "Send us a direct message at support@anahata.uno", "email.png"), gridGbc);
+
+        gridGbc.gridx = 1;
+        linksGrid.add(createLinkCard("Official Website", "https://anahata.uno/", 
+                "Learn more about the Anahata ecosystem.", "anahata.png"), gridGbc);
+
+        gridGbc.gridx = 0; gridGbc.gridy = 2;
+        linksGrid.add(createLinkCard("AnahataTV (YouTube)", "https://www.youtube.com/@anahata108", 
+                "Watch tutorials and feature showcases.", "youtube.png"), gridGbc);
+
+        gridGbc.gridx = 1;
+        linksGrid.add(createLinkCard("Browse Javadocs", "https://anahata-os.github.io/gemini-java-client/", 
+                "Technical documentation and API reference.", "javadoc.png"), gridGbc);
+
         gbc.gridy++;
-        add(createLinkRow("Join our Discord", "https://discord.com/invite/M396BNtX", 
-                "Connect with the community and get real-time help.", "discord.png"), gbc);
+        gbc.insets = new Insets(0, 20, 20, 20);
+        gbc.fill = GridBagConstraints.NONE; // Do not stretch the grid
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        gbc.weighty = 0.0; 
+        contentPanel.add(linksGrid, gbc);
 
-        // GitHub Issues
+        // Add a spacer at the bottom to push everything up
         gbc.gridy++;
-        add(createLinkRow("Report an Issue", "https://github.com/anahata-os/gemini-java-client/issues", 
-                "Found a bug? Let us know on GitHub.", "github.png"), gbc);
-
-        // Email
-        gbc.gridy++;
-        add(createLinkRow("Email Support", "mailto:support@anahata.uno", 
-                "Send us a direct message at support@anahata.uno", "email.png"), gbc);
-
-        // Website
-        gbc.gridy++;
-        add(createLinkRow("Official Website", "https://anahata.uno/", 
-                "Learn more about the Anahata ecosystem.", "anahata.png"), gbc);
-
-        // Javadocs
-        gbc.gridy++;
-        add(createLinkRow("Browse Javadocs", "https://anahata-os.github.io/gemini-java-client/", 
-                "Technical documentation and API reference.", "javadoc.png"), gbc);
-
-        // Spacer to push everything to the top-left
-        gbc.gridy++;
-        gbc.weightx = 1.0;
         gbc.weighty = 1.0;
-        add(new JPanel(), gbc);
+        contentPanel.add(Box.createVerticalGlue(), gbc);
+
+        // Wrap in a scroll pane to ensure it never constrains the parent's height
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setBorder(null);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        
+        add(scrollPane, BorderLayout.CENTER);
     }
 
-    private JPanel createLinkRow(String title, String url, String description, String iconName) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        row.setOpaque(false);
+    private JPanel createLinkCard(String title, String url, String description, String iconName) {
+        JPanel card = new JPanel(new BorderLayout(5, 2));
+        card.setOpaque(false);
+        card.setPreferredSize(new Dimension(300, 60));
         
         JButton btn = new JButton(title, IconUtils.getIcon(iconName));
-        btn.setPreferredSize(new Dimension(200, 40));
+        btn.setPreferredSize(new Dimension(250, 35));
         btn.setHorizontalAlignment(SwingConstants.LEFT);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.addActionListener(e -> openWebpage(url));
         
-        JLabel descLabel = new JLabel("  - " + description);
-        descLabel.setForeground(Color.GRAY);
-        descLabel.setFont(descLabel.getFont().deriveFont(12f));
+        JTextArea descArea = new JTextArea(description);
+        descArea.setWrapStyleWord(true);
+        descArea.setLineWrap(true);
+        descArea.setEditable(false);
+        descArea.setFocusable(false);
+        descArea.setOpaque(false);
+        descArea.setForeground(Color.GRAY);
+        descArea.setFont(descArea.getFont().deriveFont(11f));
+        descArea.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
 
-        row.add(btn);
-        row.add(descLabel);
+        card.add(btn, BorderLayout.NORTH);
+        card.add(descArea, BorderLayout.CENTER);
         
-        return row;
+        return card;
     }
 
     private void openWebpage(String url) {
