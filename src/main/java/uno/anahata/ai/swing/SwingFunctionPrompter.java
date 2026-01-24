@@ -52,7 +52,9 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
      * @param chatPanel The ChatPanel that initiated the prompt.
      */
     public SwingFunctionPrompter(ChatPanel chatPanel) {
-        super((JFrame) SwingUtilities.getWindowAncestor(chatPanel), "Confirm Proposed Actions - " + chatPanel.getChat().getDisplayName(), true);
+        // We use null as the owner initially because the ChatPanel might not be added to a window yet.
+        // The title is updated in the prompt() method once the Chat instance is fully initialized.
+        super((JFrame) null, "Confirm Proposed Actions", true);
         this.chatPanel = chatPanel;
     }
 
@@ -60,6 +62,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     public PromptResult prompt(ChatMessage modelMessage, Chat chat) {
         try {
             SwingUtilities.invokeAndWait(() -> {
+                setTitle("Confirm Proposed Actions - " + chat.getDisplayName());
                 interactiveRenderers.clear();
                 functionConfirmations.clear();
                 userComment = "";
@@ -68,7 +71,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
                 initComponents(modelMessage);
                 pack();
                 setSize(1024, 768);
-                setLocationRelativeTo(getOwner());
+                setLocationRelativeTo(SwingUtilities.getWindowAncestor(chatPanel));
                 setVisible(true); // This blocks until the dialog is closed
             });
         } catch (InterruptedException | InvocationTargetException e) {
