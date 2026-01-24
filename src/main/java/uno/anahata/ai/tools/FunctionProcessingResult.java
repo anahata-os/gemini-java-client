@@ -34,4 +34,15 @@ public class FunctionProcessingResult {
      * Any text the user entered in the comment box of the confirmation dialog.
      */
     public final String userComment;
+
+    /**
+     * Indicates whether the tool confirmation dialog was actually displayed to the user.
+     */
+    public final boolean dialogShown;
+
+    /**
+     * The complete, system-generated user feedback message summarizing the 
+     * outcomes of all proposed tool calls and any user comments.
+     */
+    public final String feedbackMessage;
 }

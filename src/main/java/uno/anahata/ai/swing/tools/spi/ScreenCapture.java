@@ -11,24 +11,30 @@ import uno.anahata.ai.tools.MultiPartResponse;
 import uno.anahata.ai.swing.UICapture;
 
 /**
- *
- * @author anahata
+ * Tool provider for capturing screenshots of the host system and application windows.
  */
 public class ScreenCapture {
 
-    @AIToolMethod(value = "Takes a screenshot of all host systems graphics devices as in GraphicsEnvironment.getScreenDevices() "
+    /**
+     * Takes a screenshot of a specific graphics device.
+     * @param deviceIdx The index of the device to capture.
+     * @return The absolute path to the captured screenshot file.
+     * @throws Exception if the capture fails.
+     */
+    @AIToolMethod(value = "Takes a screenshot of a specific host system graphics device as in GraphicsEnvironment.getScreenDevices() "
             + "And returns a String with the absolute path ")
     public static String takeDeviceScreenshot(
             @AIToolParam(value = "The device index in GraphicsEnvironment.getScreenDevices()")
-            int deviceIdx) {
-        List<File> files = UICapture.screenshotAllScreenDevices();
-        String ret = "";
-        for (File file : files) {
-            ret += file.getAbsolutePath();
-        }
-        return ret;
+            int deviceIdx) throws Exception {
+        File file = UICapture.screenshotScreenDevice(deviceIdx);
+        return file.getAbsolutePath();
     }
 
+    /**
+     * Takes a screenshot of all visible application windows.
+     * @return A MultiPartResponse containing the paths to the captured screenshots.
+     * @throws IOException if the capture fails.
+     */
     @AIToolMethod(value = "Takes a screenshot of all visible JFrames, saves them to temporary files, "
             + "and returns a response object containing the absolute paths to those files.")
     public static MultiPartResponse attachWindowCaptures() throws IOException {

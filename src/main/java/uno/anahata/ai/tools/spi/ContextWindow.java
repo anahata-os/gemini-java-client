@@ -103,9 +103,10 @@ public class ContextWindow {
      * @throws Exception if pruning fails.
      */
     @AIToolMethod(
-            value = "Prunes one or more ephemeral (non-stateful) tool calls and their associated responses using the Tool Call IDs."
-                    + "\nWhile ephemeral tool calls are already automatically prunned after 5 user turns, this tool can be used to"
-                    + "prune (large) ephemeral too calls before they get automatically pruned"
+            value = "Prunes one or more ephemeral (non-stateful) tool calls and their associated responses using the Tool Call IDs. "
+                    + "This tool removes the entire call/response pair from the context. "
+                    + "While ephemeral tool calls are already automatically prunned after 5 user turns, this tool can be used to "
+                    + "prune (large) ephemeral tool calls before they get automatically pruned."
     )
     public static String pruneEphemeralToolCalls(
             @AIToolParam(value = "A list of tool call IDs as shown in the 'Tool Call ID' column of the context summary.") List<String> toolCallIds,

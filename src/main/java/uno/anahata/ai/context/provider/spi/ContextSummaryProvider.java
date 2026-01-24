@@ -32,8 +32,7 @@ import uno.anahata.ai.internal.TextUtils;
  * of the entire conversation history into the model's prompt.
  * <p>
  * This summary includes unique IDs for every message and part, allowing the
- * model to perform precise context pruning and management. It also provides
- * instructions on the "Prune-As-You-Go" protocol.
+ * model to perform precise context pruning and management.
  * </p>
  */
 public class ContextSummaryProvider extends ContextProvider {
@@ -106,36 +105,9 @@ public class ContextSummaryProvider extends ContextProvider {
                 chat.getContextManager().getTokenThreshold()
         ));
         sb.append("\n");
-        sb.append("The following table is the Output of ContextWindow.getContextSummary() with the unique id of every part, every stateful resource and every tool call pair (request response) in this conversation so you can compress the context *as-you-go* or when explicitely instructed by the user. Dont expect the user to instruct you explicitely and dont expect the user to perform manual prunning either."
-                + "You have to work with the total token count (as given by the api on the last turn) and the threshold (max tokens) to work out how far you can go in adding to the context window."
-                + "Your ultimate optimal goal is to ensure that a conversation can "
-                + "\na)Run indefinetly (without ever hitting max tokens) with the most relevant information in the most relevant postion of the context"
-                + "\nb)Be as efficient as possible in terms of token usage and turns"
-                + "\nc)Be a smooth flowing experience to the point that the user wont even think about manual prunning or ask you to 'compress' the context."
-                
-                + "\n"
-                + "\n\nTool execution results are sent inmeditaly (sometimes without the user having a chance to add a message) so: "
-                + "\n**Prune in this turn if ANY of these two conditions are met**: "
-                + "\n\ta) **you are making other tool calls that are not pruning / context window management related** (i.e. if you are just replying to the user, dont prune unless you are making other non prunning tool calls, otherwise it would waste a turn as the prunning tool calls are inmediatly sent back to the server)"
-                + "\n\tb) the context window has gone so large that you estimate prunning to be essential to stay within max input tokens"
-                + ""
-                + "Whenever ANY part (regardless of the type, the role or the position in the history) becomes redundant (i.e. a task that has been resolved/completed, a duplicate message, a hallucination, etc) OR its semantic meaning can be compressed (i.e. the matter being discussed has been clarified and can be kept in context in much more synthetized manner like when it is part of a resolved trial-and-error process and just the 'gist' of it needs to stay in context). Every token in the context window is -ultimately- your responsability."
-                + "\n\nIf I (the user) explicitely ask you to **compress** the context you must:\n"
-                + "\n1) Work with the me to see what discussions / resources / tool calls to keep and what to discard.  \n"
-                + "\n2) Use the prune tools in ContextWindow like you normally do when you prune-as-you-go"
-                + "\n\n"
-                + "Some prune tools have a reason parameter which is mainly for debugging, pruning logic improvements, diagnostics etc... but will disappear from the conversation -like every other ephemeral tool call- after 5 user turns so dont exepct a reason parameter to stay in context. The *compressed* content of anything you are prunning must be in the text parts from your 'spoken' response (i.e. text parts of this turn).\n"
-                + "\n\n Use your discrimination when choosing prunning tools but take into consideration that some Parts have logical dependencies (e.g. FunctionCall <-> FunctionResponse)"
-                + "\n"
-                + "\n**STRICT PRUNING PROTOCOL**:"
-                + "\n\t1) **Type O (Other)**: Use `pruneOther` for non-tool content (Text, Blob, CodeExecutionResult or ExecutableCode parts). Specify the 'Pruning ID' (MessageId/PartId)."
-                + "\n\t2) **Type S (Stateful)**: Use `pruneStatefulResources` ONLY when you explicitly intend to remove a file's content from your context. Specify the 'Pruning ID' (Full Resource Path) from the FR row."
-                + "\n\t3) **Type E (Ephemeral)**: Use `pruneEphemeralToolCall` for non-stateful tool calls if you dont want to wait 5 user turns for these to be automatically pruned (e.g. a too large ephemeral tool call that is really bloating the context or situations where the context window is bordering max tokens). Specify the 'Pruning ID' (Tool Call ID)."
-                + "\n\t4) Pruning a FunctionResponse will automatically prune its corresponding FunctionCall (and vice versa)."
-                + "\n"
-                + "\nRemember that you can also offload a summary of the conversation to an .md file on disk so it is always up to you and the user whether you want to offload to disk or just onto a simple text part in your next turn"
-                + "\nDo not give text parts less weight than tool calls, if you can summarise all your text parts from the last five or ten turns (or whatever number of turns) onto a single one, that can also help a lot in reducing the total number of tokens (is not always just about pruning stateful resources or tool calls)"
-                + "\n\n");
+        sb.append("The following table provides unique IDs for every part in the conversation history. "
+                + "Use these IDs with the ContextWindow pruning tools to manage your context window efficiency "
+                + "according to the 'PAYG PRUNING PROTOCOL' in your system instructions.\n\n");
 
         List<ChatMessage> messages = chat.getContextManager().getContext();
         if (messages.isEmpty()) {

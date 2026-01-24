@@ -28,6 +28,7 @@ import uno.anahata.ai.tools.JobInfo;
 import uno.anahata.ai.tools.MultiPartResponse;
 import uno.anahata.ai.tools.ToolCallOutcome;
 import uno.anahata.ai.tools.ToolCallStatus;
+import uno.anahata.ai.tools.UserFeedback;
 import uno.anahata.ai.internal.GsonUtils;
 import uno.anahata.ai.internal.PartUtils;
 import uno.anahata.ai.status.ChatStatus;
@@ -359,28 +360,10 @@ public class Chat {
 
         // Always create a feedback message if there were any tool calls proposed.
         if (!processingResult.getOutcomes().isEmpty()) {
-            String toolFeedback = processingResult.getOutcomes().stream()
-                .map(outcome -> {
-                    String toolName = outcome.getIdentifiedCall().getCall().name().orElse("unknown");
-                    String id = outcome.getIdentifiedCall().getId();
-                    String status = outcome.getStatus().name();
-                    /*
-                    if (outcome.getStatus() == ToolCallStatus.YES || outcome.getStatus() == ToolCallStatus.ALWAYS) {
-                        status = "";
-                    } */
-                    
-                    return String.format("[%s id=%s %s]", toolName, id, status);
-                })
-                .collect(Collectors.joining(" "));
-            
-            StringBuilder feedbackText = new StringBuilder("Tool Feedback: ").append(toolFeedback);
-            
-            if (StringUtils.isNotBlank(processingResult.getUserComment())) {
-                feedbackText.append("\nUser Comment: '").append(processingResult.getUserComment()).append("'");
-            }
+            String feedbackText = processingResult.getFeedbackMessage();
 
             List<Part> userFeedbackParts = new ArrayList<>();
-            userFeedbackParts.add(Part.fromText(feedbackText.toString()));
+            userFeedbackParts.add(Part.fromText(feedbackText));
             userFeedbackParts.addAll(extraUserParts);
 
             Content feedbackContent = Content.builder().role("user").parts(userFeedbackParts).build();

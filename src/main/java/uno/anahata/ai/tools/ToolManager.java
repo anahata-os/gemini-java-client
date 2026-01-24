@@ -17,6 +17,7 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import uno.anahata.ai.Chat;
 import uno.anahata.ai.config.ChatConfig;
@@ -283,24 +284,34 @@ public class ToolManager {
         });
 
         if (identifiedCalls.isEmpty()) {
-            return new FunctionProcessingResult(Collections.emptyList(), Collections.emptyList(), "");
+            return new FunctionProcessingResult(Collections.emptyList(), Collections.emptyList(), "", false, "");
         }
         
         // Step 2: Determine if we can bypass the UI prompt (all were ALWAYS preapproved).
-        boolean allAlwaysApproved = identifiedCalls.stream()
-            .allMatch(ic -> config.getFunctionConfirmation(ic.getCall()) == FunctionConfirmation.ALWAYS);
+        log.info("Checking batch approval for {} tool calls.", identifiedCalls.size());
+        boolean allAlwaysApproved = true;
+        for (IdentifiedFunctionCall ic : identifiedCalls) {
+            FunctionConfirmation pref = config.getFunctionConfirmation(ic.getCall());
+            log.info("Tool: {}, Preference: {}", ic.getCall().name().orElse("?"), pref);
+            if (pref != FunctionConfirmation.ALWAYS) {
+                allAlwaysApproved = false;
+            }
+        }
 
         PromptResult promptResult;
+        boolean dialogShown = false;
         if (allAlwaysApproved) {
             log.info("All function calls are pre-approved. Skipping confirmation dialog.");
             Map<FunctionCall, FunctionConfirmation> confirmations = new LinkedHashMap<>();
             identifiedCalls.forEach(ic -> confirmations.put(ic.getCall(), FunctionConfirmation.ALWAYS));
-            promptResult = new PromptResult(confirmations, "user did not have a chance to comment as all tools calls were pre approved", false);
+            promptResult = new PromptResult(confirmations, "", false);
         } else {
             promptResult = prompter.prompt(modelResponseMessage, this.chat);
+            dialogShown = true;
         }
         
-        // Step 3: Build the definitive list of outcomes for every proposed call.
+        // Step 3: Execute the approved calls and collect outcomes.
+        List<ExecutedToolCall> executedCalls = new ArrayList<>();
         List<ToolCallOutcome> outcomes = new ArrayList<>();
 
         for (IdentifiedFunctionCall idc : identifiedCalls) {
@@ -310,116 +321,128 @@ public class ToolManager {
             } else {
                 FunctionConfirmation confirmation = promptResult.functionConfirmations.get(idc.getCall());
                 if (confirmation == null) {
-                    // Should not happen with a compliant prompter, but handle defensively.
                     log.warn("No confirmation found for function call: {}. Defaulting to NO.", idc.getCall().name());
                     status = ToolCallStatus.NO;
                 } else {
                     switch (confirmation) {
-                        case ALWAYS:
-                            status = ToolCallStatus.ALWAYS;
-                            break;
-                        case YES:
-                            status = ToolCallStatus.YES;
-                            break;
-                        case NEVER:
-                            status = ToolCallStatus.NEVER;
-                            break;
+                        case ALWAYS: status = ToolCallStatus.ALWAYS; break;
+                        case YES:    status = ToolCallStatus.YES;    break;
+                        case NEVER:  status = ToolCallStatus.NEVER;  break;
                         case NO:
-                        default:
-                            status = ToolCallStatus.NO;
-                            break;
+                        default:     status = ToolCallStatus.NO;     break;
                     }
                 }
             }
-            outcomes.add(new ToolCallOutcome(idc, status));
-        }
-        
-        List<IdentifiedFunctionCall> approvedCalls = outcomes.stream()
-                .filter(o -> o.getStatus() == ToolCallStatus.ALWAYS || o.getStatus() == ToolCallStatus.YES)
-                .map(ToolCallOutcome::getIdentifiedCall)
-                .collect(java.util.stream.Collectors.toList());
 
-        if (approvedCalls.isEmpty()) {
-            return new FunctionProcessingResult(Collections.emptyList(), outcomes, promptResult.userComment);
-        }
+            String executionFeedback = null;
 
-        // Step 4: Execute the approved calls.
-        List<ExecutedToolCall> executedCalls = new ArrayList<>();
-        for (IdentifiedFunctionCall approvedCall : approvedCalls) {
-            String toolName = approvedCall.getCall().name().orElse("unknown");
-            
-            try {
-                if (failureTracker.isBlocked(approvedCall.getCall())) {
-                    throw new RuntimeException("Tool call '" + toolName + "' is temporarily blocked due to repeated failures.");
-                }
+            // Execute if approved
+            if (status == ToolCallStatus.ALWAYS || status == ToolCallStatus.YES) {
+                String toolName = idc.getCall().name().orElse("unknown");
+                try {
+                    if (failureTracker.isBlocked(idc.getCall())) {
+                        throw new RuntimeException("Tool call '" + toolName + "' is temporarily blocked due to repeated failures.");
+                    }
 
-                Chat.callingInstance.set(chat);
-                Method method = functionCallMethods.get(toolName);
-                if (method == null) {
-                    throw new RuntimeException("Tool not found: '" + toolName + "' available tools: " + functionCallMethods.keySet());
-                }
-                
-                Map<String, Object> args = new HashMap<>(approvedCall.getCall().args().get());
-                Object asyncFlag = args.remove("asynchronous");
-                boolean isAsync = asyncFlag instanceof Boolean && (Boolean) asyncFlag;
-
-                Object rawResult;
-                
-                chat.getStatusManager().setExecutingToolName(toolName);
-
-                if (isAsync) {
-                    final String jobId = UUID.randomUUID().toString();
-                    rawResult = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + toolName, null);
+                    Chat.callingInstance.set(chat);
+                    Method method = functionCallMethods.get(toolName);
+                    if (method == null) {
+                        throw new RuntimeException("Tool not found: '" + toolName + "' available tools: " + functionCallMethods.keySet());
+                    }
                     
-                    Executors.cachedThreadPool.submit(() -> {
-                        JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + toolName, null);
-                        try {
-                            Chat.callingInstance.set(chat);
-                            Object result = invokeFunctionMethod(method, args);
-                            completedJobInfo.setStatus(JobStatus.COMPLETED);
-                            completedJobInfo.setResult(result);
-                            log.info("Asynchronous job {} completed successfully.", jobId);
-                        } catch (Exception e) {
-                            completedJobInfo.setStatus(JobStatus.FAILED);
-                            completedJobInfo.setResult(ExceptionUtils.getStackTrace(e));
-                            log.error("Asynchronous job {} failed.", jobId, e);
-                        } finally {
-                            chat.notifyJobCompletion(completedJobInfo);
-                            Chat.callingInstance.remove();
-                        }
-                    });
-                } else {
-                    rawResult = invokeFunctionMethod(method, args);
-                }
-                
-                Map<String, Object> responseMap = new HashMap<>();
-                responseMap.put("output", rawResult);
-                
-                FunctionResponse fr = FunctionResponse.builder()
-                    .id(approvedCall.getId()) // Use our stable, short ID
-                    .name(toolName)
-                    .response(responseMap)
-                    .build();
-                
-                executedCalls.add(new ExecutedToolCall(approvedCall.getSourcePart(), fr, rawResult));
+                    Map<String, Object> args = new HashMap<>(idc.getCall().args().get());
+                    Object asyncFlag = args.remove("asynchronous");
+                    boolean isAsync = asyncFlag instanceof Boolean && (Boolean) asyncFlag;
 
-            } catch (Exception e) {
-                log.error("Error executing tool call: {}", toolName, e);
-                failureTracker.recordFailure(approvedCall.getCall(), e);
-                Map<String, Object> errorMap = new HashMap<>();
-                errorMap.put("error", ExceptionUtils.getStackTrace(e));
-                FunctionResponse errorResponse = FunctionResponse.builder()
-                    .id(approvedCall.getId()) // Use our stable, short ID
-                    .name(toolName)
-                    .response(errorMap)
-                    .build();
-                executedCalls.add(new ExecutedToolCall(approvedCall.getSourcePart(), errorResponse, e));
-            } finally {
-                Chat.callingInstance.remove();
+                    Object rawResult;
+                    chat.getStatusManager().setExecutingToolName(toolName);
+
+                    if (isAsync) {
+                        final String jobId = UUID.randomUUID().toString();
+                        rawResult = new JobInfo(jobId, JobStatus.STARTED, "Starting background task for " + toolName, null);
+                        
+                        Executors.cachedThreadPool.submit(() -> {
+                            JobInfo completedJobInfo = new JobInfo(jobId, null, "Task for " + toolName, null);
+                            try {
+                                Chat.callingInstance.set(chat);
+                                Object result = invokeFunctionMethod(method, args);
+                                completedJobInfo.setStatus(JobStatus.COMPLETED);
+                                completedJobInfo.setResult(result);
+                                log.info("Asynchronous job {} completed successfully.", jobId);
+                            } catch (Exception e) {
+                                completedJobInfo.setStatus(JobStatus.FAILED);
+                                completedJobInfo.setResult(ExceptionUtils.getStackTrace(e));
+                                log.error("Asynchronous job {} failed.", jobId, e);
+                            } finally {
+                                chat.notifyJobCompletion(completedJobInfo);
+                                Chat.callingInstance.remove();
+                            }
+                        });
+                    } else {
+                        rawResult = invokeFunctionMethod(method, args);
+                    }
+                    
+                    if (rawResult instanceof UserFeedback) {
+                        executionFeedback = ((UserFeedback) rawResult).getUserFeedback();
+                    }
+
+                    Map<String, Object> responseMap = new HashMap<>();
+                    responseMap.put("output", rawResult);
+                    
+                    FunctionResponse fr = FunctionResponse.builder()
+                        .id(idc.getId())
+                        .name(toolName)
+                        .response(responseMap)
+                        .build();
+                    
+                    executedCalls.add(new ExecutedToolCall(idc.getSourcePart(), fr, rawResult));
+
+                } catch (Exception e) {
+                    log.error("Error executing tool call: {}", toolName, e);
+                    failureTracker.recordFailure(idc.getCall(), e);
+                    Map<String, Object> errorMap = new HashMap<>();
+                    errorMap.put("error", ExceptionUtils.getStackTrace(e));
+                    FunctionResponse errorResponse = FunctionResponse.builder()
+                        .id(idc.getId())
+                        .name(toolName)
+                        .response(errorMap)
+                        .build();
+                    executedCalls.add(new ExecutedToolCall(idc.getSourcePart(), errorResponse, e));
+                } finally {
+                    Chat.callingInstance.remove();
+                }
             }
+
+            outcomes.add(new ToolCallOutcome(idc, status, executionFeedback));
         }
         
-        return new FunctionProcessingResult(executedCalls, outcomes, promptResult.userComment);
+        String feedbackMessage = generateFeedbackMessage(outcomes, promptResult.userComment, dialogShown);
+        return new FunctionProcessingResult(executedCalls, outcomes, promptResult.userComment, dialogShown, feedbackMessage);
+    }
+
+    private String generateFeedbackMessage(List<ToolCallOutcome> outcomes, String userComment, boolean dialogShown) {
+        StringBuilder feedbackText = new StringBuilder();
+        
+        // 1. Popup Comment (Highest priority for the model to see)
+        if (dialogShown && StringUtils.isNotBlank(userComment)) {
+            feedbackText.append("Tool confirmation popup comment: '").append(userComment).append("'\n\n");
+        }
+
+        // 2. Tool Feedback (The core outcomes)
+        String toolFeedback = outcomes.stream()
+            .map(outcome -> outcome.toFeedbackString(dialogShown))
+            .collect(Collectors.joining(" "));
+        
+        feedbackText.append("Tool Feedback: ").append(toolFeedback);
+        
+        // 3. System Notes (Lower priority)
+        if (!dialogShown) {
+            feedbackText.append("\n\nNote: The tool confirmation popup was not displayed as all tool calls were auto-approved.");
+        } else if (StringUtils.isBlank(userComment)) {
+            feedbackText.append("\n\nNote: The tool confirmation popup was displayed, but the user did not provide any additional feedback in the comment field.");
+        }
+
+        return feedbackText.toString();
     }
 
     private Object invokeFunctionMethod(Method method, Map<String, Object> argsFromModel) throws Exception {

@@ -95,7 +95,7 @@ public class LocalFiles {
                 .filter(s -> s.getResourceId().equals(path))
                 .findFirst();
         if (status.isPresent() && status.get().getStatus() == ResourceStatus.VALID) {
-             throw new RuntimeException("Redundant Read: The text file at " + path + " is already VALID in your context (Part ID: " + status.get().getPartId() + "). Do not reload it.");
+             throw new RuntimeException("Redundant Read: The text file at " + path + " is already VALID in your context. Do not reload it.");
         }
 
         String content = Files.readString(filePath);

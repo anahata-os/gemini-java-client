@@ -47,8 +47,12 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     private String userComment = "";
     private boolean cancelled = false;
 
+    /**
+     * Constructs a new SwingFunctionPrompter.
+     * @param chatPanel The ChatPanel that initiated the prompt.
+     */
     public SwingFunctionPrompter(ChatPanel chatPanel) {
-        super((JFrame) SwingUtilities.getWindowAncestor(chatPanel), "Confirm Proposed Actions", true);
+        super((JFrame) SwingUtilities.getWindowAncestor(chatPanel), "Confirm Proposed Actions - " + chatPanel.getChat().getDisplayName(), true);
         this.chatPanel = chatPanel;
     }
 

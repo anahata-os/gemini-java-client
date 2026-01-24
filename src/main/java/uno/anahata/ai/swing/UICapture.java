@@ -12,17 +12,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.logging.Level;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.ai.AnahataConfig;
-import uno.anahata.ai.config.ChatConfig;
 
 /**
- *
- * @author anahata
+ * Utility class for capturing screenshots of screen devices and application windows.
  */
 @Slf4j
 public class UICapture {
@@ -31,6 +28,10 @@ public class UICapture {
     
     public static final File SCREENSHOTS_DIR = AnahataConfig.getWorkingFolder("screenshots");
     
+    /**
+     * Captures a screenshot of all available screen devices.
+     * @return A list of files containing the screenshots.
+     */
     public static List<File> screenshotAllScreenDevices() {
         List<File> ret = new ArrayList<>();
         try {
@@ -38,15 +39,7 @@ public class UICapture {
             GraphicsDevice[] screens = ge.getScreenDevices();
 
             for (int i = 0; i < screens.length; i++) {
-                Rectangle screenBounds = screens[i].getDefaultConfiguration().getBounds();
-                BufferedImage screenshot = new Robot().createScreenCapture(screenBounds);
-
-                String timestamp = TIMESTAMP_FORMAT.format(new Date());
-                String filename = "screen-" + i + "-" + timestamp;
-                File tempFile = new File (SCREENSHOTS_DIR, filename);
-                tempFile.deleteOnExit();
-                ImageIO.write(screenshot, "png", tempFile);
-                ret.add(tempFile);
+                ret.add(screenshotScreenDevice(i));
             }
         } catch (Exception ex) {
             log.error("Screenshot capture failed", ex);
@@ -55,6 +48,34 @@ public class UICapture {
         return ret;
     }
 
+    /**
+     * Captures a screenshot of a specific screen device by its index.
+     * @param index The index of the screen device.
+     * @return The file containing the screenshot.
+     * @throws Exception if the capture fails or the index is invalid.
+     */
+    public static File screenshotScreenDevice(int index) throws Exception {
+        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        GraphicsDevice[] screens = ge.getScreenDevices();
+        if (index < 0 || index >= screens.length) {
+            throw new IllegalArgumentException("Invalid screen device index: " + index);
+        }
+
+        Rectangle screenBounds = screens[index].getDefaultConfiguration().getBounds();
+        BufferedImage screenshot = new Robot().createScreenCapture(screenBounds);
+
+        String timestamp = TIMESTAMP_FORMAT.format(new Date());
+        String filename = "screen-" + index + "-" + timestamp + ".png";
+        File tempFile = new File(SCREENSHOTS_DIR, filename);
+        tempFile.deleteOnExit();
+        ImageIO.write(screenshot, "png", tempFile);
+        return tempFile;
+    }
+
+    /**
+     * Captures a screenshot of all visible JFrames in the application.
+     * @return A list of files containing the screenshots.
+     */
     public static List<File> screenshotAllJFrames() {
         log.debug("Starting screenshot capture of all JFrames.");
         List<File> ret = new ArrayList<>();
@@ -76,7 +97,7 @@ public class UICapture {
                     // Sanitize title for use in filename
                     String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9.-]", "_");
                     String timestamp = TIMESTAMP_FORMAT.format(new Date());
-                    String fileName = sanitizedTitle + "-" + timestamp;
+                    String fileName = sanitizedTitle + "-" + timestamp + ".png";
                     File tempFile = new File (SCREENSHOTS_DIR, fileName);
                     tempFile.deleteOnExit();
                     ImageIO.write(image, "png", tempFile);
@@ -96,6 +117,5 @@ public class UICapture {
         }
 
         return ret;
-
     }
 }
