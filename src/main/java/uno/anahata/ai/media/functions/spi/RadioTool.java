@@ -27,7 +27,7 @@ public class RadioTool {
 
     private static final ExecutorService radioExecutor = AnahataExecutors.newCachedThreadPoolExecutor("radio-player");
     private static final Object lock = new Object();
-    
+
     private static Player player;
     private static Future<?> playbackTask;
     private static String currentStationUrl;
@@ -48,13 +48,13 @@ public class RadioTool {
         stations.put("SomaFM Fluid", "http://ice1.somafm.com/fluid-128-mp3");
         stations.put("SomaFM Lush", "http://ice1.somafm.com/lush-128-mp3");
         stations.put("SomaFM Space Station Soma", "http://ice1.somafm.com/spacestation-128-mp3");
-        
+
         // High Quality Public Radio & Eclectic
         stations.put("KEXP Seattle", "https://kexp-mp3-128.streamguys1.com/kexp128.mp3");
         stations.put("WQXR New York", "https://stream.wqxr.org/wqxr");
         stations.put("FIP Paris", "http://icecast.radiofrance.fr/fip-midfi.mp3");
         stations.put("Radio Paradise", "http://stream.radioparadise.com/mp3-128");
-        
+
         // Electronic & Focus
         //not working
         //stations.put("Chillhop Radio", "http://stream.chillhop.com/mp3");
@@ -62,7 +62,31 @@ public class RadioTool {
         stations.put("NTS Radio 1", "https://stream-relay-geo.ntslive.net/stream");
         //not working
         //stations.put("The Jazz Groove", "http://west-mp3-128.jazzgroove.org");
-        
+
+        /**
+         * Others to try 
+         * [WORKING] http://ice.somafm.com/thetrip (HTTP 200)
+         * Content-Type: audio/mpeg Read 1024 bytes. 
+         * • [WORKING] http://ice.somafm.com/lush (HTTP 200) Content-Type: audio/mpeg Read
+         * 1024 bytes. • [WORKING] http://ice.somafm.com/u80s (HTTP 200)
+         * Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
+         * http://ice.somafm.com/deepspaceone (HTTP 200) Content-Type:
+         * audio/mpeg Read 1024 bytes. • [WORKING]
+         * http://ice.somafm.com/dronezone (HTTP 200) Content-Type: audio/mpeg
+         * Read 1024 bytes. • [WORKING] http://ice.somafm.com/secretagent (HTTP
+         * 200) Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
+         * http://ice.somafm.com/groovesalad (HTTP 200) Content-Type: audio/mpeg
+         * Read 1024 bytes. • [WORKING] http://stream.dotpoint.nl:8000/sst (HTTP
+         * 200) Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
+         * http://server17.streamserver24.com:44220/mp3-256 (HTTP 200)
+         * Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
+         * https://npr-ice.streamguys1.com/live.mp3 (HTTP 200) Content-Type:
+         * audio/mpeg Read 1024 bytes. • [WORKING]
+         * https://npr-ice.streamguys1.com/live.aac (HTTP 200) Content-Type:
+         * audio/aac Read 1024 bytes. • [WORKING]
+         * http://sc8.radiocaroline.net:8020/ (HTTP 200) Content-Type:
+         * audio/mpeg Read 1024 bytes.
+         */
         STATIONS = Collections.unmodifiableMap(stations);
     }
 
@@ -96,7 +120,7 @@ public class RadioTool {
             }
 
             currentStationUrl = stationUrl;
-            
+
             final String finalStationUrl = stationUrl;
             String name = STATIONS.entrySet().stream()
                     .filter(e -> e.getValue().equals(finalStationUrl))
@@ -118,10 +142,12 @@ public class RadioTool {
                     URLConnection connection = new URL(finalStationUrl).openConnection();
                     connection.setConnectTimeout(5000);
                     connection.setReadTimeout(5000);
-                    
+
                     try (InputStream inputStream = connection.getInputStream()) {
                         synchronized (lock) {
-                            if (Thread.currentThread().isInterrupted()) return;
+                            if (Thread.currentThread().isInterrupted()) {
+                                return;
+                            }
                             p = new Player(inputStream);
                             player = p;
                         }
@@ -168,21 +194,21 @@ public class RadioTool {
             if (playbackTask != null) {
                 playbackTask.cancel(true);
             }
-            
+
             player = null;
             playbackTask = null;
             currentStationUrl = null;
-            
+
             SwingUtilities.invokeLater(() -> {
                 if (ui != null) {
                     ui.updatePlaybackState(null, false);
                 }
             });
-            
+
             return "Radio playback stopped.";
         }
     }
-    
+
     @AIToolMethod("Gets the URL of the currently playing station, if any.")
     public static String getCurrentStation() {
         synchronized (lock) {
