@@ -1,10 +1,10 @@
 [![Sponsor anahata-os](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?logo=GitHub)](https://github.com/sponsors/anahata-os)
 [![Maven Central](https://img.shields.io/maven-central/v/uno.anahata/gemini-java-client)](https://central.sonatype.com/artifact/uno.anahata/gemini-java-client)
-[![Javadoc](https://img.shields.io/badge/Javadoc-Reference-blue)](https://anahata-os.github.io/gemini-java-client/)
+[![Javadoc](https://img.shields.io/badge/Javadoc-Reference-blue)](https://anahata-os.github.io/gemini-java-client/apidocs/)
 
 # gemini-java-client
 
-**[Website](https://anahata.uno) | [Anahata TV (YouTube)](https://www.youtube.com/@anahata108) | [v2 on its way!](https://github.com/anahata-os/anahata-asi)**
+**[Website](https://anahata-os.github.io/gemini-java-client/) | [Anahata TV (YouTube)](https://www.youtube.com/@anahata108) | [v2 on its way!](https://github.com/anahata-os/anahata-asi)**
 
 ![Anahata Chat Panel](screenshots/chat-panel-interaction.png)
 
@@ -21,12 +21,16 @@ The agent isn't restricted to the libraries already in your project. It can:
 3.  **Compile** a Java class (`Anahata.java`) that implements `java.util.concurrent.Callable`.
 4.  **Execute** the logic directly within the running JVM.
 
+## 🏠 Real-World Agency: Beyond the IDE
+
+Because the agent has full access to the host's shell and network, it can interact with the physical world. It's not just a coding assistant; it's a **Hardware Orchestrator**.
+
 ### 🎯 Prompts that prove the power:
+- **"Explore my LAN and find any Smart TVs connected to the network."** (Network discovery)
+- **"Take a screenshot of the Lounge TV and show it to me."** (Remote device introspection via ADB)
+- **"Turn down the volume on the TV and play a Gal Gadot video."** (IoT control)
+- **"Perform a security assessment of my network and find open ports on local devices."** (Security auditing)
 - **"Change the Look and Feel to FlatLaf IntelliJ Dark and refresh all windows."** (Direct UI manipulation)
-- **"Set the java.util.logging levels of 'org.netbeans.modules.maven' to FINEST."** (Runtime diagnostics)
-- **"Analyze this CSV using a library I don't have."** (The agent pulls `commons-csv` and writes a parser on-the-fly)
-- **"List all active threads and their stack traces to find a deadlock."** (Low-level JVM introspection)
-- **"Dynamically register a new keyboard shortcut for this custom action."** (Runtime environment extension)
 
 ## Why Choose the `gemini-java-client`?
 
@@ -40,7 +44,7 @@ Our core innovation is the **annotation-driven local tool system**, which transf
 | **Dynamic Code Execution (`RunningJVM`)** | The AI can compile and execute arbitrary Java code directly within the host JVM. | Enables **hot-reload** development and complex calculations. |
 | **JIT & Maven Integration** | Download and use any library from Maven at runtime. | **Infinite extensibility** for your AI assistant. |
 | **Context-Aware File I/O (`LocalFiles`)** | Tools for reading, writing, and managing files with built-in version checks. | Ensures the AI always works with **valid, up-to-date** local files. |
-| **Shell Access (`LocalShell`)** | Execute native shell commands (`bash -c`) and capture output. | Provides **full control** over the host operating system. |
+| **Shell Access (`LocalShell`)** | Execute native shell commands (`bash -c`) and capture output. | Provides **full control** over the host operating system and network. |
 
 ### 2. Superior Context & Session Management
 

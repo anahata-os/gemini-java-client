@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gemini-java-client | The Autonomous AI Agent Engine for the JVM</title>
+    <link rel="icon" type="image/png" href="https://www.anahata.uno/assets/favicon.png">
+    <link rel="stylesheet" href="https://www.anahata.uno/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css">
+    <style>
+        :root {
+            --primary: #007bff;
+            --primary-dark: #0056b3;
+            --accent: #28a745;
+        }
+        .hero {
+            background: linear-gradient(135deg, #1a1a1a 0%, #002d5b 100%);
+        }
+        .framework-badge {
+            background: var(--accent);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container nav-container">
+            <img src="https://www.anahata.uno/assets/logo-horizontal.png" alt="Anahata Logo" class="nav-logo">
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#engine">Execution</a>
+                <a href="#iot">IoT Control</a>
+                <a href="#media">Media</a>
+                <a href="https://anahata-os.github.io/gemini-java-client/apidocs/" target="_blank">Javadocs</a>
+                <a href="https://github.com/anahata-os/gemini-java-client" target="_blank"><i class="fab fa-github"></i> GitHub</a>
+                <a href="https://github.com/sponsors/anahata-os" class="btn-sponsor">Sponsor <i class="fas fa-heart"></i></a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container hero-content">
+            <div class="framework-badge">Pure Java Framework</div>
+            <h1>The Autonomous AI Agent Engine for the JVM.</h1>
+            <p class="tagline">Inhabit the runtime. Master the ecosystem. Build <strong>AI Agents</strong> that don't just talk about code—they execute it. Let the AI handle the work while you enjoy the flow.</p>
+            
+            <div class="hero-cta">
+                <a href="https://central.sonatype.com/artifact/uno.anahata/gemini-java-client" class="btn-primary" target="_blank"><i class="fas fa-box"></i> Get from Maven Central</a>
+                <a href="https://github.com/anahata-os/gemini-java-client" class="btn-secondary" target="_blank"><i class="fab fa-github"></i> View Source</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="engine" class="container">
+            <div class="section-header">
+                <h2>The Dynamic Execution Engine</h2>
+                <p>Transform your Java application into an intelligent, self-extending environment.</p>
+            </div>
+            <div class="philosophy-grid">
+                <div class="philosophy-content">
+                    <div class="comparison-card">
+                        <h3>Any Java Code, Any Framework</h3>
+                        <p>The core <code>RunningJVM</code> tool allows the AI Agent to pull <strong>any Java framework in existence</strong> from Maven Central at runtime and execute LLM-generated code immediately.</p>
+                        <ul style="margin-top: 1.5rem;">
+                            <li><i class="fas fa-bolt"></i> <strong>JIT Compilation:</strong> In-memory compilation of AI-generated classes.</li>
+                            <li><i class="fas fa-link"></i> <strong>Dynamic Classloading:</strong> Child-first classloader for instant hot-reloads.</li>
+                            <li><i class="fas fa-box-open"></i> <strong>Maven Integration:</strong> Resolve and download dependencies on-the-fly.</li>
+                            <li><i class="fas fa-microchip"></i> <strong>Full JVM Access:</strong> Introspect threads, memory, and application state.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="philosophy-image">
+                    <a href="screenshots/jit-compilation-and-execution.png" target="_blank">
+                        <img src="screenshots/jit-compilation-and-execution.png" alt="JIT Compilation and Execution" style="border: 1px solid var(--primary); border-radius: 12px;">
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section id="iot" class="dark-bg">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Real-World Agency: IoT & Hardware</h2>
+                    <p>The agent isn't trapped in the IDE. It's a <strong>Hardware Orchestrator</strong>.</p>
+                </div>
+                <div class="philosophy-grid" style="grid-template-columns: 1.2fr 0.8fr;">
+                    <div class="philosophy-content">
+                        <div class="comparison-card" style="border-left-color: var(--barca-gold);">
+                            <h3>Network & Device Mastery</h3>
+                            <p>By leveraging <code>LocalShell</code> and network introspection, the agent can discover and control physical devices on your LAN.</p>
+                            <ul style="margin-top: 1.5rem;">
+                                <li><i class="fas fa-network-wired"></i> <strong>LAN Discovery:</strong> Find TVs, servers, and IoT devices.</li>
+                                <li><i class="fas fa-tv"></i> <strong>Smart TV Control:</strong> Take screenshots and send remote commands via ADB.</li>
+                                <li><i class="fas fa-shield-alt"></i> <strong>Security Auditing:</strong> Perform network assessments and find open ports.</li>
+                            </ul>
+                            <div class="prompt-box" style="margin-top: 2rem; border-color: var(--barca-gold); background: rgba(237, 187, 0, 0.05);">
+                                <p style="font-style: italic; color: var(--barca-gold); margin: 0;">"Explore my LAN, find the TCL TV, take a screenshot, and perform a security assessment of the network."</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="philosophy-image">
+                        <div class="feature-card" style="background: #1a1a1a; border: 1px solid var(--barca-gold); text-align: center; padding: 2rem;">
+                            <i class="fas fa-microchip" style="font-size: 4rem; color: var(--barca-gold); margin-bottom: 1rem;"></i>
+                            <h3 style="color: var(--white);">Hardware Insider</h3>
+                            <p style="color: var(--text-muted);">The agent uses native shell access to bridge the gap between LLM logic and physical hardware.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="media" class="container">
+            <div class="section-header">
+                <h2>Media & Creative Flow</h2>
+                <p>Engineering the perfect environment for deep work.</p>
+            </div>
+            <div class="philosophy-grid" style="grid-template-columns: 0.8fr 1.2fr;">
+                <div class="philosophy-image">
+                    <a href="screenshots/radio-tool.png" target="_blank">
+                        <img src="screenshots/radio-tool.png" alt="Anahata Radio Tool" style="border: 1px solid var(--accent); border-radius: 12px;">
+                    </a>
+                </div>
+                <div class="philosophy-content">
+                    <div class="comparison-card" style="border-left-color: var(--accent);">
+                        <h3>Integrated Radio & DJ Engine</h3>
+                        <p>The <code>RadioTool</code> and <code>DJTool</code> allow the AI Agent to manage the auditory environment, keeping the developer in the "zone".</p>
+                        <ul style="margin-top: 1.5rem;">
+                            <li><i class="fas fa-broadcast-tower"></i> <strong>SomaFM Integration:</strong> Stream high-quality internet radio.</li>
+                            <li><i class="fas fa-music"></i> <strong>MIDI DJ:</strong> Generate foundational beats on-the-fly.</li>
+                            <li><i class="fas fa-terminal"></i> <strong>Natural Language Control:</strong> "Play some SomaFM Groove Salad."</li>
+                        </ul>
+                        <div class="prompt-box" style="margin-top: 2rem; border-color: var(--accent); background: rgba(40, 167, 69, 0.05);">
+                            <p style="font-style: italic; color: var(--accent); margin: 0;">"Turn on the radio and play SomaFM Indie Pop Rocks while you put Javadoc on all source files."</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="container">
+            <div class="section-header">
+                <h2>Core Framework Features</h2>
+                <p>Everything you need to build a production-grade AI Agent in Java.</p>
+            </div>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <i class="fas fa-magic"></i>
+                    <h3>Annotation-Driven Tools</h3>
+                    <p>Turn any Java method into an AI-callable function with a single <code>@AIToolMethod</code> annotation. Automatic JSON schema generation included.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-brain"></i>
+                    <h3>PAYG v2 Pruning</h3>
+                    <p>Advanced context management that automatically prunes stale tool calls and responses to maximize the token window.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-save"></i>
+                    <h3>Session Persistence</h3>
+                    <p>Fast, reliable session saving and loading using Kryo serialization. Resume conversations instantly across restarts.</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-desktop"></i>
+                    <h3>Embeddable Swing UI</h3>
+                    <p>A complete, high-performance ChatPanel that can be dropped into any Swing application with zero boilerplate.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="get-started" class="container">
+            <div class="section-header">
+                <h2>Get Started in Seconds</h2>
+            </div>
+            <div class="prompt-box" style="max-width: 800px; margin: 0 auto;">
+                <pre style="color: #fff; font-size: 1rem;">
+&lt;dependency&gt;
+    &lt;groupId&gt;uno.anahata&lt;/groupId&gt;
+    &lt;artifactId&gt;gemini-java-client&lt;/artifactId&gt;
+    &lt;version&gt;1.0.9&lt;/version&gt;
+&lt;/dependency&gt;</pre>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container footer-grid">
+            <div class="footer-brand">
+                <img src="https://www.anahata.uno/assets/logo-horizontal.png" alt="Anahata Logo">
+                <p>The engine for the next generation of Java development.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Resources</h4>
+                <a href="https://anahata-os.github.io/gemini-java-client/apidocs/" target="_blank">Javadocs</a>
+                <a href="https://github.com/anahata-os/gemini-java-client">GitHub</a>
+                <a href="https://www.anahata.uno">Anahata NetBeans Plugin</a>
+            </div>
+            <div class="footer-legal">
+                <h4>Legal</h4>
+                <a href="https://www.anahata.uno/ASL_108.html">ASL V108</a>
+                <a href="https://www.anahata.uno/LICENSE.html">Apache 2.0</a>
+                <p>&copy; 2025 Anahata. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

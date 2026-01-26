@@ -1,18 +1,20 @@
-name: Deploy Javadoc
+name: Deploy Website and Javadoc
 
 on:
   push:
     branches: [ "main" ]
 
 permissions:
-  contents: write # Required to push to the gh-pages branch
+  contents: write
 
 jobs:
-  deploy-javadoc:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Main
         uses: actions/checkout@v4
+        with:
+          path: main
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -22,12 +24,22 @@ jobs:
           cache: 'maven'
 
       - name: Generate Javadoc
-        # Use the release profile to include custom themes and footers
-        run: mvn javadoc:javadoc -P release -DskipTests -ntp
+        run: |
+          cd main
+          mvn javadoc:javadoc -P release -DskipTests -ntp
+
+      - name: Prepare Deployment Folder
+        run: |
+          mkdir deploy
+          # 1. Copy the website from the docs folder
+          cp -r main/docs/* deploy/
+          # 2. Copy the generated Javadocs to the /apidocs subfolder
+          mkdir -p deploy/apidocs
+          cp -r main/target/reports/apidocs/* deploy/apidocs/
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          branch: gh-pages # The branch the action should deploy to.
-          folder: target/reports/apidocs # Definitive location for this project
-          clean: true # Automatically remove deleted files from the deploy branch
+          branch: gh-pages
+          folder: deploy
+          clean: true
