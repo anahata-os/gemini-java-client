@@ -4,11 +4,11 @@
 
 # gemini-java-client
 
-**[Website](https://anahata-os.github.io/gemini-java-client/) | [Anahata TV (YouTube)](https://www.youtube.com/@anahata108) | [v2 on its way!](https://github.com/anahata-os/anahata-asi)**
+**[Website](https://anahata-os.github.io/gemini-java-client/) | [Anahata TV (YouTube)](https://www.youtube.com/@anahata108) | [Discord](https://discord.gg/M396BNtX) | [v2 on its way!](https://github.com/anahata-os/anahata-asi)**
 
-![Anahata Chat Panel](screenshots/chat-panel-interaction.png)
+![Autonomous JVM Execution](screenshots/jit-compilation-and-execution.png)
 
-**The engine for Autonomous JVM Agents.** The `gemini-java-client` is a pure-Java platform for building AI agents that don't just suggest code—they **live inside your JVM**. It provides the infrastructure for an AI to write, compile, and execute Java code in-process, with dynamic access to the entire Maven ecosystem.
+**The engine for Autonomous JVM Agents.** The `gemini-java-client` is a pure-Java platform specially engineered to exploit the full power of the **Google Gemini API**. It provides the infrastructure for an AI to write, compile, and execute Java code in-process, turning your application into a host for autonomous agents that don't just suggest code—they **live inside your JVM**.
 
 ## 🚀 The Killer Advantage: Autonomous JVM Execution
 
@@ -30,7 +30,28 @@ Because the agent has full access to the host's shell and network, it can intera
 - **"Take a screenshot of the Lounge TV and show it to me."** (Remote device introspection via ADB)
 - **"Turn down the volume on the TV and play a Gal Gadot video."** (IoT control)
 - **"Perform a security assessment of my network and find open ports on local devices."** (Security auditing)
-- **"Change the Look and Feel to FlatLaf IntelliJ Dark and refresh all windows."** (Direct UI manipulation)
+
+## 🖼️ Visual Showcase
+
+### Deep Context & Token Precision
+| Augmented Context | Token Heatmap | Live Workspace |
+| :---: | :---: | :---: |
+| ![Context Providers](screenshots/context-providers.png) | ![Context Heatmap](screenshots/context-heatmap.png) | ![Live Workspace](screenshots/live-workspace.png) |
+
+### Actionable Intelligence
+| Integrated Radio | Google Search Tool | Live Screen Capture |
+| :---: | :---: | :---: |
+| ![Radio Tool](screenshots/radio-tool.png) | ![Google Search](screenshots/google_search.png) | ![Screen Capture](screenshots/live-screen-capture.png) |
+
+### Developer Experience
+| Embeddable Chat Panel | Tool Documentation | Java to Schema |
+| :---: | :---: | :---: |
+| ![Chat Panel](screenshots/chat-panel-interaction.png) | ![Tools](screenshots/tools.png) | ![Java2Schema](screenshots/java2schema.png) |
+
+### Advanced Features
+| Schema Annotations | Easy RAG | Easy Tools |
+| :---: | :---: | :---: |
+| ![Schema Annotations](screenshots/schema-annotations.png) | ![Easy RAG](screenshots/easy-rag.png) | ![Easy Tools](screenshots/easy-tools.png) |
 
 ## Why Choose the `gemini-java-client`?
 
@@ -55,7 +76,6 @@ We solve the token limit problem with intelligent, dependency-aware context mana
 | **Prune-As-You-Go (PAYG) v2** | Automatically removes old or stale tool calls and responses. | **Maximizes context window** efficiency and reduces costs. |
 | **Stateful Resource Tracking** | Tracks resources loaded into context, marking them as `STALE` if changed on disk. | **Prevents the AI from working with outdated information.** |
 | **Session Persistence (Kryo)** | Saves and loads the entire chat history using fast Kryo serialization. | **Instant session resume** across application restarts. |
-| **Context Heatmap Visualization** | A Swing UI panel that visually breaks down token usage. | **Full transparency** over token usage and pruning decisions. |
 
 ## Getting Started: Simple Integration
 
