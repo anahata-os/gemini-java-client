@@ -1,20 +1,30 @@
-name: Deploy Website and Javadoc
+name: Deploy Website & Javadoc
 
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Main
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          path: main
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -24,22 +34,38 @@ jobs:
           cache: 'maven'
 
       - name: Generate Javadoc
-        run: |
-          cd main
-          mvn javadoc:javadoc -P release -DskipTests -ntp
+        # Use the release profile to include custom themes and footers
+        run: mvn javadoc:javadoc -P release -DskipTests -ntp
 
       - name: Prepare Deployment Folder
         run: |
-          mkdir deploy
-          # 1. Copy the website from the docs folder
-          cp -r main/docs/* deploy/
-          # 2. Copy the generated Javadocs to the /apidocs subfolder
-          mkdir -p deploy/apidocs
-          cp -r main/target/reports/apidocs/* deploy/apidocs/
+          # Create a temporary deployment directory
+          mkdir -p _site
+          
+          # 1. Copy the static website from docs/
+          if [ -d docs ]; then
+            cp -r docs/* _site/
+          fi
+          
+          # 2. Create .nojekyll to prevent GitHub from processing the site
+          touch _site/.nojekyll
+          
+          # 3. Inject the generated Javadocs into the apidocs/ subfolder
+          mkdir -p _site/apidocs
+          cp -r target/reports/apidocs/* _site/apidocs/
+          
+          # VERIFICATION: List the contents to the log
+          echo "--- Deployment Folder Structure ---"
+          ls -R _site
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './_site'
 
       - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          branch: gh-pages
-          folder: deploy
-          clean: true
+        id: deployment
+        uses: actions/deploy-pages@v4
