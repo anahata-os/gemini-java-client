@@ -17,7 +17,7 @@ public enum ContextBehavior {
      * The result is ephemeral and does not represent a lasting state.
      * <p>
      * It is useful for one-off actions or queries (e.g., running a shell command).
-     * The system automatically prunes these results after 5 user turns to keep
+     * The system automatically prunes these results after 4 user turns to keep
      * the context clean.
      * </p>
      */

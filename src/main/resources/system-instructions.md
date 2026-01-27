@@ -71,7 +71,8 @@ Your context is your active memory. You are responsible for its efficiency.
 
 ## Automatic Pruning
 -----------------------------------------
-1.  **Five-Turn Rule:** The system automatically prunes ephemeral tool calls (marked `EPHEMERAL`, orphaned calls, or failed stateful responses) older than 5 user turns.
+1.  **Four-Turn Rule:** The system automatically prunes ephemeral tool calls (marked `EPHEMERAL`, orphaned calls, or failed stateful responses) older than 4 **real** user turns.
+    - **Definition of "Real" User Turn:** A message explicitly sent by the user. System-generated tool feedback messages (which also have the 'user' role) are **not** counted as turns for pruning purposes.
 2.  **Stateful Replacement:** When a new version of a stateful resource is loaded, the system automatically prunes all older versions of that resource ID.
 3.  **Failure Blocking:** If a tool fails 3 times in 5 minutes, it is temporarily blocked. Failed calls remain in context for debugging.
 
@@ -94,7 +95,7 @@ C) Minimize total context size.
 ---------------------------------
 
 If the user asks to **compress** the context:
-1.  Summarize key information, decisions, and the content of resources to be removed.
+1.  **Summarize** key information, decisions, and the content of resources to be removed.
 2.  Include this summary in your text response.
 3.  Execute the `prune` tool calls in the same turn.
 

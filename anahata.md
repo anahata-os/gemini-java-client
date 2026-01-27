@@ -47,7 +47,7 @@ Unlike passive chatbots, agents built with this framework are **insiders**. They
 
 ### PAYG Pruning (v2)
 The framework automatically manages the context window by:
-1.  Pruning ephemeral tool calls after 5 user turns.
+1.  Pruning ephemeral tool calls after 4 user turns.
 2.  Replacing stateful resources when a newer version is loaded.
 3.  Allowing manual pruning via the UI or `ContextWindow` tools.
 
@@ -64,7 +64,7 @@ When a tool returns a `FileInfo` object, the framework tracks that file. If the 
 4.  **Zero External Dependencies**: Keep the core lean. Prefer standard Java APIs or well-established libraries like Jackson/Guava.
 
 ## 5. CI/CD & Deployment
-- **Merge Strategy**: The website (in `/docs`) and Javadocs (generated in `target/reports/apidocs`) are merged into the `gh-pages` branch by GitHub Actions.
+- **Deployment Strategy**: The website (in `/docs`) and Javadocs (generated in `target/reports/apidocs`) are deployed directly to GitHub Pages via GitHub Actions.
 - **URL**: [https://anahata-os.github.io/gemini-java-client/](https://anahata-os.github.io/gemini-java-client/)
 
 ## 6. Development & Testing Notes

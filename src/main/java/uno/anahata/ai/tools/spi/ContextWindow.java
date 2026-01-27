@@ -105,6 +105,7 @@ public class ContextWindow {
     @AIToolMethod(
             value = "Prunes one or more ephemeral (non-stateful) tool calls and their associated responses using the Tool Call IDs. "
                     + "This tool removes the entire call/response pair from the context. "
+                    + "While ephemeral tool calls are already automatically prunned after 4 user turns, this tool can be used to prune (large) ephemeral tool calls before they get automatically pruned. "
                     + "CRITICAL: This tool will fail if used on a tool call that produced a stateful resource (e.g., LocalFiles.readFile, LocalFiles.writeFile, LocalFiles.createFile). "
                     + "For those, you must use pruneStatefulResources with the full file path."
     )

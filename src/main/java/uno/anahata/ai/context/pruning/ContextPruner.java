@@ -401,13 +401,13 @@ public class ContextPruner {
      *   <li>It is a function call with no corresponding response (orphan).</li>
      *   <li>It is a function response from a stateful tool that failed to return a resource.</li>
      * </ul>
-     * This method scans messages older than 5 user turns and prunes any ephemeral parts found.
+     * This method scans messages older than 4 user turns and prunes any ephemeral parts found.
      * </p>
      *
      * @param toolManager The ToolManager, needed to check tool metadata.
      */
     public void pruneEphemeralToolCalls(ToolManager toolManager) {
-        final int turnsToKeep = 5;
+        final int turnsToKeep = 4;
         log.info("Starting pruneEphemeralToolCalls (" + turnsToKeep + "-Turn Rule check).");
         if (toolManager == null) {
             log.warn("ToolManager is null. Aborting ephemeral pruning.");
@@ -415,7 +415,7 @@ public class ContextPruner {
         }
         List<ChatMessage> context = contextManager.getContext();
 
-        // Find the index of the message that marks our cutoff point (5 user turns ago).
+        // Find the index of the message that marks our cutoff point (4 user turns ago).
         List<Integer> userTurnIndices = new ArrayList<>();
         for (int i = context.size() - 1; i >= 0; i--) {
             if (isUserTurn(context.get(i))) {
