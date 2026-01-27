@@ -6,6 +6,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
@@ -67,11 +69,14 @@ public class StatusPanel extends JPanel {
     private void initComponents() {
         setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
 
-        JPanel topPanel = new JPanel(new BorderLayout(10, 0));
-        JPanel statusDisplayPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JPanel topPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new java.awt.Insets(0, 2, 0, 2);
+        gbc.gridy = 0;
         
         statusIndicator = new StatusIndicator();
         statusLabel = new JLabel("Initializing...");
+        statusLabel.setMinimumSize(new Dimension(10, 16));
         
         soundToggle = new JToggleButton(IconUtils.getIcon("bell.png"));
         soundToggle.setSelectedIcon(IconUtils.getIcon("bell_mute.png"));
@@ -83,16 +88,36 @@ public class StatusPanel extends JPanel {
         killButton.setToolTipText("Interrupt current API request or tool execution");
         killButton.setVisible(false);
         killButton.addActionListener(e -> parentPanel.getChat().kill());
+        killButton.setMargin(new java.awt.Insets(0, 2, 0, 2));
+        killButton.setFocusable(false);
 
-        statusDisplayPanel.add(soundToggle);
-        statusDisplayPanel.add(statusIndicator);
-        statusDisplayPanel.add(statusLabel);
-        statusDisplayPanel.add(killButton);
+        // Left-aligned components
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0.0;
+
+        gbc.gridx = 0;
+        topPanel.add(soundToggle, gbc);
         
+        gbc.gridx = 1;
+        topPanel.add(statusIndicator, gbc);
+        
+        gbc.gridx = 2;
+        topPanel.add(killButton, gbc);
+        
+        // Flexible center component
+        gbc.gridx = 3;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        topPanel.add(statusLabel, gbc);
+        
+        // Right-aligned component
         contextUsageBar = new ContextUsageBar(parentPanel);
-        
-        topPanel.add(statusDisplayPanel, BorderLayout.WEST);
-        topPanel.add(contextUsageBar, BorderLayout.EAST);
+        gbc.gridx = 4;
+        gbc.weightx = 0.0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
+        topPanel.add(contextUsageBar, gbc);
         
         detailsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         detailsPanel.setVisible(false);
@@ -213,7 +238,10 @@ public class StatusPanel extends JPanel {
         private Color color = Color.GRAY;
 
         public StatusIndicator() {
-            setPreferredSize(new Dimension(16, 16));
+            Dimension size = new Dimension(16, 16);
+            setPreferredSize(size);
+            setMinimumSize(size);
+            setMaximumSize(size);
         }
 
         public void setColor(Color color) {
@@ -227,7 +255,8 @@ public class StatusPanel extends JPanel {
             Graphics2D g2d = (Graphics2D) g.create();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2d.setColor(color);
-            g2d.fillOval(2, 2, getWidth() - 4, getHeight() - 4);
+            // Draw a 12x12 circle centered in the 16x16 component
+            g2d.fillOval(2, 2, 12, 12);
             g2d.dispose();
         }
     }
