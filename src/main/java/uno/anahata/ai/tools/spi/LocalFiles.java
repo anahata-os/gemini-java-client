@@ -89,7 +89,8 @@ public class LocalFiles {
             throw new IOException("Path is a directory, not a file: " + path);
         }
 
-        // Redundant Read Check
+        // Redundant Read Check        
+        /*
         ResourceTracker rt = Chat.getCallingInstance().getContextManager().getResourceTracker();
         Optional<StatefulResourceStatus> status = rt.getStatefulResourcesOverview().stream()
                 .filter(s -> s.getResourceId().equals(path))
@@ -97,6 +98,7 @@ public class LocalFiles {
         if (status.isPresent() && status.get().getStatus() == ResourceStatus.VALID) {
              throw new RuntimeException("Redundant Read: The text file at " + path + " is already VALID in your context. Do not reload it.");
         }
+        */
 
         String content = Files.readString(filePath);
         long lastModified = Files.getLastModifiedTime(filePath).toMillis();
