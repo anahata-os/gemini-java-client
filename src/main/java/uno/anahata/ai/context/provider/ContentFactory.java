@@ -5,6 +5,7 @@ import com.google.genai.types.Part;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,25 +49,42 @@ public class ContentFactory {
     public List<Part> produceParts(ContextPosition position, boolean parallel) {
         List<ContextProvider> providers = chat.getConfigManager().getContextProviders(position, true);
         
-        List<List<Part>> results;
+        List<List<Part>> results = new ArrayList<>();
         if (parallel) {
-            results = providers.stream()
+            List<CompletableFuture<List<Part>>> futures = providers.stream()
                     .map(provider -> CompletableFuture.supplyAsync(() -> processProvider(provider))
                             .exceptionally(e -> {
-                                // This block handles exceptions that occur outside of the processProvider's try-catch, 
-                                // e.g., a RejectedExecutionException, or a critical error in the CompletableFuture pipeline itself.
                                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                                 log.error("Critical error during parallel provider execution of " + provider, e);
                                 return List.of(Part.fromText("Critical Error: " + cause.getMessage() + " on provider " + provider));
                             }))
-                    .collect(Collectors.toList())
-                    .stream()
-                    .map(CompletableFuture::join)
                     .collect(Collectors.toList());
+            
+            for (CompletableFuture<List<Part>> future : futures) {
+                try {
+                    if (Thread.interrupted()) {
+                        log.info("Interruption detected while waiting for context providers. Cancelling remaining tasks.");
+                        futures.forEach(f -> f.cancel(true));
+                        break;
+                    }
+                    results.add(future.get());
+                } catch (InterruptedException e) {
+                    log.info("Thread interrupted while waiting for context providers.");
+                    futures.forEach(f -> f.cancel(true));
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (ExecutionException e) {
+                    log.error("Error executing context provider future", e);
+                }
+            }
         } else {
-            results = providers.stream()
-                    .map(this::processProvider)
-                    .collect(Collectors.toList());
+            for (ContextProvider provider : providers) {
+                if (Thread.interrupted()) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                results.add(processProvider(provider));
+            }
         }
 
         // Flatten the results

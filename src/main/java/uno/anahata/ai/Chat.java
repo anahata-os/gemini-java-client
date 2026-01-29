@@ -429,12 +429,17 @@ public class Chat {
             }
             Client client = getGoogleGenAIClient();
             try {
-                statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
+                statusManager.setStatus(ChatStatus.AUGMENTING_CONTEXT);
                 GenerateContentConfig gcc = configManager.makeGenerateContentConfig();
                 
                 List<Content> finalContext = new ArrayList<>(context);
 
                 List<Part> workspaceParts = contentFactory.produceParts(ContextPosition.AUGMENTED_WORKSPACE, true);
+                
+                if (Thread.interrupted()) {
+                    return null;
+                }
+                
                 if (!workspaceParts.isEmpty()) {
                     log.info("Augmenting context with {} parts from workspace providers.", workspaceParts.size());
                     List<Part> augmentedMessageParts = new ArrayList<>();
@@ -457,6 +462,7 @@ public class Chat {
                     }
                 }
 
+                statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
                 log.info("Sending to model (attempt " + (attempt + 1) + "/" + maxRetries + "). " + finalContext.size() + " content elements. Functions enabled: " + functionsEnabled);
                 long ts = System.currentTimeMillis();
                 GenerateContentResponse ret = client.models.generateContent(config.getApi().getModelId(), finalContext, gcc);

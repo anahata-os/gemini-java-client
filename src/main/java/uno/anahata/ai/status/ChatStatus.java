@@ -18,6 +18,9 @@ public enum ChatStatus {
     /** Local tool (function) execution is in progress. */
     TOOL_EXECUTION_IN_PROGRESS("Tool Execution...", "Executing local Java tools (functions)."), 
     
+    /** Gathering just-in-time context from the environment. */
+    AUGMENTING_CONTEXT("Augmenting Context...", "Gathering just-in-time context from the environment."),
+
     /** An API error occurred, and the system is in retry mode with exponential backoff. */
     WAITING_WITH_BACKOFF("Waiting with Backoff...", "An API error occurred. Retrying with exponential backoff."), 
     
@@ -40,7 +43,7 @@ public enum ChatStatus {
      * @return true if interruptible, false otherwise.
      */
     public boolean isInterruptible() {
-        return this == API_CALL_IN_PROGRESS || this == WAITING_WITH_BACKOFF || this == TOOL_EXECUTION_IN_PROGRESS;
+        return this == API_CALL_IN_PROGRESS || this == WAITING_WITH_BACKOFF || this == TOOL_EXECUTION_IN_PROGRESS || this == AUGMENTING_CONTEXT;
     }
 
     @Override

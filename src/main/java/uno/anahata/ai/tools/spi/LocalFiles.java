@@ -23,7 +23,7 @@ import uno.anahata.ai.tools.MultiPartResponse;
 /**
  * A comprehensive, context-aware file operations tool provider.
  * <p>
- * This is the primary tool for all file I/O. it uses {@link FileInfo} POJOs
+ * This is the primary tool for all file I/O. It uses {@link FileInfo} POJOs
  * and timestamps to implement safe, version-aware file modifications and
  * stateful resource tracking.
  * </p>
@@ -69,8 +69,10 @@ public class LocalFiles {
     /**
      * Reads a text file and returns a {@link FileInfo} object.
      * <p>
-     * This method includes a "Redundant Read Check" to prevent reloading files
-     * that are already valid in the context.
+     * Calling this method for a file already in context is valid and encouraged after a 
+     * {@code Coding.suggestChange} operation. It triggers a {@code STATEFUL_REPLACE}, 
+     * which prunes the token-heavy modification calls and brings the fresh content 
+     * to the end of the conversation.
      * </p>
      *
      * @param path The absolute path to the file.
@@ -116,7 +118,7 @@ public class LocalFiles {
      * @return An updated FileInfo object.
      * @throws IOException if a modification conflict occurs or the file is missing.
      */
-    @AIToolMethod(value = "Writes content to an existing text file, but only if the file exists and has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object. Don not use this to create new files unse LocalFiles.createFile instead", behavior = ContextBehavior.STATEFUL_REPLACE)
+    @AIToolMethod(value = "Writes content to an existing text file, but only if the file exists and has not been modified since the provided timestamp. This is a safeguard against overwriting concurrent changes. Returns the updated FileInfo object. Do not use this to create new files; use LocalFiles.createFile instead.", behavior = ContextBehavior.STATEFUL_REPLACE)
     public static FileInfo writeFile(
             @AIToolParam("The absolute path of the text file to write to.") String path,
             @AIToolParam("The new content to write to the file.") String content,

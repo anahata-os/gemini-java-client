@@ -59,6 +59,8 @@ public class SwingChatConfig extends ChatConfig {
                 return new Color(0, 123, 255); // BLUE
             case TOOL_EXECUTION_IN_PROGRESS:
                 return new Color(128, 0, 128); // PURPLE
+            case AUGMENTING_CONTEXT:
+                return new Color(255, 140, 0); // DARK ORANGE
             case WAITING_WITH_BACKOFF:
                 return new Color(255, 0, 0); // RED
             case IDLE_WAITING_FOR_USER:
