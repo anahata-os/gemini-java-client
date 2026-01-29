@@ -1,11 +1,13 @@
 /* Licensed under the Apache License, Version 2.0 */
 package uno.anahata.ai.context.provider.spi;
 
+import com.google.genai.types.Model;
 import com.google.genai.types.Part;
 import java.util.Collections;
 import java.util.List;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import uno.anahata.ai.Chat;
+import uno.anahata.ai.context.ContextManager;
 import uno.anahata.ai.context.provider.ContextProvider;
 import uno.anahata.ai.status.ApiExceptionRecord;
 
@@ -45,7 +47,27 @@ public class ChatStatusProvider extends ContextProvider {
         chatStatusBlock.append("- ConfigManager: ").append(chat.getConfigManager()).append("\n");
         chatStatusBlock.append("- StatusManager: ").append(chat.getStatusManager()).append("\n");
         chatStatusBlock.append("- Session Start time: ").append(chat.getStartTime()).append("\n");
-        //chatStatusBlock.append("- Live Workspace (auto attaches screen captures on every call) Enabled: ").append(chat.isLiveWorkspaceEnabled()).append("\n");        
+        
+        // Context Health Metrics
+        ContextManager cm = chat.getContextManager();
+        int tokenCount = cm.getTotalTokenCount();
+        int threshold = cm.getTokenThreshold();
+        
+        if (threshold > 0) {
+            int buffer = threshold - tokenCount;
+            chatStatusBlock.append("- Context Window Usage: ").append(chat.getContextWindowUsageFormatted()).append("\n");
+            chatStatusBlock.append("- Response Buffer (Tokens remaining until threshold): ").append(buffer).append("\n");
+            
+            Model metadata = chat.getConfig().getApi().getModelMetadata(chat.getConfig().getApi().getModelId());
+            if (metadata != null && metadata.outputTokenLimit().isPresent()) {
+                chatStatusBlock.append("- Model Max Output Tokens: ").append(metadata.outputTokenLimit().get()).append("\n");
+            }
+
+            if (buffer < 25000) {
+                chatStatusBlock.append("  [WARNING] Response buffer is low (< 10%). Pruning is highly recommended to avoid response truncation.\n");
+            }
+        }
+
         chatStatusBlock.append("- Server Side Tools (like google search) Enabled: ").append(chat.isServerToolsEnabled()).append("\n");
         chatStatusBlock.append("- Local @AiToolMethod Tools (e.g. LocalFiles) Enabled: ").append(chat.isFunctionsEnabled()).append("\n");
         if (chat.getLatency() > 0) {
@@ -58,8 +80,6 @@ public class ChatStatusProvider extends ContextProvider {
             for (int i = 0; i < errors.size(); i++) {
                 ApiExceptionRecord error = errors.get(i);
                 chatStatusBlock.append("  --- Error ").append(i + 1).append(" ---\n");
-                //chatStatusBlock.append(ExceptionUtils.getStackTrace(error.getException()));
-                //trying just with the error
                 chatStatusBlock.append(error);
                 chatStatusBlock.append("\n");
             }

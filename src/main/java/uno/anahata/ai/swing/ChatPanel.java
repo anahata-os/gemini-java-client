@@ -1,6 +1,7 @@
 /* Licensed under the Apache License, Version 2.0 */
 package uno.anahata.ai.swing;
 
+import com.google.genai.types.Model;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 import uno.anahata.ai.swing.render.editorkit.DefaultEditorKitProvider;
 import java.awt.BorderLayout;
@@ -25,6 +26,7 @@ import uno.anahata.ai.tools.FunctionPrompter;
 import uno.anahata.ai.status.ChatStatus;
 import uno.anahata.ai.status.StatusListener;
 import uno.anahata.ai.context.provider.ContextProvider;
+import uno.anahata.ai.gemini.GeminiAPI;
 
 @Slf4j
 @Getter
@@ -41,7 +43,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
     private JButton loadSessionButton;
     private JToggleButton localToolsButton;
     private JToggleButton serverToolsButton;
-    private JComboBox<String> modelIdComboBox;
+    private JComboBox<Model> modelIdComboBox;
 
     private final EditorKitProvider editorKitProvider;
     private ConversationPanel chatPanel;
@@ -160,21 +162,30 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         // --- NORTH Panel (Model ID only) ---
         JPanel northPanel = new JPanel(new BorderLayout());
         modelIdComboBox = new JComboBox<>();
-        if (config != null && config.getApi() != null) {
-            for (String model : config.getApi().getAvailableModelIds()) {
-                modelIdComboBox.addItem(model);
+        modelIdComboBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Model) {
+                    setText(((Model) value).displayName().orElse(((Model) value).name().orElse("Unknown")));
+                }
+                return this;
             }
-            modelIdComboBox.setSelectedItem(config.getApi().getModelId());
+        });
+        
+        if (config != null && config.getApi() != null) {
+            refreshModelList();
         } else {
-            modelIdComboBox.addItem("Loading...");
             modelIdComboBox.setEnabled(false);
         }
 
         modelIdComboBox.addActionListener(e -> {
-            String selectedModel = (String) modelIdComboBox.getSelectedItem();
+            Model selectedModel = (Model) modelIdComboBox.getSelectedItem();
             if (selectedModel != null && config != null && config.getApi() != null) {
-                config.getApi().setModelId(selectedModel);
-                log.info("Model ID changed to: {}", selectedModel);
+                selectedModel.name().ifPresent(name -> {
+                    config.getApi().setModelId(name);
+                    log.info("Model ID changed to: {}", name);
+                });
             }
         });
 
@@ -200,6 +211,8 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
 
         contextProvidersPanel = new ContextProvidersPanel(this);
         geminiKeysPanel = new GeminiKeysPanel(config);
+        geminiKeysPanel.setOnSaveCallback(this::refreshModelList); // Refresh models when keys are saved
+        
         functionsPanel = new ToolsPanel(chat, config);
         supportPanel = new SupportPanel();
 
@@ -240,6 +253,44 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         if (!chat.getConfig().getApi().isHasKeys()) {
             tabbedPane.setSelectedComponent(geminiKeysPanel);
         }
+    }
+
+    private void refreshModelList() {
+        if (config == null || config.getApi() == null) return;
+        
+        // Run in background to avoid blocking EDT during API call
+        new SwingWorker<List<Model>, Void>() {
+            @Override
+            protected List<Model> doInBackground() throws Exception {
+                return config.getApi().getFilteredModels();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    List<Model> models = get();
+                    modelIdComboBox.removeAllItems();
+                    Model defaultModel = null;
+                    
+                    for (Model m : models) {
+                        modelIdComboBox.addItem(m);
+                        String name = m.name().orElse("");
+                        if (name.equals("models/" + GeminiAPI.DEFAULT_MODEL_ID) || name.equals(GeminiAPI.DEFAULT_MODEL_ID)) {
+                            defaultModel = m;
+                        }
+                    }
+                    
+                    if (defaultModel != null) {
+                        modelIdComboBox.setSelectedItem(defaultModel);
+                    } else if (modelIdComboBox.getItemCount() > 0) {
+                        modelIdComboBox.setSelectedIndex(0);
+                    }
+                    modelIdComboBox.setEnabled(true);
+                } catch (Exception e) {
+                    log.error("Failed to refresh model list", e);
+                }
+            }
+        }.execute();
     }
 
     @Override
@@ -355,14 +406,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
     }
 
     private void finalizeUIInitialization() {
-        if (config != null && config.getApi() != null) {
-            modelIdComboBox.removeAllItems();
-            for (String model : config.getApi().getAvailableModelIds()) {
-                modelIdComboBox.addItem(model);
-            }
-            modelIdComboBox.setSelectedItem(config.getApi().getModelId());
-            modelIdComboBox.setEnabled(true);
-        }
+        refreshModelList();
     }
 
     public void restartChat() {

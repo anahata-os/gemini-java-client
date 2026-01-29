@@ -17,6 +17,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jdesktop.swingx.prompt.PromptSupport;
 import uno.anahata.ai.config.ChatConfig;
@@ -33,6 +34,12 @@ public class GeminiKeysPanel extends JPanel {
     private final JTextArea keysTextArea;
     private final File keysFile;
     private final ChatConfig config;
+    
+    /**
+     * An optional callback to be executed after keys are successfully saved.
+     */
+    @Setter
+    private Runnable onSaveCallback;
 
     /**
      * Constructs a new GeminiKeysPanel.
@@ -124,6 +131,9 @@ public class GeminiKeysPanel extends JPanel {
         try {
             Files.writeString(keysFile.toPath(), keysTextArea.getText());
             config.getApi().reload(); // Reload GeminiAPI after saving keys
+            if (onSaveCallback != null) {
+                onSaveCallback.run();
+            }
             JOptionPane.showMessageDialog(this, "API keys saved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException e) {
             log.error("Failed to save Gemini API keys", e);
