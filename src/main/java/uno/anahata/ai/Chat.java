@@ -250,7 +250,7 @@ public class Chat {
         isProcessing = true;
         processingThread = Thread.currentThread();
         statusManager.recordUserInputTime();
-        statusManager.setStatus(ChatStatus.API_CALL_IN_PROGRESS);
+        statusManager.setStatus(ChatStatus.AUGMENTING_CONTEXT);
         try {
             ChatMessage userMessage = buildChatMessage(content, null, null);
             contextManager.add(userMessage);
