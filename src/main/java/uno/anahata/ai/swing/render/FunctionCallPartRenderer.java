@@ -19,11 +19,9 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 
 public class FunctionCallPartRenderer implements PartRenderer {
 
-    private final UITheme theme;
     private static final int MAX_LINES_EXPANDED = 5;
 
-    public FunctionCallPartRenderer(UITheme theme) {
-        this.theme = theme;
+    public FunctionCallPartRenderer() {
     }
 
     @Override
@@ -53,13 +51,14 @@ public class FunctionCallPartRenderer implements PartRenderer {
     }
 
     private JComponent createCollapsibleArgumentPanel(String key, Object value) {
+        UITheme theme = UITheme.get();
         JComponent valueComponent;
         String valueAsString;
 
         if (value == null || (value instanceof String && ((String) value).isEmpty())) {
             JLabel naLabel = new JLabel("n/a");
             naLabel.setFont(naLabel.getFont().deriveFont(java.awt.Font.ITALIC));
-            naLabel.setForeground(java.awt.Color.GRAY);
+            naLabel.setForeground(theme.getSecondaryFontColor());
             valueComponent = naLabel;
             valueAsString = "";
         } else {
@@ -69,12 +68,22 @@ public class FunctionCallPartRenderer implements PartRenderer {
             textArea.setLineWrap(true);
             textArea.setWrapStyleWord(true);
             textArea.setFont(theme.getMonoFont());
-            textArea.setBackground(theme.getFunctionCallBg());
-            textArea.setForeground(theme.getFunctionCallFg());
-            textArea.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(java.awt.Color.GRAY),
-                BorderFactory.createEmptyBorder(8, 8, 8, 8)
-            ));
+            
+            if (theme.isMinimalist()) {
+                textArea.setBackground(theme.getPanelBg());
+                textArea.setForeground(theme.getFontColor());
+                textArea.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(theme.getBorder()),
+                    BorderFactory.createEmptyBorder(8, 8, 8, 8)
+                ));
+            } else {
+                textArea.setBackground(theme.getFunctionCallBg());
+                textArea.setForeground(theme.getFunctionCallFg());
+                textArea.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(theme.getDefaultBorder()),
+                    BorderFactory.createEmptyBorder(8, 8, 8, 8)
+                ));
+            }
             valueComponent = textArea;
         }
 

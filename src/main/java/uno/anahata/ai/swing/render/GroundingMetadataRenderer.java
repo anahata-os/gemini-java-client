@@ -44,11 +44,10 @@ import uno.anahata.ai.swing.WrapLayout;
 @Slf4j
 public class GroundingMetadataRenderer extends JPanel implements Scrollable {
     private static final int V_GAP = 10;
-    private final UITheme theme;
 
-    public GroundingMetadataRenderer(GroundingMetadata metadata, UITheme theme) {
+    public GroundingMetadataRenderer(GroundingMetadata metadata) {
         log.debug("Rendering GroundingMetadata in AI Studio style (Pure Swing): {}", metadata.toString());
-        this.theme = theme;
+        UITheme theme = UITheme.get();
         setLayout(new BorderLayout());
         setOpaque(false);
         
@@ -102,6 +101,7 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
     }
     
     private JPanel renderHeader() {
+        UITheme theme = UITheme.get();
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(theme.getGroundingHeaderBg());
         headerPanel.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
@@ -111,8 +111,6 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
         titleLabel.setForeground(theme.getFontColor());
         
         try {
-            // Use the Anahata icon from resources
-            //ImageIcon originalIcon = );            
             titleLabel.setIcon(IconUtils.getIcon("anahata.png"));
             titleLabel.setIconTextGap(6);
         } catch (Exception e) {
@@ -124,6 +122,7 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
     }
 
     private JPanel createDetailSection(String title) {
+        UITheme theme = UITheme.get();
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         
@@ -161,6 +160,7 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
     }
 
     private JPanel renderGroundingSupports(List<GroundingSupport> supports) {
+        UITheme theme = UITheme.get();
         JPanel mainPanel = createDetailSection("Supporting Text");
         JPanel contentPanel = (JPanel) mainPanel.getComponent(1); // Get the content panel (BorderLayout)
         JPanel innerContentHolder = (JPanel) contentPanel.getComponent(0); // Get the inner content holder (BoxLayout)
@@ -170,6 +170,7 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
             .forEach(support -> {
                 String text = support.segment().get().text().get();
                 JLabel textLabel = new JLabel("<html>" + text + "</html>");
+                textLabel.setForeground(theme.getFontColor());
                 textLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
                 innerContentHolder.add(textLabel);
             });
@@ -197,13 +198,16 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
     }
 
     private JLabel createCitationLabel(GroundingChunkWeb webChunk, int index) {
+        UITheme theme = UITheme.get();
         String uri = webChunk.uri().orElse(null);
         String title = webChunk.title().orElse(uri);
-        String labelText = String.format("<html>%d. <a href='%s'>%s</a></html>", index, uri, title);
+        String labelText = String.format("<html>%d. <a href='%s' style='color: %s'>%s</a></html>", 
+                index, uri, theme.getFontColorHex(), title);
         return createClickableLabel(labelText, uri);
     }
 
     private JPanel renderSearchSuggestions(List<String> queries) {
+        UITheme theme = UITheme.get();
         JPanel mainPanel = createDetailSection("Search Suggestions");
         JPanel contentPanel = (JPanel) mainPanel.getComponent(1);
         JPanel innerContentHolder = (JPanel) contentPanel.getComponent(0);
@@ -216,7 +220,7 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
 
         for (String query : queries) {
             String searchUri = "https://www.google.com/search?q=" + query.replace(" ", "+");
-            chipsContainer.add(new ChipLabel(query, searchUri, theme));
+            chipsContainer.add(new ChipLabel(query, searchUri));
         }
         
         innerContentHolder.add(chipsContainer);
@@ -225,7 +229,9 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
     }
 
     private JLabel createClickableLabel(String text, String uri) {
+        UITheme theme = UITheme.get();
         JLabel label = new JLabel(text);
+        label.setForeground(theme.getFontColor());
         label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         label.addMouseListener(new MouseAdapter() {
             @Override
@@ -272,11 +278,10 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
         private static final int ARC = 16;
         private static final int PADDING_X = 12;
         private static final int PADDING_Y = 4;
-        private final UITheme theme;
 
-        public ChipLabel(String text, String uri, UITheme theme) {
+        public ChipLabel(String text, String uri) {
             super(text);
-            this.theme = theme;
+            UITheme theme = UITheme.get();
             setFont(getFont().deriveFont(12f));
             setForeground(theme.getChipText());
             setBackground(theme.getChipBackground());
@@ -301,6 +306,7 @@ public class GroundingMetadataRenderer extends JPanel implements Scrollable {
 
         @Override
         protected void paintComponent(Graphics g) {
+            UITheme theme = UITheme.get();
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setColor(getBackground());

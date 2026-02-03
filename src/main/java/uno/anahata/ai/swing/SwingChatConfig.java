@@ -1,25 +1,21 @@
 /* Licensed under the Apache License, Version 2.0 */
 package uno.anahata.ai.swing;
 
-import com.google.genai.types.Part;
 import java.awt.Color;
 import java.awt.Font;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import javax.swing.UIManager;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.ai.config.ChatConfig;
-import uno.anahata.ai.context.provider.ContextProvider;
-import uno.anahata.ai.internal.PartUtils;
 import uno.anahata.ai.media.functions.spi.AudioTool;
 import uno.anahata.ai.media.functions.spi.DJTool;
 import uno.anahata.ai.media.functions.spi.PianoTool;
 import uno.anahata.ai.media.functions.spi.RadioTool;
 import uno.anahata.ai.status.ChatStatus;
 import uno.anahata.ai.swing.context.provider.ApplicationFramesContextProvider;
+import uno.anahata.ai.swing.render.PartType;
 import uno.anahata.ai.swing.tools.spi.ScreenCapture;
 
 /**
@@ -30,7 +26,19 @@ import uno.anahata.ai.swing.tools.spi.ScreenCapture;
 @Setter
 public class SwingChatConfig extends ChatConfig {
     
-    private boolean audioFeedbackEnabled = true; // Default to ON, no persistence.
+    public enum ThemeMode {
+        AUTO("Auto-detect"),
+        LIGHT("Classic Light"),
+        DARK("Vibrant Dark"),
+        MINIMALIST("Minimalist (B&W)");
+
+        private final String displayName;
+        ThemeMode(String displayName) { this.displayName = displayName; }
+        @Override public String toString() { return displayName; }
+    }
+
+    private boolean audioFeedbackEnabled = true; 
+    private ThemeMode themeMode = ThemeMode.AUTO;
 
     public SwingChatConfig() {
         providers.add(new ApplicationFramesContextProvider());
@@ -52,7 +60,6 @@ public class SwingChatConfig extends ChatConfig {
         return ret;
     }
 
-    
     public static Color getColor(ChatStatus status) {
         switch (status) {
             case API_CALL_IN_PROGRESS:
@@ -82,56 +89,198 @@ public class SwingChatConfig extends ChatConfig {
         }
     }
 
-    public UITheme getTheme() {
-        return new UITheme();
-    }
-
     @Getter
     public static class UITheme {
+        private static UITheme instance;
+        
+        public static UITheme get() {
+            if (instance == null) {
+                throw new IllegalStateException("UITheme.get() called before initialization. You must call UITheme.refresh(config) first.");
+            }
+            return instance;
+        }
+        
+        public static void refresh(ChatConfig config) {
+            instance = new UITheme(config);
+        }
+
         // General
-        private final Color fontColor = Color.BLACK;
-        private final Font monoFont = new Font("SF Mono", Font.PLAIN, 14);
+        private final Color fontColor;
+        private final Color secondaryFontColor;
+        private final Font monoFont = new Font("SF Mono", Font.PLAIN, 13);
 
-        // Role-specific colors
-        private final Color userHeaderBg = new Color(212, 237, 218);
-        private final Color userContentBg = new Color(233, 247, 239);
-        private final Color userHeaderFg = new Color(21, 87, 36);
-        private final Color userBorder = new Color(144, 198, 149);
+        // Standard LAF Colors
+        private final Color panelBg;
+        private final Color border;
 
-        private final Color modelHeaderBg = new Color(221, 234, 248);
-        private final Color modelContentBg = new Color(240, 248, 255);
-        private final Color modelHeaderFg = new Color(0, 123, 255);
-        private final Color modelBorder = new Color(160, 195, 232); // Restored Blue Border
+        // Role-based Colors (The "Anahata" Identity)
+        private final Color userHeaderBg;
+        private final Color userContentBg;
+        private final Color userHeaderFg;
+        private final Color userBorder;
 
-        private final Color toolHeaderBg = new Color(223, 213, 235); // More saturated purple
-        private final Color toolContentBg = new Color(250, 248, 252);
-        private final Color toolHeaderFg = new Color(80, 60, 100);
-        private final Color toolBorder = new Color(200, 180, 220); // Restored Purple/Violet Border
+        private final Color modelHeaderBg;
+        private final Color modelContentBg;
+        private final Color modelHeaderFg;
+        private final Color modelBorder;
 
-        private final Color defaultHeaderBg = Color.WHITE;
-        private final Color defaultContentBg = new Color(248, 249, 250);
-        private final Color defaultBorder = Color.LIGHT_GRAY;
+        private final Color toolHeaderBg;
+        private final Color toolContentBg;
+        private final Color toolHeaderFg;
+        private final Color toolBorder;
+        
+        private final ThemeMode mode;
+        private final boolean dark;
 
         // Function Call/Response
-        private final Color functionCallBg = new Color(28, 37, 51);
-        private final Color functionCallFg = new Color(0, 229, 255);
-        private final Color functionResponseBg = Color.BLACK;
-        private final Color functionResponseFg = new Color(0, 255, 0);
-        private final Color functionErrorBg = new Color(51, 28, 28);
-        private final Color functionErrorFg = new Color(255, 80, 80); // Brighter Red for better visibility
+        private final Color functionCallBg;
+        private final Color functionCallFg;
+        private final Color functionResponseBg;
+        private final Color functionResponseFg;
+        private final Color functionErrorBg;
+        private final Color functionErrorFg;
+        
+        // UI Errors (for tables, labels, etc.)
+        private final Color errorBg;
+        private final Color errorFg;
 
-        // Grounding Metadata (Outer Block)
-        private final Color groundingHeaderBg = new Color(200, 230, 201); // #D4EDDA - Aligned with userHeaderBg
-        private final Color groundingContentBg = new Color(233, 247, 239); // #E9F7EF - Aligned with userContentBg
+        private UITheme(ChatConfig config) {
+            if (config instanceof SwingChatConfig) {
+                this.mode = ((SwingChatConfig) config).getThemeMode();
+            } else {
+                this.mode = ThemeMode.AUTO;
+            }
+            
+            Color editorBg = UIManager.getColor("EditorPane.background");
+            if (editorBg == null) editorBg = UIManager.getColor("TextArea.background");
+            if (editorBg == null) editorBg = UIManager.getColor("Panel.background");
+            panelBg = editorBg != null ? editorBg : Color.WHITE;
+            
+            Color sep = UIManager.getColor("Separator.foreground");
+            if (sep == null) sep = UIManager.getColor("Component.borderColor");
+            border = sep != null ? sep : (isDarkColor(panelBg) ? new Color(80, 80, 80) : Color.LIGHT_GRAY);
+            
+            boolean isDarkLaf = isDarkColor(panelBg);
+            this.dark = (mode == ThemeMode.DARK) || (mode == ThemeMode.AUTO && isDarkLaf);
+            boolean useMinimalist = (mode == ThemeMode.MINIMALIST);
+            
+            if (useMinimalist) {
+                // Minimalist B&W Mode
+                fontColor = UIManager.getColor("Label.foreground") != null ? UIManager.getColor("Label.foreground") : Color.BLACK;
+                secondaryFontColor = blend(fontColor, panelBg, 0.6f);
+                
+                userHeaderBg = panelBg; userContentBg = panelBg; userHeaderFg = fontColor; userBorder = border;
+                modelHeaderBg = panelBg; modelContentBg = panelBg; modelHeaderFg = fontColor; modelBorder = border;
+                toolHeaderBg = panelBg; toolContentBg = panelBg; toolHeaderFg = fontColor; toolBorder = border;
+                functionCallBg = panelBg; functionCallFg = fontColor;
+                functionResponseBg = panelBg; functionResponseFg = fontColor;
+                functionErrorBg = panelBg; functionErrorFg = fontColor;
+                errorBg = panelBg; errorFg = new Color(200, 0, 0);
+            } else if (this.dark) {
+                // Vibrant Dark Mode
+                fontColor = new Color(230, 230, 230);
+                secondaryFontColor = new Color(160, 160, 160);
+                
+                userHeaderBg = new Color(35, 70, 35); userContentBg = new Color(25, 45, 25); userHeaderFg = new Color(180, 255, 180); userBorder = new Color(60, 120, 60);
+                modelHeaderBg = new Color(30, 50, 90); modelContentBg = new Color(20, 30, 55); modelHeaderFg = new Color(180, 210, 255); modelBorder = new Color(50, 90, 160);
+                toolHeaderBg = new Color(70, 30, 70); toolContentBg = new Color(45, 20, 45); toolHeaderFg = new Color(255, 180, 255); toolBorder = new Color(120, 60, 120);
+                
+                functionCallBg = new Color(40, 45, 55); functionCallFg = new Color(0, 229, 255);
+                functionResponseBg = Color.BLACK; functionResponseFg = new Color(0, 255, 0);
+                functionErrorBg = new Color(60, 20, 20); functionErrorFg = new Color(255, 150, 150);
+                errorBg = new Color(100, 30, 30); errorFg = new Color(255, 180, 180);
+            } else {
+                // Classic Anahata Light Mode (Restored)
+                fontColor = new Color(30, 30, 30);
+                secondaryFontColor = new Color(100, 100, 100);
+                
+                userHeaderBg = new Color(212, 237, 218); userContentBg = new Color(233, 247, 239); userHeaderFg = new Color(21, 87, 36); userBorder = new Color(144, 198, 149);
+                modelHeaderBg = new Color(221, 234, 248); modelContentBg = new Color(240, 248, 255); modelHeaderFg = new Color(0, 123, 255); modelBorder = new Color(160, 195, 232);
+                toolHeaderBg = new Color(223, 213, 235); toolContentBg = new Color(250, 248, 252); toolHeaderFg = new Color(80, 60, 100); toolBorder = new Color(200, 180, 220);
+                
+                functionCallBg = new Color(28, 37, 51); functionCallFg = new Color(0, 229, 255);
+                functionResponseBg = Color.BLACK; functionResponseFg = new Color(0, 255, 0);
+                functionErrorBg = new Color(51, 28, 28); functionErrorFg = new Color(255, 80, 80);
+                errorBg = new Color(255, 210, 210); errorFg = new Color(180, 0, 0);
+            }
+            
+            log.info("UITheme initialized: mode={}, isDarkLaf={}, panelBg={}", mode, isDarkLaf, toHex(panelBg));
+        }
+        
+        public Color getHeatmapRowBg(String role) {
+            if (isMinimalist()) return panelBg;
+            if (role == null) return panelBg;
+            switch (role.toLowerCase()) {
+                case "user": return userHeaderBg;
+                case "model": return modelHeaderBg;
+                case "tool": return toolHeaderBg;
+                default: return panelBg;
+            }
+        }
 
-        // Grounding Details (Inner Sections: Supporting Text, Sources, Search Suggestions)
-        private final Color groundingDetailsHeaderBg = new Color(212, 237, 218); // #C8E6C9 - Aligned with chipBackground
-        private final Color groundingDetailsContentBg = new Color(233, 247, 239); // #E9F7EF - Aligned with userContentBg
-        private final Color groundingDetailsHeaderColor = Color.BLACK;
+        public Color getHeatmapRowFg(String role) {
+            if (isMinimalist()) return fontColor;
+            if (role == null) return fontColor;
+            switch (role.toLowerCase()) {
+                case "user": return userHeaderFg;
+                case "model": return modelHeaderFg;
+                case "tool": return toolHeaderFg;
+                default: return fontColor;
+            }
+        }
+        
+        public Color getPieColor(String role, boolean isError) {
+            if (isError) return new Color(216, 59, 1); // Vibrant Red for errors
+            
+            if (role == null) return secondaryFontColor;
+            switch (role.toLowerCase()) {
+                case "user": return userHeaderFg;
+                case "model": return modelHeaderFg;
+                case "tool": return toolHeaderFg;
+                default: return secondaryFontColor;
+            }
+        }
 
-        // Grounding Chips (Keeping existing for now as requested)
-        private final Color chipBackground = new Color(200, 230, 201); // #C8E6C9 - Anahata Green
-        private final Color chipBorder = new Color(210, 210, 210);
-        private final Color chipText = new Color(0, 77, 64); // #004D40 - Dark Anahata Green
+        public boolean isMinimalist() {
+            return mode == ThemeMode.MINIMALIST;
+        }
+        
+        public boolean isDark() {
+            return dark;
+        }
+
+        private boolean isDarkColor(Color c) {
+            return (c.getRed() * 0.299 + c.getGreen() * 0.587 + c.getBlue() * 0.114) < 128;
+        }
+        
+        private Color blend(Color c1, Color c2, float ratio) {
+            int r = (int) (c1.getRed() * ratio + c2.getRed() * (1 - ratio));
+            int g = (int) (c1.getGreen() * ratio + c2.getGreen() * (1 - ratio));
+            int b = (int) (c1.getBlue() * ratio + c2.getBlue() * (1 - ratio));
+            return new Color(r, g, b);
+        }
+        
+        public Color getDefaultBorder() { return border; }
+        
+        public Color getGroundingContentBg() { return userContentBg; }
+        public Color getGroundingHeaderBg() { return userHeaderBg; }
+        public Color getGroundingDetailsHeaderBg() { return userHeaderBg; }
+        public Color getGroundingDetailsHeaderColor() { return userHeaderFg; }
+        public Color getGroundingDetailsContentBg() { return userContentBg; }
+        public Color getChipText() { return userHeaderFg; }
+        public Color getChipBackground() { return userHeaderBg; }
+        public Color getChipBorder() { return userBorder; }
+
+        public String getFontColorHex() {
+            return toHex(fontColor);
+        }
+
+        public String getSecondaryFontColorHex() {
+            return toHex(secondaryFontColor);
+        }
+        
+        private String toHex(Color c) {
+            return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
+        }
     }
 }

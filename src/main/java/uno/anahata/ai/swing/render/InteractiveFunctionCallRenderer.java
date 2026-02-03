@@ -15,13 +15,11 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 public class InteractiveFunctionCallRenderer implements PartRenderer {
 
     private final FunctionCall functionCall;
-    private final SwingChatConfig.UITheme theme;
     private FunctionConfirmation selectedState;
     private final JToggleButton yesButton, noButton, alwaysButton, neverButton;
 
-    public InteractiveFunctionCallRenderer(FunctionCall functionCall, FunctionConfirmation preference, SwingChatConfig.UITheme theme) {
+    public InteractiveFunctionCallRenderer(FunctionCall functionCall, FunctionConfirmation preference) {
         this.functionCall = functionCall;
-        this.theme = theme;
         this.selectedState = (preference != null) ? preference : FunctionConfirmation.YES;
 
         this.yesButton = new JToggleButton("Yes");
@@ -61,7 +59,7 @@ public class InteractiveFunctionCallRenderer implements PartRenderer {
         JPanel mainPanel = new JPanel(new java.awt.BorderLayout());
         mainPanel.setOpaque(false);
 
-        JComponent functionCallDetails = new FunctionCallPartRenderer(theme).render(part, editorKitProvider);
+        JComponent functionCallDetails = new FunctionCallPartRenderer().render(part, editorKitProvider);
         mainPanel.add(functionCallDetails, java.awt.BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));

@@ -9,6 +9,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.text.EditorKit;
 import lombok.extern.slf4j.Slf4j;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 
 /**
@@ -66,12 +67,14 @@ public final class CodeBlockRenderer {
     }
     
     private static JComponent createFallbackPane(String code) {
+        UITheme theme = UITheme.get();
         JTextArea fallbackEditor = new JTextArea(code, 10, 80);
         fallbackEditor.setEditable(false);
         fallbackEditor.setLineWrap(true);
         fallbackEditor.setWrapStyleWord(true);
-        fallbackEditor.setBackground(new java.awt.Color(240, 240, 240));
-        fallbackEditor.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12));        
+        fallbackEditor.setBackground(theme.getFunctionCallBg());
+        fallbackEditor.setForeground(theme.getFunctionCallFg());
+        fallbackEditor.setFont(theme.getMonoFont());        
         
         return fallbackEditor;
     }

@@ -11,6 +11,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 
 /**
@@ -20,6 +21,9 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
  * @author anahata
  */
 public class ExecutableCodePartRenderer implements PartRenderer {
+
+    public ExecutableCodePartRenderer() {
+    }
 
     @Override
     public JComponent render(Part part, EditorKitProvider editorKitProvider) {
@@ -31,13 +35,14 @@ public class ExecutableCodePartRenderer implements PartRenderer {
             return panel;
         }
 
+        UITheme theme = UITheme.get();
         ExecutableCode execution = part.executableCode().get();
         Language language = execution.language().get();
         String code = execution.code().get();
 
         JLabel titleLabel = new JLabel("Executable Code (" + language + ")");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD));
-        titleLabel.setForeground(new Color(0, 102, 153));
+        titleLabel.setForeground(theme.getFunctionCallFg());
         titleLabel.setBorder(new EmptyBorder(2, 4, 2, 4));
         panel.add(titleLabel, BorderLayout.NORTH);
 

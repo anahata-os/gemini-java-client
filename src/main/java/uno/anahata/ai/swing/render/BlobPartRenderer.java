@@ -24,11 +24,15 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import uno.anahata.ai.media.util.Microphone;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 
 public class BlobPartRenderer implements PartRenderer {
 
     private static final int THUMBNAIL_MAX_SIZE = 250;
+
+    public BlobPartRenderer() {
+    }
 
     @Override
     public JComponent render(Part part, EditorKitProvider editorKitProvider) {
@@ -37,6 +41,7 @@ public class BlobPartRenderer implements PartRenderer {
             return new JLabel("Error: Blob data not found.");
         }
 
+        UITheme theme = UITheme.get();
         Blob blob = blobOpt.get();
         String mimeType = blob.mimeType().orElse("application/octet-stream");
         byte[] data = blob.data().get();
@@ -69,7 +74,7 @@ public class BlobPartRenderer implements PartRenderer {
                 if (originalImage != null) {
                     Image thumbnail = createThumbnail(originalImage);
                     JLabel imageLabel = new JLabel(new ImageIcon(thumbnail));
-                    imageLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+                    imageLabel.setBorder(BorderFactory.createLineBorder(theme.getDefaultBorder()));
                     panel.add(imageLabel, BorderLayout.CENTER);
                 }
             } catch (IOException e) {
@@ -85,9 +90,11 @@ public class BlobPartRenderer implements PartRenderer {
 
         JLabel mimeTypeLabel = new JLabel("MIME Type: " + mimeType);
         mimeTypeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mimeTypeLabel.setForeground(theme.getSecondaryFontColor());
 
         JLabel sizeLabel = new JLabel("Size: " + formatSize(data.length));
         sizeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sizeLabel.setForeground(theme.getSecondaryFontColor());
 
         infoPanel.add(mimeTypeLabel);
         infoPanel.add(Box.createRigidArea(new Dimension(0, 5)));
@@ -112,6 +119,7 @@ public class BlobPartRenderer implements PartRenderer {
 
         BufferedImage resized = new BufferedImage(newWidth, newHeight, original.getType() == 0 ? BufferedImage.TYPE_INT_ARGB : original.getType());
         Graphics2D g = resized.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g.drawImage(original, 0, 0, newWidth, newHeight, null);
         g.dispose();

@@ -72,6 +72,15 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
 
         chatScrollPane = new JScrollPane(chatContentPanel);
         chatScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        
+        // Track the "at bottom" state in real-time as the user scrolls.
+        // This prevents jumping to the bottom when interacting with elements (like toggling tool output)
+        // if the user has scrolled up to read previous messages.
+        chatScrollPane.getVerticalScrollBar().addAdjustmentListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                wasAtBottom = isScrolledToBottom();
+            }
+        });
 
         JButton scrollToBottomButton = new JButton("↓");
         scrollToBottomButton.setToolTipText("Scroll to Bottom");
@@ -91,9 +100,9 @@ public class ConversationPanel extends JPanel implements ContextListener, Status
         chatContentPanel.removeAll();
         List<ChatMessage> currentContext = chat.getContext();
 
+        ContentRenderer renderer = new ContentRenderer(parentPanel);
         for (ChatMessage chatMessage : currentContext) {
             if (chatMessage.getContent() != null) {
-                ContentRenderer renderer = new ContentRenderer(parentPanel);
                 JComponent messageComponent = renderer.render(chatMessage);
 
                 ChatMessageJPanel messageContainer = new ChatMessageJPanel(chatMessage);

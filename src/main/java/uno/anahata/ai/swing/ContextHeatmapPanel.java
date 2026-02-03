@@ -57,6 +57,8 @@ import uno.anahata.ai.tools.ContextBehavior;
 import uno.anahata.ai.tools.ToolManager;
 import uno.anahata.ai.internal.GsonUtils;
 import uno.anahata.ai.internal.PartUtils;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
+import uno.anahata.ai.swing.render.PartType;
 
 @Slf4j
 public class ContextHeatmapPanel extends JPanel {
@@ -68,7 +70,6 @@ public class ContextHeatmapPanel extends JPanel {
     private JLabel statusLabel;
     private SwingWorker<List<PartInfo>, Void> worker;
     private ToolManager toolManager;
-    private SwingChatConfig.UITheme theme;
 
     private ScrollableTooltipPopup tooltipPopup;
 
@@ -78,7 +79,6 @@ public class ContextHeatmapPanel extends JPanel {
 
     public void setToolManager(ToolManager toolManager) {
         this.toolManager = toolManager;
-        this.theme = new SwingChatConfig.UITheme();
     }
 
     private void initComponents() {
@@ -249,7 +249,7 @@ public class ContextHeatmapPanel extends JPanel {
             if (msg.getContent() != null && msg.getContent().parts().isPresent()) {
                 List<Part> parts = msg.getContent().parts().get();
                 for (int j = 0; j < parts.size(); j++) {
-                    infos.add(new PartInfo(i, j, msg, parts.get(j), toolManager, theme, statusMap));
+                    infos.add(new PartInfo(i, j, msg, parts.get(j), toolManager, statusMap));
                 }
             }
         }
@@ -262,7 +262,7 @@ public class ContextHeatmapPanel extends JPanel {
         private final int partIndex;
         private final long messageSeqId;
         private final String role;
-        private final String partType;
+        private final PartType partType;
         private final long sizeInBytes;
         private final String functionName;
         private final String resourceId;
@@ -271,19 +271,17 @@ public class ContextHeatmapPanel extends JPanel {
         private final String contentSummary;
         private final String fullContentText;
         private final boolean isError;
-        private final Color roleColor;
         private final Part part;
 
-        PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, ToolManager fm, SwingChatConfig.UITheme theme, Map<String, ResourceStatus> statusMap) {
+        PartInfo(int msgIdx, int partIdx, ChatMessage msg, Part part, ToolManager fm, Map<String, ResourceStatus> statusMap) {
             this.messageIndex = msgIdx;
             this.partIndex = partIdx;
             this.messageSeqId = msg.getSequentialId();
             this.role = msg.getContent().role().orElse("unknown");
             this.sizeInBytes = PartUtils.calculateSizeInBytes(part);
-            this.roleColor = getRoleColor(theme, this.role);
             this.part = part;
+            this.partType = PartType.from(part);
 
-            String tempPartType = "Unknown";
             String tempFullContent = part.toString();
             String tempFuncName = "";
             String tempResourceId = "";
@@ -291,15 +289,12 @@ public class ContextHeatmapPanel extends JPanel {
             boolean tempIsError = false;
 
             if (part.text().isPresent()) {
-                tempPartType = "Text";
                 tempFullContent = part.text().get();
             } else if (part.functionCall().isPresent()) {
-                tempPartType = "FunctionCall";
                 tempFuncName = part.functionCall().get().name().orElse("");
                 tempFullContent = "Call: " + tempFuncName + "\nArgs: " + part.functionCall().get().args();
             } else if (part.functionResponse().isPresent()) {
                 FunctionResponse fr = part.functionResponse().get();
-                tempPartType = "FunctionResponse";
                 tempFuncName = fr.name().orElse("");
                 Map<String, Object> respMap = (Map<String, Object>) fr.response().get();
                 tempFullContent = "Response: " + tempFuncName + "\nContent: " + respMap;
@@ -316,11 +311,14 @@ public class ContextHeatmapPanel extends JPanel {
                     }
                 }
             } else if (part.inlineData().isPresent()) {
-                tempPartType = "Blob";
                 tempFullContent = "MIME Type: " + part.inlineData().get().mimeType().orElse("") + ", Size: " + sizeInBytes + " bytes";
+            } else if (part.codeExecutionResult().isPresent()) {
+                tempFullContent = part.codeExecutionResult().get().output().orElse("");
+                tempIsError = "ERROR".equalsIgnoreCase(part.codeExecutionResult().get().outcome().map(Object::toString).orElse(""));
+            } else if (part.executableCode().isPresent()) {
+                tempFullContent = part.executableCode().get().code().orElse("");
             }
 
-            this.partType = tempPartType;
             this.fullContentText = tempFullContent;
             this.functionName = tempFuncName;
             this.resourceId = tempResourceId;
@@ -336,15 +334,6 @@ public class ContextHeatmapPanel extends JPanel {
                 return Paths.get(path).getFileName().toString();
             } catch (InvalidPathException e) {
                 return path;
-            }
-        }
-
-        private Color getRoleColor(SwingChatConfig.UITheme theme, String role) {
-            switch (role) {
-                case "user": return theme.getUserHeaderBg();
-                case "model": return theme.getModelHeaderBg();
-                case "tool": return theme.getToolHeaderBg();
-                default: return theme.getDefaultHeaderBg();
             }
         }
     }
@@ -381,7 +370,7 @@ public class ContextHeatmapPanel extends JPanel {
                 case 0: return info.getMessageIndex();
                 case 1: return info.getPartIndex();
                 case 2: return info.getRole();
-                case 3: return info.getPartType();
+                case 3: return info.getPartType().name();
                 case 4: return info.getSizeInBytes();
                 case 5: return info.getFunctionName();
                 case 6: return info.getResourceIdFilename();
@@ -401,12 +390,13 @@ public class ContextHeatmapPanel extends JPanel {
             if (!isSelected) {
                 int modelRow = table.convertRowIndexToModel(row);
                 PartInfo info = tableModel.getPartInfo(modelRow);
+                UITheme theme = UITheme.get();
                 if (info.isError()) {
-                    c.setBackground(theme.getFunctionErrorBg());
-                    c.setForeground(theme.getFunctionErrorFg());
+                    c.setBackground(theme.getErrorBg());
+                    c.setForeground(theme.getErrorFg());
                 } else {
-                    c.setBackground(info.getRoleColor());
-                    c.setForeground(theme.getFontColor());
+                    c.setBackground(theme.getHeatmapRowBg(info.getRole()));
+                    c.setForeground(theme.getHeatmapRowFg(info.getRole()));
                 }
             }
             return c;
@@ -418,15 +408,6 @@ public class ContextHeatmapPanel extends JPanel {
         private final JTable table;
         private final PartTableModel tableModel;
         private static final DecimalFormat PERCENT_FORMAT = new DecimalFormat("#.0%");
-        private static final Map<String, Color> PART_TYPE_COLORS = new HashMap<>();
-
-        static {
-            PART_TYPE_COLORS.put("Text", new Color(0, 120, 215));
-            PART_TYPE_COLORS.put("FunctionCall", new Color(216, 59, 1));
-            PART_TYPE_COLORS.put("FunctionResponse", new Color(0, 153, 188));
-            PART_TYPE_COLORS.put("Blob", new Color(104, 33, 122));
-            PART_TYPE_COLORS.put("Unknown", Color.GRAY);
-        }
 
         public PieChartPanel(JTable table, PartTableModel tableModel) {
             this.table = table;
@@ -497,9 +478,10 @@ public class ContextHeatmapPanel extends JPanel {
             }
             List<Slice> newSlices = new ArrayList<>();
             double currentAngle = 0;
+            UITheme theme = UITheme.get();
             for (PartInfo info : data) {
                 double angle = (double) info.getSizeInBytes() / totalSize * 360.0;
-                Color color = PART_TYPE_COLORS.getOrDefault(info.getPartType(), Color.DARK_GRAY);
+                Color color = theme.getPieColor(info.getRole(), info.isError());
                 newSlices.add(new Slice(currentAngle, angle, color, info, (double) info.getSizeInBytes() / totalSize));
                 currentAngle += angle;
             }
@@ -569,7 +551,8 @@ public class ContextHeatmapPanel extends JPanel {
             adjustLabelPositions(leftLabels, fm);
 
             // Draw all labels and lines
-            g2d.setColor(Color.BLACK);
+            UITheme theme = UITheme.get();
+            g2d.setColor(theme.getFontColor());
             for (LabelInfo label : labels) {
                 g2d.drawLine((int) label.edgePoint.getX(), (int) label.edgePoint.getY(), (int) label.leaderLineEnd.getX(), (int) label.leaderLineEnd.getY());
                 g2d.drawLine((int) label.leaderLineEnd.getX(), (int) label.leaderLineEnd.getY(), (int) label.horizontalLineEnd.getX(), (int) label.horizontalLineEnd.getY());
@@ -598,7 +581,7 @@ public class ContextHeatmapPanel extends JPanel {
             if (slice != null) {
                 PartInfo info = slice.info;
                 return String.format("<html><b>%s</b> (Msg %d, Part %d)<br>Size: %d bytes (%.2f%%)<br>Type: %s<br>Summary: %s</html>",
-                    info.getRole(), info.getMessageIndex(), info.getPartIndex(), info.getSizeInBytes(), slice.percentage * 100, info.getPartType(), info.getContentSummary());
+                    info.getRole(), info.getMessageIndex(), info.getPartIndex(), info.getSizeInBytes(), slice.percentage * 100, info.getPartType().name(), info.getContentSummary());
             }
             return null;
         }
@@ -622,10 +605,19 @@ public class ContextHeatmapPanel extends JPanel {
 
             LabelInfo(Slice slice, double midAngleRad, int diameter, double sliceCenterX, double sliceCenterY) {
                 this.midAngleRad = midAngleRad;
-                this.text = String.format("%s (%s)",
-                    slice.info.getResourceIdFilename().isEmpty() ? slice.info.getPartType() : slice.info.getResourceIdFilename(),
-                    PERCENT_FORMAT.format(slice.percentage)
-                );
+                
+                String gist;
+                if (!slice.info.getResourceIdFilename().isEmpty()) {
+                    gist = slice.info.getResourceIdFilename();
+                } else if (slice.info.getPartType() == PartType.TEXT) {
+                    gist = StringUtils.capitalize(slice.info.getRole());
+                } else if (slice.info.getPartType() == PartType.FUNCTION_CALL || slice.info.getPartType() == PartType.FUNCTION_RESPONSE) {
+                    gist = slice.info.getFunctionName();
+                } else {
+                    gist = slice.info.getPartType().name();
+                }
+                
+                this.text = String.format("%s (%s)", gist, PERCENT_FORMAT.format(slice.percentage));
 
                 double radius = diameter / 2.0;
                 double labelRadius = radius + 15;

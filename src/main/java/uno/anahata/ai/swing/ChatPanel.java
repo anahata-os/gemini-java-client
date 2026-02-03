@@ -27,6 +27,8 @@ import uno.anahata.ai.status.ChatStatus;
 import uno.anahata.ai.status.StatusListener;
 import uno.anahata.ai.context.provider.ContextProvider;
 import uno.anahata.ai.gemini.GeminiAPI;
+import uno.anahata.ai.swing.SwingChatConfig.ThemeMode;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 
 @Slf4j
 @Getter
@@ -43,6 +45,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
     private JButton loadSessionButton;
     private JToggleButton localToolsButton;
     private JToggleButton serverToolsButton;
+    private JComboBox<ThemeMode> themeModeComboBox;
     private JComboBox<Model> modelIdComboBox;
 
     private final EditorKitProvider editorKitProvider;
@@ -83,6 +86,9 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         this.config = config;
         this.editorKitProvider = editorKitProvider;
         
+        // CRITICAL: Initialize the UITheme with the correct config BEFORE creating any UI components
+        UITheme.refresh(config);
+        
         FunctionPrompter prompter = new SwingFunctionPrompter(this);
         this.chat = new Chat(config, prompter);
         this.chat.addContextListener(this);
@@ -112,7 +118,7 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
             }
         });
 
-        serverToolsButton = new JToggleButton(IconUtils.getIcon("google.png", 18), chat.isServerToolsEnabled());
+        serverToolsButton = new JToggleButton(IconUtils.getIcon("google.png"), chat.isServerToolsEnabled());
         serverToolsButton.setToolTipText("Enable / Disable Server Tools (Google Search)");
         serverToolsButton.addActionListener(e -> {
             boolean selected = serverToolsButton.isSelected();
@@ -159,8 +165,27 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
 
         add(toolbar, BorderLayout.WEST);
 
-        // --- NORTH Panel (Model ID only) ---
+        // --- NORTH Panel (Model ID and Theme) ---
         JPanel northPanel = new JPanel(new BorderLayout());
+        
+        // Theme Selector (Moved to the LEFT)
+        themeModeComboBox = new JComboBox<>(ThemeMode.values());
+        themeModeComboBox.setSelectedItem(config.getThemeMode());
+        themeModeComboBox.addActionListener(e -> {
+            ThemeMode selected = (ThemeMode) themeModeComboBox.getSelectedItem();
+            if (selected != null) {
+                config.setThemeMode(selected);
+                UITheme.refresh(config);
+                chatPanel.redraw();
+                heatmapPanel.updateContext(chat.getContext()); // Refresh heatmap colors
+            }
+        });
+        
+        JPanel themePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        themePanel.add(new JLabel("Theme:"));
+        themePanel.add(themeModeComboBox);
+        northPanel.add(themePanel, BorderLayout.WEST);
+        
         modelIdComboBox = new JComboBox<>();
         modelIdComboBox.setRenderer(new DefaultListCellRenderer() {
             @Override
@@ -189,10 +214,11 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
             }
         });
 
-        JPanel modelIdPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        modelIdPanel.add(new JLabel("Model:"));
-        modelIdPanel.add(modelIdComboBox);
-        northPanel.add(modelIdPanel, BorderLayout.EAST);
+        JPanel modelPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        modelPanel.add(new JLabel("Model:"));
+        modelPanel.add(modelIdComboBox);
+        northPanel.add(modelPanel, BorderLayout.EAST);
+        
         add(northPanel, BorderLayout.NORTH);
 
         // --- SOUTH Panel (Input and Status) ---
@@ -202,7 +228,6 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         JPanel mainSouthPanel = new JPanel(new BorderLayout());
         mainSouthPanel.add(inputPanel, BorderLayout.CENTER);
         mainSouthPanel.add(statusPanel, BorderLayout.SOUTH);
-        // We will add this to the split pane later, not directly to the main panel.
 
         // --- CENTER Panel (Tabs) ---
         chatPanel = new ConversationPanel(this);
@@ -239,7 +264,6 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbedPane, mainSouthPanel);
         mainSplitPane.setResizeWeight(0.8); // Give more space to the chat history initially
         mainSplitPane.setOneTouchExpandable(true);
-        // By removing the setBorder call, we restore the default L&F border, making the divider visible.
 
         add(mainSplitPane, BorderLayout.CENTER);
 
@@ -334,24 +358,6 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         boolean restoreAttempted = false;
 
         if (autobackupFile.exists() && autobackupFile.length() > 0) {
-            
-            /*
-            int response = JOptionPane.showConfirmDialog(
-                    this,
-                    "An automatic backup from a previous session was found. \n"
-                            + "\n\n" + autobackupFile + ""
-                            + "\n\nDo you want to restore it?",
-                    
-                    "Anahata AI - Restore Session? " + autobackupFile.getName(),
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-            );
-            if (response == JOptionPane.YES_OPTION) {
-                restoreAttempted = true;
-                loadAutobackupInSwingWorker();
-            }*/
-            
-            //trying always load
             restoreAttempted = true;
             loadAutobackupInSwingWorker();
         }

@@ -33,6 +33,7 @@ import uno.anahata.ai.Chat;
 import uno.anahata.ai.tools.FunctionConfirmation;
 import uno.anahata.ai.tools.FunctionInfo;
 import uno.anahata.ai.internal.GsonUtils;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 
 public class ToolsPanel extends JPanel {
     private final Chat chat;
@@ -83,8 +84,12 @@ public class ToolsPanel extends JPanel {
         // Right side: Details of functions for the selected class
         detailPanel = new JPanel();
         detailPanel.setLayout(new BoxLayout(detailPanel, BoxLayout.Y_AXIS));
+        detailPanel.setOpaque(false);
+        
         JScrollPane detailScrollPane = new JScrollPane(detailPanel);
         detailScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        detailScrollPane.setOpaque(false);
+        detailScrollPane.getViewport().setOpaque(false);
 
         // Split pane
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(classTable), detailScrollPane);
@@ -162,11 +167,17 @@ public class ToolsPanel extends JPanel {
     }
 
     private JPanel createFunctionControlPanel(FunctionInfo fi) {
+        UITheme theme = UITheme.get();
         FunctionDeclaration fd = fi.declaration;
         
         String title = String.format("<html><b>%s</b> (%s)</html>", fi.method.getName(), FileUtils.byteCountToDisplaySize(fi.getSize()));
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(title));
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(theme.getDefaultBorder()), 
+            title, 
+            0, 0, null, theme.getFontColor()
+        ));
         
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
@@ -177,7 +188,9 @@ public class ToolsPanel extends JPanel {
 
         // Use the full, rich description directly.
         String descriptionText = "<html>" + fd.description().get().replace("\n", "<br>") + "</html>";
-        panel.add(new JLabel(descriptionText), gbc);
+        JLabel descLabel = new JLabel(descriptionText);
+        descLabel.setForeground(theme.getFontColor());
+        panel.add(descLabel, gbc);
         gbc.gridy++;
 
         // --- Toggle Button ---
@@ -189,13 +202,16 @@ public class ToolsPanel extends JPanel {
 
         // --- Collapsible Details Panel ---
         JPanel collapsiblePanel = new JPanel(new BorderLayout());
+        collapsiblePanel.setOpaque(false);
         collapsiblePanel.setVisible(false);
         
         // Display the full JSON of the FunctionDeclaration using its own toJson() method.
         String rawJson = fd.toJson();
         String prettyJson = GsonUtils.prettyPrint(rawJson);
         String jsonSchema = "<html><pre>" + prettyJson.replace("\n", "<br>").replace(" ", "&nbsp;") + "</pre></html>";
-        collapsiblePanel.add(new JLabel(jsonSchema), BorderLayout.CENTER);
+        JLabel jsonLabel = new JLabel(jsonSchema);
+        jsonLabel.setForeground(theme.getSecondaryFontColor());
+        collapsiblePanel.add(jsonLabel, BorderLayout.CENTER);
         
         gbc.fill = GridBagConstraints.HORIZONTAL;
         panel.add(collapsiblePanel, gbc);
@@ -219,6 +235,7 @@ public class ToolsPanel extends JPanel {
 
     private JPanel createButtonGroup(FunctionDeclaration fd) {
         JPanel buttonPanel = new JPanel();
+        buttonPanel.setOpaque(false);
         ButtonGroup group = new ButtonGroup();
         JToggleButton promptButton = new JToggleButton("Prompt");
         JToggleButton alwaysButton = new JToggleButton("Always");

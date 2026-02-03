@@ -95,13 +95,11 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
 
         final List<? extends Part> parts = modelMessage.getContent().parts().get();
         
-        UITheme theme = chatPanel.getConfig().getTheme();
-        
         for (Part part : parts) {
             if (part.functionCall().isPresent()) {
                 FunctionCall fc = part.functionCall().get();
                 FunctionConfirmation preference = chatPanel.getConfig().getFunctionConfirmation(fc);
-                InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, preference, theme);
+                InteractiveFunctionCallRenderer interactiveRenderer = new InteractiveFunctionCallRenderer(fc, preference);
                 interactiveRenderers.add(interactiveRenderer);
                 contentRenderer.registerRenderer(part, interactiveRenderer);
             }

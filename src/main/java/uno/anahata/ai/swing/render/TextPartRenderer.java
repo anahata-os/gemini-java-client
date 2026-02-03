@@ -8,6 +8,7 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,6 +19,7 @@ import javax.swing.JPanel;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 import javax.swing.text.html.StyleSheet;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 
 public class TextPartRenderer implements PartRenderer {
@@ -70,31 +72,30 @@ public class TextPartRenderer implements PartRenderer {
     }
 
     private JComponent createHtmlPane(String html, boolean isThought) {
+        UITheme theme = UITheme.get();
         JEditorPane editorPane = new ContentRenderer.WrappingEditorPane();
         editorPane.setEditable(false);
         editorPane.setContentType("text/html");
         editorPane.setOpaque(false); 
+        editorPane.setBackground(new Color(0, 0, 0, 0)); // Force transparency
         
         HTMLEditorKit kit = new HTMLEditorKit();
-        
-        // Create a local stylesheet to avoid polluting the global HTMLEditorKit stylesheet
         StyleSheet sheet = new StyleSheet();
         sheet.addStyleSheet(kit.getStyleSheet());
         
         String bodyRule = "body { word-wrap: break-word; font-family: sans-serif; font-size: 12px; background-color: transparent; ";
         if (isThought) {
-            bodyRule += "font-style: italic; color: #707070; ";
+            bodyRule += "font-style: italic; color: " + theme.getSecondaryFontColorHex() + "; ";
         } else {
-            bodyRule += "font-style: normal; ";
+            bodyRule += "font-style: normal; color: " + theme.getFontColorHex() + "; ";
         }
         bodyRule += "}";
         
         sheet.addRule(bodyRule);
         sheet.addRule("table { border-collapse: collapse; width: 100%; }");
-        sheet.addRule("th, td { border: 1px solid #dddddd; text-align: left; padding: 8px; }");
-        sheet.addRule("th { background-color: #f2f2f2; }");
+        sheet.addRule("th, td { border: 1px solid " + theme.getSecondaryFontColorHex() + "; text-align: left; padding: 8px; }");
+        sheet.addRule("th { background-color: transparent; font-weight: bold; }");
         
-        // Correct way to set a per-instance stylesheet: pass it to the HTMLDocument constructor
         HTMLDocument doc = new HTMLDocument(sheet);
         editorPane.setEditorKit(kit);
         editorPane.setDocument(doc);
@@ -102,9 +103,6 @@ public class TextPartRenderer implements PartRenderer {
         editorPane.setText("<html><body>" + html + "</body></html>");
         editorPane.setAlignmentX(JComponent.LEFT_ALIGNMENT);
         
-        // FIX: Wrap the editor pane in a JPanel with BorderLayout. This is a standard
-        // Swing trick to force the child component (the editor pane) to respect the
-        // width of its container, which enables line wrapping.
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setOpaque(false);
         wrapper.add(editorPane, BorderLayout.CENTER);

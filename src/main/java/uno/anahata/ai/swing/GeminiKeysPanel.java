@@ -21,6 +21,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jdesktop.swingx.prompt.PromptSupport;
 import uno.anahata.ai.config.ChatConfig;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 
 /**
  * A UI panel for managing Gemini API keys.
@@ -52,9 +53,7 @@ public class GeminiKeysPanel extends JPanel {
         this.keysFile = new File(config.getWorkingFolder(), config.getApiKeyFileName());
         
         keysTextArea = new JTextArea();
-        if (config instanceof SwingChatConfig) {
-            keysTextArea.setFont(((SwingChatConfig) config).getTheme().getMonoFont());
-        }
+        keysTextArea.setFont(UITheme.get().getMonoFont());
         
         // Set the hint using SwingX PromptSupport
         String hint = "# Gemini API Key Configuration\n" +
@@ -136,7 +135,7 @@ public class GeminiKeysPanel extends JPanel {
             }
             JOptionPane.showMessageDialog(this, "API keys saved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException e) {
-            log.error("Failed to save Gemini API keys", e);
+            log.error("Failed to Gemini API keys", e);
             JOptionPane.showMessageDialog(this, "Error saving keys file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }

@@ -12,6 +12,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.border.EmptyBorder;
+import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 
 /**
@@ -20,6 +21,9 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
  * @author anahata
  */
 public class CodeExecutionResultPartRenderer implements PartRenderer {
+
+    public CodeExecutionResultPartRenderer() {
+    }
 
     @Override
     public JComponent render(Part part, EditorKitProvider editorKitProvider) {
@@ -31,13 +35,14 @@ public class CodeExecutionResultPartRenderer implements PartRenderer {
             return panel;
         }
 
+        UITheme theme = UITheme.get();
         CodeExecutionResult result = part.codeExecutionResult().get();
         String outcome = result.outcome().map(Object::toString).orElse("UNKNOWN");
         boolean isError = "ERROR".equalsIgnoreCase(outcome);
 
         JLabel outcomeLabel = new JLabel("Outcome: " + outcome);
         outcomeLabel.setFont(outcomeLabel.getFont().deriveFont(Font.BOLD));
-        outcomeLabel.setForeground(isError ? new Color(192, 0, 0) : new Color(0, 128, 0));
+        outcomeLabel.setForeground(isError ? theme.getFunctionErrorFg() : theme.getFunctionResponseFg());
         outcomeLabel.setBorder(new EmptyBorder(2, 4, 2, 4));
         panel.add(outcomeLabel, BorderLayout.NORTH);
 
@@ -47,9 +52,10 @@ public class CodeExecutionResultPartRenderer implements PartRenderer {
         textArea.setEditable(false);
         textArea.setLineWrap(true);
         textArea.setWrapStyleWord(true);
-        textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        textArea.setFont(theme.getMonoFont());
         textArea.setOpaque(true);
-        textArea.setBackground(new Color(245, 245, 245));
+        textArea.setBackground(isError ? theme.getFunctionErrorBg() : theme.getFunctionResponseBg());
+        textArea.setForeground(isError ? theme.getFunctionErrorFg() : theme.getFunctionResponseFg());
         textArea.setBorder(new EmptyBorder(8, 8, 8, 8));
         
         JScrollPane scrollPane = new JScrollPane(textArea);

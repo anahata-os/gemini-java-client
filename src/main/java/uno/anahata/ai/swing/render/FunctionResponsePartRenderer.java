@@ -15,10 +15,7 @@ import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 
 public class FunctionResponsePartRenderer implements PartRenderer {
 
-    private final UITheme theme;
-
-    public FunctionResponsePartRenderer(UITheme theme) {
-        this.theme = theme;
+    public FunctionResponsePartRenderer() {
     }
 
     @Override
@@ -27,6 +24,7 @@ public class FunctionResponsePartRenderer implements PartRenderer {
             throw new IllegalArgumentException("Part must be a FunctionResponse Part.");
         }
 
+        UITheme theme = UITheme.get();
         FunctionResponse fr = part.functionResponse().get();
         java.util.Map<String, Object> responseMap = fr.response().get();
 
@@ -52,17 +50,22 @@ public class FunctionResponsePartRenderer implements PartRenderer {
         contentArea.setFont(theme.getMonoFont());
         contentArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        if (isError) {
-            contentArea.setBackground(theme.getFunctionErrorBg());
-            contentArea.setForeground(theme.getFunctionErrorFg());
+        if (theme.isMinimalist()) {
+            contentArea.setBackground(theme.getPanelBg());
+            contentArea.setForeground(theme.getFontColor());
         } else {
-            contentArea.setBackground(theme.getFunctionResponseBg());
-            contentArea.setForeground(theme.getFunctionResponseFg());
+            if (isError) {
+                contentArea.setBackground(theme.getFunctionErrorBg());
+                contentArea.setForeground(theme.getFunctionErrorFg());
+            } else {
+                contentArea.setBackground(theme.getFunctionResponseBg());
+                contentArea.setForeground(theme.getFunctionResponseFg());
+            }
         }
         
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.add(contentArea, BorderLayout.CENTER);
-        contentPanel.setBorder(BorderFactory.createLineBorder(java.awt.Color.GRAY));
+        contentPanel.setBorder(BorderFactory.createLineBorder(theme.getBorder()));
 
         JToggleButton toggleButton = new JToggleButton("Tool Output");
         toggleButton.setSelected(isError);
