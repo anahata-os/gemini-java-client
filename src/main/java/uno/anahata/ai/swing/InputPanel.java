@@ -27,6 +27,7 @@ import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.undo.UndoManager;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jdesktop.swingx.JXTextArea;
@@ -48,6 +49,8 @@ public class InputPanel extends JPanel {
     private JButton screenshotButton;
     private JButton captureFramesButton;
     private AttachmentsPanel attachmentsPanel;
+    
+    private final UndoManager undoManager = new UndoManager();
 
     public InputPanel(ChatPanel parentPanel) {
         // Use a simple BorderLayout. The JScrollPane in the CENTER will automatically fill available space.
@@ -67,6 +70,29 @@ public class InputPanel extends JPanel {
         inputTextArea = new JXTextArea("Type your message here (Ctrl+Enter to send)");
         inputTextArea.setLineWrap(true);
         inputTextArea.setWrapStyleWord(true);
+        
+        // Undo/Redo Support
+        inputTextArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));
+        
+        inputTextArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK), "Undo");
+        inputTextArea.getActionMap().put("Undo", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (undoManager.canUndo()) {
+                    undoManager.undo();
+                }
+            }
+        });
+        
+        inputTextArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK), "Redo");
+        inputTextArea.getActionMap().put("Redo", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (undoManager.canRedo()) {
+                    undoManager.redo();
+                }
+            }
+        });
 
         // Ctrl+Enter to send
         KeyStroke ctrlEnter = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.CTRL_DOWN_MASK);

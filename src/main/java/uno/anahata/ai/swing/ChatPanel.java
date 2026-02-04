@@ -264,6 +264,8 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbedPane, mainSouthPanel);
         mainSplitPane.setResizeWeight(0.8); // Give more space to the chat history initially
         mainSplitPane.setOneTouchExpandable(true);
+        mainSplitPane.setDividerSize(10); // Make it easier to grab
+        mainSplitPane.putClientProperty("JSplitPane.dividerStyle", "grip"); // Force the grip style for visibility
 
         add(mainSplitPane, BorderLayout.CENTER);
 

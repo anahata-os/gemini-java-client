@@ -5,6 +5,9 @@ import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.lang.reflect.InvocationTargetException;
@@ -13,22 +16,23 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
-import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
+import javax.swing.undo.UndoManager;
 import lombok.extern.slf4j.Slf4j;
 import uno.anahata.ai.Chat;
 import uno.anahata.ai.ChatMessage;
 import uno.anahata.ai.config.ChatConfig;
 import uno.anahata.ai.tools.FunctionConfirmation;
 import uno.anahata.ai.tools.FunctionPrompter;
-import uno.anahata.ai.swing.SwingChatConfig.UITheme;
 import uno.anahata.ai.swing.render.ContentRenderer;
 import uno.anahata.ai.swing.render.InteractiveFunctionCallRenderer;
 
@@ -52,9 +56,8 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
      * @param chatPanel The ChatPanel that initiated the prompt.
      */
     public SwingFunctionPrompter(ChatPanel chatPanel) {
-        // We use null as the owner initially because the ChatPanel might not be added to a window yet.
-        // The title is updated in the prompt() method once the Chat instance is fully initialized.
-        super((JFrame) null, "Confirm Proposed Actions", true);
+        // We use the window ancestor of the chatPanel as the owner to prevent the "modal hang"
+        super(SwingUtilities.getWindowAncestor(chatPanel), "Confirm Proposed Actions", ModalityType.APPLICATION_MODAL);
         this.chatPanel = chatPanel;
     }
 
@@ -62,6 +65,8 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
     public PromptResult prompt(ChatMessage modelMessage, Chat chat) {
         try {
             SwingUtilities.invokeAndWait(() -> {
+                Window owner = SwingUtilities.getWindowAncestor(chatPanel);
+                
                 setTitle("Confirm Proposed Actions - " + chat.getDisplayName());
                 interactiveRenderers.clear();
                 functionConfirmations.clear();
@@ -71,7 +76,10 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
                 initComponents(modelMessage);
                 pack();
                 setSize(1024, 768);
-                setLocationRelativeTo(SwingUtilities.getWindowAncestor(chatPanel));
+                setLocationRelativeTo(owner);
+                
+                // Ensure it's visible and focused
+                toFront();
                 setVisible(true); // This blocks until the dialog is closed
             });
         } catch (InterruptedException | InvocationTargetException e) {
@@ -116,6 +124,25 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
 
         JPanel bottomPanel = new JPanel(new BorderLayout(0, 5));
         JTextArea commentTextArea = new JTextArea(3, 60);
+        
+        // Undo/Redo Support for the comment area
+        UndoManager undoManager = new UndoManager();
+        commentTextArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));
+        commentTextArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, KeyEvent.CTRL_DOWN_MASK), "Undo");
+        commentTextArea.getActionMap().put("Undo", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (undoManager.canUndo()) undoManager.undo();
+            }
+        });
+        commentTextArea.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, KeyEvent.CTRL_DOWN_MASK), "Redo");
+        commentTextArea.getActionMap().put("Redo", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (undoManager.canRedo()) undoManager.redo();
+            }
+        });
+
         JPanel commentPanel = new JPanel(new BorderLayout());
         commentPanel.setBorder(new TitledBorder("Add Comment (Optional)"));
         commentPanel.add(new JScrollPane(commentTextArea), BorderLayout.CENTER);
@@ -136,7 +163,6 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         cancelButton.addActionListener(e -> {
             this.userComment = commentTextArea.getText();
             this.cancelled = true;
-            // Do NOT collect results, the cancellation overrides individual choices.
             setVisible(false);
             dispose();
         });
@@ -145,7 +171,6 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                // Treat closing the dialog as a cancellation
                 userComment = commentTextArea.getText();
                 cancelled = true;
                 setVisible(false);
@@ -165,7 +190,6 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
             FunctionCall functionCall = renderer.getFunctionCall();
             FunctionConfirmation state = renderer.getSelectedState();
             
-            // Persist the user's choice for the next time this function is called.
             config.setFunctionConfirmation(functionCall, state);
             results.put(functionCall, state);
         }

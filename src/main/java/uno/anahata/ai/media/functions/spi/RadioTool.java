@@ -1,6 +1,8 @@
 /* Licensed under the Apache License, Version 2.0 */
 package uno.anahata.ai.media.functions.spi;
 
+import java.awt.KeyboardFocusManager;
+import java.awt.Window;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
@@ -63,30 +65,6 @@ public class RadioTool {
         //not working
         //stations.put("The Jazz Groove", "http://west-mp3-128.jazzgroove.org");
 
-        /**
-         * Others to try 
-         * [WORKING] http://ice.somafm.com/thetrip (HTTP 200)
-         * Content-Type: audio/mpeg Read 1024 bytes. 
-         * • [WORKING] http://ice.somafm.com/lush (HTTP 200) Content-Type: audio/mpeg Read
-         * 1024 bytes. • [WORKING] http://ice.somafm.com/u80s (HTTP 200)
-         * Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
-         * http://ice.somafm.com/deepspaceone (HTTP 200) Content-Type:
-         * audio/mpeg Read 1024 bytes. • [WORKING]
-         * http://ice.somafm.com/dronezone (HTTP 200) Content-Type: audio/mpeg
-         * Read 1024 bytes. • [WORKING] http://ice.somafm.com/secretagent (HTTP
-         * 200) Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
-         * http://ice.somafm.com/groovesalad (HTTP 200) Content-Type: audio/mpeg
-         * Read 1024 bytes. • [WORKING] http://stream.dotpoint.nl:8000/sst (HTTP
-         * 200) Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
-         * http://server17.streamserver24.com:44220/mp3-256 (HTTP 200)
-         * Content-Type: audio/mpeg Read 1024 bytes. • [WORKING]
-         * https://npr-ice.streamguys1.com/live.mp3 (HTTP 200) Content-Type:
-         * audio/mpeg Read 1024 bytes. • [WORKING]
-         * https://npr-ice.streamguys1.com/live.aac (HTTP 200) Content-Type:
-         * audio/aac Read 1024 bytes. • [WORKING]
-         * http://sc8.radiocaroline.net:8020/ (HTTP 200) Content-Type:
-         * audio/mpeg Read 1024 bytes.
-         */
         STATIONS = Collections.unmodifiableMap(stations);
     }
 
@@ -133,6 +111,7 @@ public class RadioTool {
                     ui = new RadioToolPanel();
                     ui.setVisible(true);
                 }
+                ui.toFront();
                 ui.updatePlaybackState(name, true);
             });
 
