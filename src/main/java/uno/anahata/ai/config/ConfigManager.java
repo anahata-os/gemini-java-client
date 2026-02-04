@@ -93,7 +93,7 @@ public class ConfigManager {
         GenerateContentConfig.Builder builder = GenerateContentConfig.builder()
                 .systemInstruction(buildSystemInstructions())
                 .thinkingConfig(ThinkingConfig.builder().includeThoughts(true))
-                .maxOutputTokens(availableForResponse)
+                //.maxOutputTokens(availableForResponse)
                 .temperature(0f);
 
         if (chat.isFunctionsEnabled()) {
