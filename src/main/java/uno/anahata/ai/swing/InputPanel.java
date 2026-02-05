@@ -70,6 +70,7 @@ public class InputPanel extends JPanel {
         inputTextArea = new JXTextArea("Type your message here (Ctrl+Enter to send)");
         inputTextArea.setLineWrap(true);
         inputTextArea.setWrapStyleWord(true);
+        inputTextArea.setRows(5); // Ensure it has some initial height and handles resizing well
         
         // Undo/Redo Support
         inputTextArea.getDocument().addUndoableEditListener(e -> undoManager.addEdit(e.getEdit()));

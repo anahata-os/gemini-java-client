@@ -4,6 +4,7 @@ package uno.anahata.ai.swing;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.Part;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
@@ -17,11 +18,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
@@ -120,10 +123,17 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         contentWrapper.add(renderedContent, BorderLayout.CENTER);
         
         JScrollPane scrollPane = new JScrollPane(contentWrapper);
-        add(scrollPane, BorderLayout.CENTER);
+        // Add a bottom border to create a visible seam with the divider
+        scrollPane.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.GRAY));
+        
+        // Targeted fix for the scroll position:
+        // We do it in invokeLater to ensure it happens AFTER the focus manager 
+        // has done its initial pass when the dialog becomes visible.
+        SwingUtilities.invokeLater(() -> {
+            scrollPane.getVerticalScrollBar().setValue(0);
+        });
 
-        JPanel bottomPanel = new JPanel(new BorderLayout(0, 5));
-        JTextArea commentTextArea = new JTextArea(3, 60);
+        JTextArea commentTextArea = new JTextArea(5, 60);
         
         // Undo/Redo Support for the comment area
         UndoManager undoManager = new UndoManager();
@@ -146,7 +156,21 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         JPanel commentPanel = new JPanel(new BorderLayout());
         commentPanel.setBorder(new TitledBorder("Add Comment (Optional)"));
         commentPanel.add(new JScrollPane(commentTextArea), BorderLayout.CENTER);
-        bottomPanel.add(commentPanel, BorderLayout.CENTER);
+        // Add a top border to create a visible seam with the divider
+        commentPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, Color.GRAY),
+            commentPanel.getBorder()
+        ));
+        
+        // Use a JSplitPane to make the comment area resizable relative to the tool output
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollPane, commentPanel);
+        splitPane.setResizeWeight(0.8);
+        splitPane.setOneTouchExpandable(true);
+        splitPane.setContinuousLayout(true);
+        splitPane.setDividerSize(10);
+        splitPane.putClientProperty("FlatLaf.style", "dividerStyle: grip");
+        
+        add(splitPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton approveButton = new JButton("Confirm");
@@ -180,8 +204,7 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
 
         buttonPanel.add(cancelButton);
         buttonPanel.add(approveButton);
-        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
-        add(bottomPanel, BorderLayout.SOUTH);
+        add(buttonPanel, BorderLayout.SOUTH);
     }
 
     private Map<FunctionCall, FunctionConfirmation> collectResultsFromInteractiveRenderers(ChatConfig config) {

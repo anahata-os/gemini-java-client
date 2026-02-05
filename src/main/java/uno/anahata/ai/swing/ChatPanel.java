@@ -5,7 +5,9 @@ import com.google.genai.types.Model;
 import uno.anahata.ai.swing.render.editorkit.EditorKitProvider;
 import uno.anahata.ai.swing.render.editorkit.DefaultEditorKitProvider;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.DnDConstants;
@@ -228,6 +230,10 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         JPanel mainSouthPanel = new JPanel(new BorderLayout());
         mainSouthPanel.add(inputPanel, BorderLayout.CENTER);
         mainSouthPanel.add(statusPanel, BorderLayout.SOUTH);
+        // Ensure the south panel has a minimum height so the split pane divider is always visible and usable
+        mainSouthPanel.setMinimumSize(new Dimension(0, 150));
+        // Add a top border to create a visible seam with the divider
+        mainSouthPanel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.GRAY));
 
         // --- CENTER Panel (Tabs) ---
         chatPanel = new ConversationPanel(this);
@@ -248,6 +254,8 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         tabbedPane.addTab("Tools", functionsPanel);
         tabbedPane.addTab("Gemini API Keys", geminiKeysPanel);
         tabbedPane.addTab("Support", supportPanel);
+        // Add a bottom border to create a visible seam with the divider
+        tabbedPane.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.GRAY));
 
         tabbedPane.addChangeListener(e -> {
             Component selected = tabbedPane.getSelectedComponent();
@@ -264,8 +272,11 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tabbedPane, mainSouthPanel);
         mainSplitPane.setResizeWeight(0.8); // Give more space to the chat history initially
         mainSplitPane.setOneTouchExpandable(true);
-        mainSplitPane.setDividerSize(10); // Make it easier to grab
-        mainSplitPane.putClientProperty("JSplitPane.dividerStyle", "grip"); // Force the grip style for visibility
+        mainSplitPane.setContinuousLayout(true);
+        mainSplitPane.setDividerSize(8); // Sane size
+        
+        // Force FlatLaf grip style
+        mainSplitPane.putClientProperty("FlatLaf.style", "dividerStyle: grip");
 
         add(mainSplitPane, BorderLayout.CENTER);
 
