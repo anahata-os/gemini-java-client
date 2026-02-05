@@ -168,7 +168,6 @@ public class SwingFunctionPrompter extends JDialog implements FunctionPrompter {
         splitPane.setOneTouchExpandable(true);
         splitPane.setContinuousLayout(true);
         splitPane.setDividerSize(10);
-        splitPane.putClientProperty("FlatLaf.style", "dividerStyle: grip");
         
         add(splitPane, BorderLayout.CENTER);
 
