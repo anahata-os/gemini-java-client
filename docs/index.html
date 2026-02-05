@@ -24,17 +24,17 @@
         .hero {
             background: linear-gradient(135deg, #020617 0%, #001e3c 100%);
             border-bottom: 1px solid #1e293b;
-            padding: 4rem 0 6rem 0;
+            padding: 2rem 0 3rem 0;
             text-align: center;
         }
         
         /* Distribution Area */
         .distro-container {
-            margin-top: 4rem;
+            margin-top: 2rem;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2rem;
+            gap: 1.5rem;
         }
         .distro-group {
             display: flex;
@@ -43,12 +43,12 @@
             gap: 0.8rem;
         }
         .distro-label {
-            font-size: 0.7rem;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 3px;
             color: var(--barca-gold);
             font-weight: 800;
-            opacity: 0.8;
+            opacity: 0.9;
         }
         .distro-row {
             display: flex;
@@ -61,23 +61,23 @@
         .btn-distro {
             background: rgba(30, 41, 59, 0.6);
             border: 1px solid #334155;
-            padding: 0.8rem 1.2rem;
-            border-radius: 10px;
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             gap: 0.8rem;
             color: #fff;
             text-decoration: none;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 600;
-            font-size: 0.85rem;
+            font-weight: 700;
+            font-size: 0.9rem;
             backdrop-filter: blur(10px);
         }
         .btn-distro:hover {
             background: var(--barca-blue);
             border-color: var(--barca-gold);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
         }
         .btn-distro i { color: var(--barca-gold); font-size: 1.1rem; }
 
@@ -86,53 +86,75 @@
             background: rgba(165, 0, 68, 0.15);
             border: 1px solid var(--barca-red);
             padding: 1rem 2rem;
-            border-radius: 12px;
+            border-radius: 15px;
             display: flex;
             align-items: center;
             gap: 1rem;
             color: #fff;
             text-decoration: none;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 700;
-            font-size: 0.95rem;
+            font-weight: 800;
+            font-size: 1.1rem;
             backdrop-filter: blur(10px);
         }
         .btn-distro-wide:hover {
             background: var(--barca-red);
             border-color: var(--barca-gold);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(165, 0, 68, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(165, 0, 68, 0.4);
         }
-        .btn-distro-wide i { font-size: 1.2rem; color: var(--barca-gold); }
-        .btn-distro-wide img { height: 20px; }
+        .btn-distro-wide i { font-size: 1.3rem; color: var(--barca-gold); }
+        .btn-distro-wide img { height: 24px; }
+
+        /* Path Action Buttons */
+        .btn-path {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: 0.8rem 2rem;
+            border-radius: 12px;
+            font-weight: 800;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            border: 1px solid var(--barca-gold);
+            width: 100%;
+            max-width: 350px;
+        }
+        .btn-path:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
+        .btn-path-blue { background: var(--barca-blue); color: #fff; }
+        .btn-path-red { background: var(--barca-red); color: #fff; }
+        .btn-path-gold { background: var(--barca-gold); color: #000; border-color: #000; }
 
         /* Detailed Sections */
         .detail-section {
-            padding: 8rem 0;
+            padding: 4rem 0;
             border-bottom: 1px solid #1e293b;
         }
         .detail-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 6rem;
+            gap: 4rem;
             align-items: center;
         }
         @media (max-width: 992px) {
-            .detail-grid { grid-template-columns: 1fr; text-align: center; }
-            .detail-grid .visual { order: -1; }
+            .detail-grid { grid-template-columns: 1fr; text-align: center; gap: 2.5rem; }
+            .detail-content { order: 1 !important; }
+            .visual { order: 2 !important; }
         }
         
         .detail-content h2 {
-            font-size: 3rem;
+            font-size: 2.5rem;
             margin-bottom: 1.5rem;
             color: #fff;
             font-weight: 800;
         }
         .detail-content p {
-            font-size: 1.2rem;
-            line-height: 1.8;
+            font-size: 1.1rem;
+            line-height: 1.6;
             color: var(--text-muted);
-            margin-bottom: 2.5rem;
+            margin-bottom: 2rem;
         }
 
         /* Maven Box */
@@ -154,13 +176,17 @@
             border-radius: 20px;
             border: 1px solid #1e293b;
             box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            transition: transform 0.3s ease;
+        }
+        .visual a:hover img {
+            transform: scale(1.02);
         }
         
         .nb-badge-small {
             display: inline-block;
             padding: 0.4rem 1rem;
             border-radius: 50px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -172,26 +198,26 @@
             display: flex;
             justify-content: center;
             gap: 4rem;
-            margin-bottom: 4rem;
-            opacity: 0.8;
+            margin-top: 1rem;
+            opacity: 1;
         }
         .tech-item-mini {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.8rem;
+            gap: 0.6rem;
             color: var(--text-muted);
-            font-size: 0.8rem;
-            font-weight: 600;
+            font-size: 0.9rem;
+            font-weight: 800;
         }
-        .tech-item-mini i, .tech-item-mini img { height: 40px; font-size: 2.5rem; }
+        .tech-item-mini i, .tech-item-mini img { height: 64px; font-size: 4rem; }
 
-        /* Original Styles Restoration */
+        /* Original Content Restoration */
         .jit-image-container { margin-top: 3rem; text-align: center; }
         .jit-image-container img { max-width: 100%; border: 1px solid var(--barca-gold); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .slideshow-container { max-width: 1000px; margin: auto; position: relative; }
+        .slideshow-container { max-width: 1000px; margin: 2rem auto auto auto; position: relative; }
         .mySlides img { border-radius: 12px; border: 1px solid #333; }
-        .dark-bg { background-color: #020617; padding: 8rem 0; border-bottom: 1px solid #1e293b; }
+        .dark-bg { background-color: #020617; padding: 5rem 0; border-bottom: 1px solid #1e293b; }
         
         /* Fix for full image visibility */
         .visual {
@@ -200,6 +226,11 @@
             align-items: center;
             overflow: visible;
         }
+        
+        .section-header {
+            margin-bottom: 3rem;
+        }
+        #features { padding: 4rem 0; }
     </style>
 </head>
 <body>
@@ -216,6 +247,9 @@
                 <a href="#engine">Execution</a>
                 <a href="#showcase">Showcase</a>
                 <a href="https://anahata-os.github.io/gemini-java-client/apidocs/" target="_blank">Javadocs</a>
+                <a href="https://www.youtube.com/@anahata108" target="_blank" title="Anahata TV"><i class="fab fa-youtube"></i></a>
+                <a href="https://x.com/AnahataASI" target="_blank" title="Twitter / X"><i class="fab fa-x-twitter"></i></a>
+                <a href="https://discord.com/invite/M396BNtX" target="_blank" title="Discord"><i class="fab fa-discord"></i></a>
                 <a href="https://github.com/anahata-os/gemini-java-client" target="_blank" title="GitHub"><i class="fab fa-github"></i></a>
                 <a href="https://github.com/sponsors/anahata-os" class="btn-sponsor">Sponsor <i class="fas fa-heart"></i></a>
             </div>
@@ -226,22 +260,6 @@
         <div class="hero-overlay"></div>
         <div class="container hero-content">
             
-            <!-- Tech Stack Badges at the Top -->
-            <section class="tech-stack-mini fade-in">
-                <div class="tech-item-mini">
-                    <i class="devicon-java-plain colored"></i>
-                    <span>Java 8+</span>
-                </div>
-                <div class="tech-item-mini">
-                    <img src="https://www.anahata.uno/assets/logos/gemini.svg" alt="Gemini">
-                    <span>Gemini Optimized</span>
-                </div>
-                <div class="tech-item-mini">
-                    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/netbeans/netbeans-original.svg" alt="NetBeans">
-                    <span>NetBeans Ready</span>
-                </div>
-            </section>
-
             <div class="hero-badges fade-in">
                 <div class="nb-badge">Pure Java • Open Source • Apache Licensed</div>
             </div>
@@ -280,7 +298,7 @@
                     <div class="distro-row">
                         <a href="#netbeans" class="btn-distro-wide">
                             <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/netbeans/netbeans-original.svg" alt="NetBeans">
-                            <span>NetBeans Plugin</span>
+                            <span>Anahata in NetBeans</span>
                         </a>
                         <a href="#sdk" class="btn-distro-wide">
                             <i class="fas fa-code"></i>
@@ -288,6 +306,22 @@
                         </a>
                     </div>
                 </div>
+
+                <!-- Tech Stack Badges at the Bottom of Distro -->
+                <section class="tech-stack-mini fade-in">
+                    <div class="tech-item-mini">
+                        <i class="devicon-java-plain colored"></i>
+                        <span>Java 8+</span>
+                    </div>
+                    <div class="tech-item-mini">
+                        <img src="https://www.anahata.uno/assets/logos/gemini.svg" alt="Gemini">
+                        <span>Gemini Optimized</span>
+                    </div>
+                    <div class="tech-item-mini">
+                        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/netbeans/netbeans-original.svg" alt="NetBeans">
+                        <span>NetBeans Ready</span>
+                    </div>
+                </section>
 
             </div>
         </div>
@@ -303,12 +337,14 @@
                         <span class="nb-badge-small" style="background: var(--barca-blue); color: #fff;">The Desktop App</span>
                         <h2>Your Personal AI Butler</h2>
                         <p>The purest expression of Anahata. A high-performance, zero-overhead companion that brings autonomous JVM intelligence to your system. No IDE required—just you, the engine, and the infinite potential of Gemini.</p>
-                        <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-primary" style="width: 100%;">
+                        <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-path btn-path-blue">
                             <i class="fas fa-download"></i> Download Latest Release
                         </a>
                     </div>
                     <div class="visual">
-                        <img src="screenshots/chat-panel-interaction.png" alt="Anahata Desktop">
+                        <a href="screenshots/standalone.png" target="_blank">
+                            <img src="screenshots/standalone.png" alt="Anahata Desktop">
+                        </a>
                     </div>
                 </div>
             </div>
@@ -318,15 +354,17 @@
         <section id="netbeans" class="detail-section">
             <div class="container">
                 <div class="detail-grid">
-                    <div class="visual">
-                        <img src="screenshots/netbeans.png" alt="NetBeans Integration">
+                    <div class="visual" style="order: 2;">
+                        <a href="screenshots/netbeans.png" target="_blank">
+                            <img src="screenshots/netbeans.png" alt="NetBeans Integration">
+                        </a>
                     </div>
-                    <div class="detail-content">
+                    <div class="detail-content" style="order: 1;">
                         <span class="nb-badge-small" style="background: var(--barca-red); color: #fff;">The Plugin</span>
                         <h2>Give NetBeans Superpowers</h2>
                         <p>The cognitive upgrade for developers. Don't just use an AI; inhabit your code with a partner that understands your architecture as well as you do. Transform NetBeans into an autonomous refactoring powerhouse that executes complex tasks while you stay in the flow.</p>
-                        <a href="https://www.anahata.uno" class="btn-primary" style="width: 100%; padding: 1.5rem; font-size: 1.1rem;">
-                            <i class="fas fa-external-link-alt"></i> Visit the NetBeans Plugin Portal
+                        <a href="https://www.anahata.uno" class="btn-path btn-path-red">
+                            <i class="fas fa-external-link-alt"></i> Anahata in NetBeans
                         </a>
                     </div>
                 </div>
@@ -348,12 +386,14 @@
   &lt;version&gt;1.0.17&lt;/version&gt;
 &lt;/dependency&gt;</pre>
                         </div>
-                        <a href="https://github.com/anahata-os/gemini-java-client#getting-started" class="btn-secondary" style="width: 100%;" target="_blank">
+                        <a href="https://github.com/anahata-os/gemini-java-client#getting-started" class="btn-path btn-path-gold" target="_blank">
                             <i class="fab fa-github"></i> Getting Started Guide
                         </a>
                     </div>
                     <div class="visual">
-                        <img src="screenshots/java2schema.png" alt="SDK Schema Generation">
+                        <a href="screenshots/java2schema.png" target="_blank">
+                            <img src="screenshots/java2schema.png" alt="SDK Schema Generation">
+                        </a>
                     </div>
                 </div>
             </div>
@@ -401,7 +441,7 @@
             </div>
         </section>
 
-        <section id="showcase" class="container" style="padding: 8rem 0;">
+        <section id="showcase" class="container" style="padding: 3rem 0;">
             <div class="section-header">
                 <span class="nb-badge" style="background: var(--barca-red); color: var(--white);">Visual Intelligence</span>
                 <h2 style="margin-top: 1rem;">The Agent in Action</h2>
@@ -560,7 +600,7 @@
             </div>
         </section>
 
-        <section id="features" class="container" style="padding: 8rem 0;">
+        <section id="features" class="container">
             <div class="section-header">
                 <h2>Core Framework Features</h2>
                 <p>Everything you need to build a production-grade AI Agent in Java.</p>
@@ -599,7 +639,7 @@
             </div>
         </section>
 
-        <section id="agency" class="container" style="padding: 8rem 0;">
+        <section id="agency" class="container" style="padding: 4rem 0;">
             <div class="section-header">
                 <span class="nb-badge" style="background: var(--barca-red); color: var(--white);">Real-World Agency</span>
                 <h2 style="margin-top: 1rem;">Universal Integration</h2>
@@ -642,7 +682,10 @@
                 <h4>Resources</h4>
                 <a href="https://anahata-os.github.io/gemini-java-client/apidocs/" target="_blank">Javadocs</a>
                 <a href="https://github.com/anahata-os/gemini-java-client">GitHub</a>
-                <a href="https://www.anahata.uno">NetBeans Plugin</a>
+                <a href="https://x.com/AnahataASI" target="_blank">Twitter / X</a>
+                <a href="https://www.youtube.com/@anahata108" target="_blank">Anahata TV (YouTube)</a>
+                <a href="https://discord.com/invite/M396BNtX" target="_blank">Discord</a>
+                <a href="https://www.anahata.uno">Anahata NetBeans Plugin</a>
             </div>
             <div class="footer-legal">
                 <h4>Legal</h4>
