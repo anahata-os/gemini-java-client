@@ -78,6 +78,30 @@
             margin-top: 0.5rem;
             color: #6c757d;
         }
+        .plugin-promo {
+            background: #f0f7ff;
+            border: 1px solid #cce5ff;
+            border-radius: 16px;
+            padding: 3rem;
+            margin-top: 4rem;
+            display: flex;
+            align-items: center;
+            gap: 3rem;
+        }
+        .plugin-promo-content {
+            flex: 1;
+        }
+        .plugin-promo-icon {
+            font-size: 6rem;
+            color: #0056b3;
+        }
+        @media (max-width: 768px) {
+            .plugin-promo {
+                flex-direction: column;
+                text-align: center;
+                padding: 2rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -132,7 +156,7 @@
                 <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-download">
                     <i class="fas fa-file-archive"></i>
                     <span>Uber JAR</span>
-                    <small>Universal (Java 25+)</small>
+                    <small>Universal (Java 8+)</small>
                 </a>
                 <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-download">
                     <i class="fab fa-windows"></i>
@@ -151,8 +175,20 @@
                 </a>
             </div>
             <p style="text-align: center; margin-top: 2rem; color: #6c757d;">
-                <i class="fas fa-info-circle"></i> Native binaries include a bundled private JRE. The Uber JAR requires Java 25 or higher.
+                <i class="fas fa-info-circle"></i> Native binaries include a bundled private JRE. The Uber JAR requires Java 8 or higher.
             </p>
+
+            <div class="plugin-promo">
+                <div class="plugin-promo-icon">
+                    <i class="devicon-netbeans-plain colored"></i>
+                </div>
+                <div class="plugin-promo-content">
+                    <span class="nb-badge" style="background: #0056b3; color: white;">For Software Developers</span>
+                    <h3 style="margin-top: 1rem; font-size: 1.8rem;">The Standalone App is just the appetizer.</h3>
+                    <p style="font-size: 1.1rem; color: #495057; margin-bottom: 1.5rem;">Are you a software developer? Give NetBeans <strong>Anahata superpowers</strong> by installing our flagship plugin. It's the ultimate host for autonomous agents, providing deep IDE integration that the standalone app can only dream of.</p>
+                    <a href="https://www.anahata.uno" class="btn-primary" style="display: inline-block;"><i class="fas fa-external-link-alt"></i> Visit Anahata for NetBeans</a>
+                </div>
+            </div>
         </section>
 
         <section id="tech-stack" class="container">
@@ -447,7 +483,7 @@
 &lt;dependency&gt;
     &lt;groupId&gt;uno.anahata&lt;/groupId&gt;
     &lt;artifactId&gt;gemini-java-client&lt;/artifactId&gt;
-    &lt;version&gt;LATEST&lt;/version&gt;
+    &lt;version&gt;1.0.17&lt;/version&gt;
 &lt;/dependency&gt;</pre>
             </div>
         </section>
