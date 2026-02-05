@@ -41,6 +41,43 @@
             padding-top: 6rem;
             border-top: 1px solid #eee;
         }
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .btn-download {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #212529;
+        }
+        .btn-download:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .btn-download i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .btn-download span {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .btn-download small {
+            margin-top: 0.5rem;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -78,13 +115,46 @@
             <p class="tagline fade-in-delay">Inhabit the runtime. Master the ecosystem. Build <strong>AI Agents</strong> that don't just talk about code—they execute it. Specially engineered to exploit the full power of the Google Gemini API within the Java ecosystem.</p>
             
             <div class="hero-cta fade-in-delay-2">
-                <a href="https://central.sonatype.com/artifact/uno.anahata/gemini-java-client" class="btn-primary" target="_blank"><i class="fas fa-box"></i> Get from Maven Central</a>
-                <a href="https://github.com/anahata-os/gemini-java-client" class="btn-secondary" target="_blank"><i class="fab fa-github"></i> View Source</a>
+                <a href="#downloads" class="btn-primary"><i class="fas fa-download"></i> Download Anahata v1</a>
+                <a href="https://central.sonatype.com/artifact/uno.anahata/gemini-java-client" class="btn-secondary" target="_blank"><i class="fas fa-box"></i> Maven Central</a>
             </div>
         </div>
     </header>
 
     <main>
+        <section id="downloads" class="container">
+            <div class="section-header">
+                <span class="nb-badge" style="background: var(--primary); color: var(--white);">Anahata v1 Standalone</span>
+                <h2 style="margin-top: 1rem;">Download the Desktop App</h2>
+                <p>Run the AI Assistant as a standalone application on your desktop. No IDE required.</p>
+            </div>
+            <div class="download-grid">
+                <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-download">
+                    <i class="fas fa-file-archive"></i>
+                    <span>Uber JAR</span>
+                    <small>Universal (Java 25+)</small>
+                </a>
+                <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-download">
+                    <i class="fab fa-windows"></i>
+                    <span>Windows</span>
+                    <small>Native Launcher (.zip)</small>
+                </a>
+                <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-download">
+                    <i class="fab fa-apple"></i>
+                    <span>macOS</span>
+                    <small>App Bundle (.zip)</small>
+                </a>
+                <a href="https://github.com/anahata-os/gemini-java-client/releases/latest" class="btn-download">
+                    <i class="fab fa-linux"></i>
+                    <span>Linux</span>
+                    <small>Portable (.tar.gz)</small>
+                </a>
+            </div>
+            <p style="text-align: center; margin-top: 2rem; color: #6c757d;">
+                <i class="fas fa-info-circle"></i> Native binaries include a bundled private JRE. The Uber JAR requires Java 25 or higher.
+            </p>
+        </section>
+
         <section id="tech-stack" class="container">
             <div class="tech-grid" style="display: flex; justify-content: center; gap: 5rem; align-items: center; flex-wrap: wrap;">
                 <div class="tech-item" title="Java">
@@ -377,7 +447,7 @@
 &lt;dependency&gt;
     &lt;groupId&gt;uno.anahata&lt;/groupId&gt;
     &lt;artifactId&gt;gemini-java-client&lt;/artifactId&gt;
-    &lt;version&gt;1.0.16&lt;/version&gt;
+    &lt;version&gt;LATEST&lt;/version&gt;
 &lt;/dependency&gt;</pre>
             </div>
         </section>

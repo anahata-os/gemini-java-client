@@ -55,15 +55,18 @@ public class Main {
             log.warn("Failed to register FlatLaf IntelliJ themes", e);
         }
 
-        // Set default LAF to Dark
+        // Set default LAF to Light
         try {
-            UIManager.setLookAndFeel(new FlatDarkLaf());
+            UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (Exception e) {
-            log.warn("Failed to set default FlatDarkLaf", e);
+            log.warn("Failed to set default FlatLightLaf", e);
         }
 
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Anahata Standalone");
+            String version = Main.class.getPackage().getImplementationVersion();
+            if (version == null) version = "Development Build"; // Fallback for IDE runs
+            
+            JFrame frame = new JFrame("Anahata v1 - " + version);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setPreferredSize(new Dimension(1000, 800));
             frame.setLayout(new BorderLayout());

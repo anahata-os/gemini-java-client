@@ -9,6 +9,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Window;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DropTarget;
@@ -275,9 +276,6 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         mainSplitPane.setContinuousLayout(true);
         mainSplitPane.setDividerSize(8); // Sane size
         
-        // Force FlatLaf grip style
-        mainSplitPane.putClientProperty("FlatLaf.style", "dividerStyle: grip");
-
         add(mainSplitPane, BorderLayout.CENTER);
 
         FileDropListener fileDropListener = new FileDropListener();

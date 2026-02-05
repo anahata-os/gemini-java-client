@@ -1,0 +1,76 @@
+name: Build Standalone Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build Standalone Uber JAR
+        run: mvn clean package -Puberjar -DskipTests
+
+      - name: Get Project Version
+        shell: bash
+        run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+
+      - name: Package Native App (jpackage)
+        shell: bash
+        run: |
+          # Create app image (portable folder)
+          jpackage --name "Anahata v1" \
+                   --app-version "${{ env.VERSION }}" \
+                   --input target \
+                   --main-jar "gemini-java-client-uber-${{ env.VERSION }}.jar" \
+                   --main-class uno.anahata.ai.swing.Main \
+                   --type app-image \
+                   --dest dist
+          
+          # Zip/Tar the result for distribution
+          cd dist
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            7z a "../Anahata-v1-${{ env.VERSION }}-windows.zip" "Anahata v1"
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            zip -r "../Anahata-v1-${{ env.VERSION }}-macos.zip" "Anahata v1.app"
+          else
+            tar -czf "../Anahata-v1-${{ env.VERSION }}-linux.tar.gz" "Anahata v1"
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anahata-v1-${{ matrix.os }}
+          path: |
+            Anahata-v1-*.zip
+            Anahata-v1-*.tar.gz
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Anahata-v1-*.zip
+            Anahata-v1-*.tar.gz
+            target/gemini-java-client-uber-${{ env.VERSION }}.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
