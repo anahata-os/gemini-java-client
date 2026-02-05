@@ -13,6 +13,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
 
     steps:
       - name: Checkout Code
@@ -29,47 +31,71 @@ jobs:
         run: mvn clean package -Puberjar -DskipTests
 
       - name: Get Project Version
+        id: get_version
         shell: bash
-        run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Prepare jpackage Input
+        shell: bash
+        run: |
+          mkdir package-input
+          cp target/gemini-java-client-uber-${{ env.VERSION }}.jar package-input/
 
       - name: Package Native App (jpackage)
         shell: bash
         run: |
-          # Create app image (portable folder)
-          jpackage --name "Anahata v1" \
+          jpackage --name "Anahata-v1" \
                    --app-version "${{ env.VERSION }}" \
-                   --input target \
+                   --input package-input \
                    --main-jar "gemini-java-client-uber-${{ env.VERSION }}.jar" \
                    --main-class uno.anahata.ai.swing.Main \
                    --type app-image \
-                   --dest dist
+                   --dest dist \
+                   --verbose
           
           # Zip/Tar the result for distribution
-          cd dist
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            7z a "../Anahata-v1-${{ env.VERSION }}-windows.zip" "Anahata v1"
+            7z a "Anahata-v1-${{ env.VERSION }}-windows.zip" "./dist/Anahata-v1"
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            zip -r "../Anahata-v1-${{ env.VERSION }}-macos.zip" "Anahata v1.app"
+            cd dist && zip -r "../Anahata-v1-${{ env.VERSION }}-macos.zip" "Anahata-v1.app" && cd ..
           else
-            tar -czf "../Anahata-v1-${{ env.VERSION }}-linux.tar.gz" "Anahata v1"
+            tar -czf "Anahata-v1-${{ env.VERSION }}-linux.tar.gz" -C dist "Anahata-v1"
           fi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Anahata-v1-${{ matrix.os }}
+          name: bin-${{ matrix.os }}
           path: |
             Anahata-v1-*.zip
             Anahata-v1-*.tar.gz
+            package-input/gemini-java-client-uber-*.jar
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          pattern: bin-*
+          merge-multiple: true
 
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            Anahata-v1-*.zip
-            Anahata-v1-*.tar.gz
-            target/gemini-java-client-uber-${{ env.VERSION }}.jar
+            all-artifacts/Anahata-v1-*.zip
+            all-artifacts/Anahata-v1-*.tar.gz
+            all-artifacts/gemini-java-client-uber-*.jar
           draft: false
           prerelease: false
         env:
