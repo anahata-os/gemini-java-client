@@ -27,9 +27,6 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build Standalone Uber JAR
-        run: mvn clean package -Puberjar -DskipTests
-
       - name: Get Project Version
         id: get_version
         shell: bash
@@ -38,11 +35,17 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Build Project & Uber JAR
+        run: mvn clean package -Puberjar -DskipTests
+
       - name: Prepare jpackage Input
         shell: bash
         run: |
-          mkdir package-input
-          cp target/gemini-java-client-uber-${{ env.VERSION }}.jar package-input/
+          mkdir -p package-input/libs
+          # Copy the standard JAR (not the uber one) for jpackage bundling
+          cp target/gemini-java-client-${{ env.VERSION }}.jar package-input/
+          # Copy all runtime dependencies to the libs folder
+          mvn dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=package-input/libs
 
       - name: Package Native App (jpackage)
         shell: bash
@@ -50,7 +53,7 @@ jobs:
           jpackage --name "Anahata-v1" \
                    --app-version "${{ env.VERSION }}" \
                    --input package-input \
-                   --main-jar "gemini-java-client-uber-${{ env.VERSION }}.jar" \
+                   --main-jar "gemini-java-client-${{ env.VERSION }}.jar" \
                    --main-class uno.anahata.ai.swing.Main \
                    --type app-image \
                    --dest dist \
@@ -72,7 +75,7 @@ jobs:
           path: |
             Anahata-v1-*.zip
             Anahata-v1-*.tar.gz
-            package-input/gemini-java-client-uber-*.jar
+            target/gemini-java-client-uber-*.jar
 
   release:
     name: Create GitHub Release
