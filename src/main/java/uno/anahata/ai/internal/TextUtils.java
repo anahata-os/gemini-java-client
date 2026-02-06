@@ -49,7 +49,7 @@ public class TextUtils {
         if (grepPattern != null && !grepPattern.trim().isEmpty()) {
             Pattern pattern = Pattern.compile(grepPattern);
             filteredLines = allLines.stream()
-                    .filter(line -> pattern.matcher(line).matches())
+                    .filter(line -> pattern.matcher(line).find()) // FIXED: Use find() instead of matches()
                     .collect(Collectors.toList());
             matchingLineCountResult = filteredLines.size();
         } else {
