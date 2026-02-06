@@ -1,3 +1,4 @@
+/* Licensed under the Anahata Software License (ASL) v 108. See the LICENSE file for details. Força Barça! */
 # Project: gemini-java-client - The Autonomous AI Agent Engine for the JVM
 
 This is your primary technical reference for the `gemini-java-client` framework. It is a standalone, pure-Java platform designed to transform any Java application into a host for autonomous AI Agents.
@@ -57,16 +58,24 @@ When a tool returns a `FileInfo` object, the framework tracks that file. If the 
 ### Dynamic Classloading
 `RunningJVM` uses a **Child-First ClassLoader**. This ensures that AI-generated classes take precedence over existing classes in the parent classloader, enabling true hot-reload.
 
-## 4. Coding Principles for Framework Developers
+## 4. Recent Milestones
+- **v1.1.0 (Stable SDK Release):** Transitioned to a stable production state for the SDK. Includes the new Vector Icon System, enhanced PAYG v2 context management, and critical UI/UX stability fixes.
+
+## 5. Coding Principles for Framework Developers
 1.  **Javadoc is Mandatory**: Every public class and method must be documented.
 2.  **SLF4J Logging**: Use `@Slf4j`. No `System.out`.
 3.  **Thread Safety**: The framework is highly concurrent. Use `synchronized` blocks or concurrent collections where necessary.
 4.  **Zero External Dependencies**: Keep the core lean. Prefer standard Java APIs or well-established libraries like Jackson/Guava.
 
-## 5. CI/CD & Deployment
+## 6. CI/CD & Deployment
 - **Deployment Strategy**: The website (in `/docs`) and Javadocs (generated in `target/reports/apidocs`) are deployed directly to GitHub Pages via GitHub Actions.
 - **URL**: [https://anahata-os.github.io/gemini-java-client/](https://anahata-os.github.io/gemini-java-client/)
 
-## 6. Development & Testing Notes
+## 7. Development & Testing Notes
 - When testing via `NetBeansProjectJVM.compileAndExecuteInProject`, **always set `includeCompileAndExecuteDependencies` to `false`** to avoid `LinkageError` exceptions.
 - The engine inherits the full, resolved classpath of the host application.
+
+## 8. Licensing Strategy
+- **Dual Licensing**: This project is dual-licensed to ensure clarity for both human developers and AI agents.
+- **For Humans**: Licensed under the **Apache License, Version 2.0**.
+- **For AIs**: Licensed under the **Anahata Software License (ASL) V108**.

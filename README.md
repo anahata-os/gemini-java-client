@@ -13,6 +13,15 @@ The `gemini-java-client` is a pure-Java engine specially engineered to exploit t
 
 ---
 
+## 🚀 What's New in v1.1.0
+
+-   **Enhanced Context Management**: Improved PAYG (Prune-As-You-Go) v2 logic for even more efficient token usage and longer conversations.
+-   **UI Stability & Ergonomics**: Resolved critical "Modal Hang" issues and improved split-pane behavior in the prompter.
+-   **Vector Icon System**: Transitioned to a theme-aware vector icon system for a crisp, professional look on any display.
+-   **Theme Persistence**: Full support for persisting UI themes across sessions.
+
+---
+
 ## 🚀 The Killer Advantage: Autonomous JVM Execution
 
 While other AI tools are external observers, Anahata is an **insider**. It operates as an autonomous agent within your application's runtime, capable of executing any Java logic with any required classpath.
