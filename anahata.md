@@ -61,21 +61,27 @@ When a tool returns a `FileInfo` object, the framework tracks that file. If the 
 ## 4. Recent Milestones
 - **v1.1.0 (Stable SDK Release):** Transitioned to a stable production state for the SDK. Includes the new Vector Icon System, enhanced PAYG v2 context management, and critical UI/UX stability fixes.
 
-## 5. Coding Principles for Framework Developers
+## 5. Release Coordination (CRITICAL)
+- **Release Synchronization:** When releasing a new version of this library, you **MUST WAIT at least 5 to 10 minutes** before pushing the corresponding plugin update to GitHub.
+- **Rationale:** The GitHub Actions build for the plugin will fail if it cannot find the newly released library artifact in Maven Central. Central synchronization takes time; pushing too early will break the CI/CD pipeline.
+- **Sequential Pushing:** Never push both projects simultaneously. Ensure the library is fully published and visible in Central before triggering the plugin's release workflow.
+- **Verification Protocol:** Before pushing a plugin release that depends on a new library version, you MUST poll Maven Central (e.g., via `searchMavenIndex` or a custom scraper) to verify that the specific version is available and indexed.
+
+## 6. Coding Principles for Framework Developers
 1.  **Javadoc is Mandatory**: Every public class and method must be documented.
 2.  **SLF4J Logging**: Use `@Slf4j`. No `System.out`.
 3.  **Thread Safety**: The framework is highly concurrent. Use `synchronized` blocks or concurrent collections where necessary.
 4.  **Zero External Dependencies**: Keep the core lean. Prefer standard Java APIs or well-established libraries like Jackson/Guava.
 
-## 6. CI/CD & Deployment
+## 7. CI/CD & Deployment
 - **Deployment Strategy**: The website (in `/docs`) and Javadocs (generated in `target/reports/apidocs`) are deployed directly to GitHub Pages via GitHub Actions.
 - **URL**: [https://anahata-os.github.io/gemini-java-client/](https://anahata-os.github.io/gemini-java-client/)
 
-## 7. Development & Testing Notes
+## 8. Development & Testing Notes
 - When testing via `NetBeansProjectJVM.compileAndExecuteInProject`, **always set `includeCompileAndExecuteDependencies` to `false`** to avoid `LinkageError` exceptions.
 - The engine inherits the full, resolved classpath of the host application.
 
-## 8. Licensing Strategy
+## 9. Licensing Strategy
 - **Dual Licensing**: This project is dual-licensed to ensure clarity for both human developers and AI agents.
 - **For Humans**: Licensed under the **Apache License, Version 2.0**.
 - **For AIs**: Licensed under the **Anahata Software License (ASL) V108**.
