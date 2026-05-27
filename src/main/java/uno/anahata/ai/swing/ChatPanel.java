@@ -222,7 +222,31 @@ public class ChatPanel extends JPanel implements ContextListener, StatusListener
         modelPanel.add(modelIdComboBox);
         northPanel.add(modelPanel, BorderLayout.EAST);
         
-        add(northPanel, BorderLayout.NORTH);
+        // --- Parent Header Panel (Contains V2 Banner + North Control Panel) ---
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        
+        // Dynamic V2 Migration Banner (Barca Gold background)
+        JPanel bannerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        bannerPanel.setBackground(new Color(237, 187, 0));
+        JLabel bannerLabel = new JLabel("<html><b>Anahata V2 (ASI) is Live!</b> universal AI providers (Gemini, Claude, DeepSeek), and metabolic memory. <a href='https://asi.anahata.uno'><b>Upgrade Now!</b></a></html>");
+        bannerLabel.setForeground(Color.BLACK);
+        bannerLabel.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        bannerLabel.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                try {
+                    java.awt.Desktop.getDesktop().browse(new java.net.URI("https://asi.anahata.uno"));
+                } catch (Exception e) {
+                    log.error("Failed to open V2 homepage", e);
+                }
+            }
+        });
+        bannerPanel.add(bannerLabel);
+        
+        headerPanel.add(bannerPanel, BorderLayout.NORTH);
+        headerPanel.add(northPanel, BorderLayout.CENTER);
+        
+        add(headerPanel, BorderLayout.NORTH);
 
         // --- SOUTH Panel (Input and Status) ---
         inputPanel = new InputPanel(this);

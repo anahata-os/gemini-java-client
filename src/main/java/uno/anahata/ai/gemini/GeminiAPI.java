@@ -33,7 +33,7 @@ public class GeminiAPI {
     /**
      * Default model ID used if no other model is selected.
      */
-    public static final String DEFAULT_MODEL_ID = "gemini-3-flash-preview";
+    public static final String DEFAULT_MODEL_ID = "gemini-flash-latest";
 
     private String modelId = DEFAULT_MODEL_ID;
             

@@ -4,7 +4,13 @@
 
 # gemini-java-client: The Autonomous AI Agent Engine for the JVM
 
-**[Website](https://anahata-os.github.io/gemini-java-client/) | [Anahata TV (YouTube)](https://www.youtube.com/@anahata108) | [Discord](https://discord.gg/M396BNtX) | [v2 on its way!](https://github.com/anahata-os/anahata-asi)**
+**[Website](https://anahata-os.github.io/gemini-java-client/) | [Anahata TV (YouTube)](https://www.youtube.com/@anahata108) | [Discord](https://discord.gg/M396BNtX) | [Anahata V2 (ASI) is LIVE!](https://asi.anahata.uno)**
+
+> [!IMPORTANT]
+> **🚀 ANAHATA V2 (ASI) IS OFFICIALLY LIVE!**
+> The `gemini-java-client` has graduated to become the core engine of the **Anahata ASI Platform**. 
+> Experience stateful session passivation, AST-guided Java refactoring, in-JVM JIT compilation, and CwGC metabolic memory. 
+> Explore the new **[Anahata ASI Desktop](https://asi.anahata.uno/desktop.html)** and **[NetBeans ASI Studio](https://asi.anahata.uno/nb.html)** at the official **[asi.anahata.uno](https://asi.anahata.uno)** portal!
 
 ![Autonomous JVM Execution](screenshots/jit-compilation-and-execution.png)
 
