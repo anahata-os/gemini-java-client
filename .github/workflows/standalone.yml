@@ -35,8 +35,8 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Build Project & Uber JAR
-        run: mvn clean package -Puberjar -DskipTests
+      - name: Build Project
+        run: mvn clean package -DskipTests
 
       - name: Prepare jpackage Input
         shell: bash
@@ -75,7 +75,6 @@ jobs:
           path: |
             Anahata-v1-*.zip
             Anahata-v1-*.tar.gz
-            target/gemini-java-client-uber-*.jar
 
   release:
     name: Create GitHub Release
@@ -98,7 +97,6 @@ jobs:
           files: |
             all-artifacts/Anahata-v1-*.zip
             all-artifacts/Anahata-v1-*.tar.gz
-            all-artifacts/gemini-java-client-uber-*.jar
           draft: false
           prerelease: false
         env:
