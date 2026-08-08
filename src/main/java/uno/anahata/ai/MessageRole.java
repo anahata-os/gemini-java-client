@@ -7,8 +7,9 @@ import lombok.Getter;
 /**
  * A type-safe enum representing the role of the author of a {@link ChatMessage}.
  * <p>
- * This enum maps to the roles recognized by the Gemini API ("user", "model")
- * and includes a "tool" role for function responses.
+ * This enum maps to the roles recognized by the Gemini API ("user", "model").
+ * Note: Function responses are submitted to the API with the "user" role as required
+ * by Google's GenAI API.
  * </p>
  */
 @Getter

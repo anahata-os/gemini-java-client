@@ -387,7 +387,7 @@ public class Chat {
                 modelMessageWithCalls.addDependencies(entry.getKey(), entry.getValue());
             }
 
-            Content functionResponseContent = Content.builder().role("tool").parts(responseParts).build();
+            Content functionResponseContent = Content.builder().role("user").parts(responseParts).build();
             ChatMessage toolMessage = buildChatMessage(functionResponseContent, null, null);
             toolMessage.setDependencies(toolDependencies); // Set dependencies after creation
             messagesToAdd.add(toolMessage);
@@ -556,7 +556,7 @@ public class Chat {
         responseMap.put("output", jobInfo);
         FunctionResponse fr = FunctionResponse.builder().name("async_job_result").response(responseMap).build();
         Part part = Part.builder().functionResponse(fr).build();
-        Content notificationContent = Content.builder().role("tool").parts(part).build();
+        Content notificationContent = Content.builder().role("user").parts(part).build();
 
         ChatMessage jobResultMessage = buildChatMessage(notificationContent, null, null);
         contextManager.add(jobResultMessage);
